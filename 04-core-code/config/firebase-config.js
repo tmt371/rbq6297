@@ -2,7 +2,7 @@
 
 // [EXISTING] This is your saved configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyAHC7ZOjpipo_4f5PV8PqICLJt7rHqbs9I",
+    apiKey: "AIzaSyApwBs2pAp7-gTQlQXhPi2rHHI3P7JgjtM",
     authDomain: "ezblinds-quote-system.firebaseapp.com",
     projectId: "ezblinds-quote-system",
     storageBucket: "ezblinds-quote-system.firebasestorage.app",
