@@ -2,7 +2,7 @@
 
 // [EXISTING] This is your saved configuration
 const firebaseConfig = {
-    apiKey: "[KEY_REMOVED_FOR_SECURITY_COMMIT]",
+    apiKey: "[在此貼上您的 Google API 金鑰]",
     authDomain: "ezblinds-quote-system.firebaseapp.com",
     projectId: "ezblinds-quote-system",
     storageBucket: "ezblinds-quote-system.firebasestorage.app",
