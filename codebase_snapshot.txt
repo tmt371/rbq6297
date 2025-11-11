@@ -7028,8 +7028,17 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 101;
-    transition: transform 0.3s ease-in-out;
+    transition: transform 0.3s ease-in-out, opacity 0.3s, visibility 0.3s;
+    /* [MODIFIED] (v6298-fix-4) */
 }
+
+/* [NEW] (v6298-fix-4) Hide the toggle when logged out */
+#left-panel-toggle.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
 
 #left-panel-toggle .toggle-arrow {
     width: 20px;
@@ -7504,14 +7513,14 @@ export default {
  * 3. Â∞áÈÄô‰?ÂØ¶‰? (instances) ‰øùÂ??®‰??ã‰∏≠Â§ÆÁôªË®òË°® (this.instances) ‰∏≠„Ä?
  *
  * ?ôÁ®ÆÊ®°Â??ÑÂ•Ω??(‰æùË≥¥Ê≥®ÂÖ•):
- * - ?åËß£?¶„ÄçÔ??É‰ª∂‰∏çÈ?Ë¶ÅÁü•?ì„ÄåÂ?‰Ωï„ÄçÂª∫Á´ã„ÄåÂÖ∂ÂÆÉ‰?Ë≥¥„Äç„Ä?
+ * - ?åËß£?¶„ÄçÔ??É‰ª∂‰∏çÈ?Ë¶ÅÁü•?ì„ÄåÂ?‰Ωï„ÄçÂª∫Á´ã„ÄåÂÖ∂‰ªñ‰?Ë≥¥„Äç„Ä?
  * ‰æãÂ?Ôºå`AppController` ‰∏çÈ?Ë¶?`new WorkflowService()`ÔºåÂè™?ÄË¶ÅÂ? AppContext?åË?Ê±Ç„ÄçÂ∑≤?âÁ? `workflowService` ÂØ¶‰???
  * - ?åÂèØÊ∏¨Ë©¶?ß„ÄçÔ??®ÈÄ≤Ë??ÆÂ?Ê∏¨Ë©¶?ÇÔ??ëÂÄëÂèØ‰ª•Ë??ìÂú∞?åÊ®°?¨„Ä?mock) ‰∏¶Êõø??AppContext ‰∏≠Á??üÂØ¶?çÂ???
- * - ?åÈ?‰∏≠ÁÆ°?Ü„ÄçÔ??Ä?âÁâ©‰ª∂Á?Âª∫Á??èËºØ?ΩÈ?‰∏≠Âú®Ê≠§Ë?ÔºåÊ??ºÁÆ°?ÜÂ?Á∂≠Ë≠∑??
+ * - ?åÈ?‰∏≠ÁÆ°?Ü„ÄçÔ??Ä?âÁâ©‰ª∂Á?Âª∫Á??èËºØ?ΩÈ?‰∏≠Âú®Ê≠§Ë?Ôºå‰æø?ºÁÆ°?ÜË?Á∂≠Ë≠∑??
  *
  * Example:
- * `main.js` (ÁµÑË?Âª? ?ÉË?Ê±?AppContext Âª∫Á??Ä?âÈõ∂‰ª?(Services, Components)Ôº?
- * ?∂Â?Â∞áÈÄô‰??∂‰ª∂ (‰æãÂ? `quickQuoteView`, `appController`) ‰∫§Áµ¶ `UIManager` (Á∏ΩÊ??? ?ªÁ?Ë£ù‰∏¶Ê∏≤Ê???
+ * `main.js` (ÁµÑË?Âª? ??AppContext Ë´ãÊ?Âª∫Á??Ä?âÈõ∂‰ª?(Services, Components)Ôº?
+ * ?∂Â?Â∞áÈÄô‰??∂‰ª∂ (‰æãÂ? `quickQuoteView`, `appController`) ‰∫§Áµ¶ `UIManager` (Á∏ΩÊ??? ?≤Ë?ÁµÑË??áÊ∏≤?ì„Ä?
  * */
 export class AppContext {
     constructor() {
@@ -7529,7 +7538,7 @@ export class AppContext {
     }
 
     /**
-     * ÂæûÂÆπ?®‰∏≠?ìÂ?‰∏Ä?ãÂØ¶‰æã„Ä?
+     * ÂæûÂÆπ?®‰∏≠?êÂ?‰∏Ä?ãÂØ¶‰æã„Ä?
      * @param {string} name - Ë¶ÅÊ??ñÁ?ÂØ¶‰??çÁ®±??
      * @returns {object} - Ë®ªÂ??ÑÂØ¶‰æã„Ä?
      */
@@ -7652,11 +7661,13 @@ export class AppContext {
         // Removed f1View-f4View dependencies.
         // Injected services (stateService, calculationService) so the component
         // can dynamically instantiate views itself.
+        // [MODIFIED] (v6298) Injected authService
         const rightPanelComponent = new RightPanelComponent({
             panelElement: rightPanelElement,
             eventAggregator,
             stateService,
-            calculationService
+            calculationService,
+            authService // [NEW] (v6298) Pass auth service for F4
             // f1View, // [REMOVED]
             // f2View, // [REMOVED]
             // f3View, // [REMOVED]
@@ -7809,10 +7820,32 @@ export class AppController {
         this.workflowService = workflowService;
 
         this.autoSaveTimerId = null;
+        this.subscriptions = []; // [NEW] (v6298-fix-4) Store subscriptions
         console.log(
             'AppController (Refactored with grouped subscriptions) Initialized.'
         );
         this.initialize();
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Helper to subscribe and store the reference
+     */
+    _subscribe(eventName, handler) {
+        const boundHandler = handler.bind(this);
+        this.subscriptions.push({ eventName, handler: boundHandler });
+        this.eventAggregator.subscribe(eventName, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Destroys all subscriptions
+     */
+    destroy() {
+        this.subscriptions.forEach(({ eventName, handler }) => {
+            this.eventAggregator.unsubscribe(eventName, handler);
+        });
+        this.subscriptions = [];
+        clearInterval(this.autoSaveTimerId); // Stop autosave timer
+        console.log("AppController destroyed.");
     }
 
     initialize() {
@@ -7821,12 +7854,13 @@ export class AppController {
         this._subscribeGlobalEvents();
         this._subscribeF1Events();
         this._subscribeF3Events();
-        this._subscribeF4Events(); // [NEW] Add F4 subscription group
+        this._subscribeF4Events(); // [MODIFIED] Add F4 subscription group
 
         // This is the core of the reactive state update.
         // Any service that updates the state via StateService will trigger this,
         // which in turn re-renders the UI.
-        this.eventAggregator.subscribe(
+        // [MODIFIED] (v6298-fix-4) Use helper
+        this._subscribe(
             EVENTS.INTERNAL_STATE_UPDATED,
             (newState) => {
                 this.eventAggregator.publish(EVENTS.STATE_CHANGED, newState);
@@ -7840,53 +7874,54 @@ export class AppController {
         const delegate = (handlerName, ...args) =>
             this.quickQuoteView[handlerName](...args);
 
-        this.eventAggregator.subscribe(EVENTS.NUMERIC_KEY_PRESSED, (data) =>
+        // [MODIFIED] (v6298-fix-4) Use helper for all subscriptions
+        this._subscribe(EVENTS.NUMERIC_KEY_PRESSED, (data) =>
             delegate('handleNumericKeyPress', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_INSERT_ROW,
             () => delegate('handleInsertRow')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_DELETE_ROW,
             () => delegate('handleDeleteRow')
         );
         // [MOVED] USER_REQUESTED_SAVE moved to _subscribeF4Events
         // [MOVED] USER_REQUESTED_EXPORT_CSV moved to _subscribeF4Events
         // [MOVED] USER_REQUESTED_RESET moved to _subscribeF4Events
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_CLEAR_ROW,
             () => delegate('handleClearRow')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_MOVED_ACTIVE_CELL,
             (data) => delegate('handleMoveActiveCell', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_CYCLE_TYPE,
             () => delegate('handleCycleType')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_CALCULATE_AND_SUM,
             () => delegate('handleCalculateAndSum')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_TOGGLED_MULTI_SELECT_MODE,
             () => delegate('handleToggleMultiSelectMode')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_CHOSE_SAVE_THEN_LOAD,
             () => delegate('handleSaveThenLoad')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.TYPE_CELL_LONG_PRESSED,
             (data) => delegate('handleTypeCellLongPress', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.TYPE_BUTTON_LONG_PRESSED,
             (data) => delegate('handleTypeButtonLongPress', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_MULTI_TYPE_SET,
             () => delegate('handleMultiTypeSet')
         );
@@ -7899,7 +7934,7 @@ export class AppController {
                 this.detailConfigView[handlerName](data);
             }
         };
-        this.eventAggregator.subscribe(EVENTS.TABLE_CELL_CLICKED, (data) => {
+        this._subscribe(EVENTS.TABLE_CELL_CLICKED, (data) => {
             const { ui } = this.stateService.getState();
             if (ui.currentView === 'QUICK_QUOTE') {
                 this.quickQuoteView.handleTableCellClick(data);
@@ -7907,7 +7942,7 @@ export class AppController {
                 this.detailConfigView.handleTableCellClick(data);
             }
         });
-        this.eventAggregator.subscribe(EVENTS.SEQUENCE_CELL_CLICKED, (data) => {
+        this._subscribe(EVENTS.SEQUENCE_CELL_CLICKED, (data) => {
             const { ui } = this.stateService.getState();
             if (ui.currentView === 'QUICK_QUOTE') {
                 this.quickQuoteView.handleSequenceCellClick(data);
@@ -7917,95 +7952,95 @@ export class AppController {
         });
 
         // Detail Config View Specific Events
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_FOCUS_MODE,
             (data) => delegate('handleFocusModeRequest', data)
         );
         // [REMOVED] (Phase 3 Cleanup) Obsolete panel events
-        // this.eventAggregator.subscribe(EVENTS.PANEL_INPUT_ENTER_PRESSED, (data) => delegate('handlePanelInputEnter', data));
-        // this.eventAggregator.subscribe(EVENTS.PANEL_INPUT_BLURRED, (data) => delegate('handlePanelInputBlur', data));
-        this.eventAggregator.subscribe(
+        // this._subscribe(EVENTS.PANEL_INPUT_ENTER_PRESSED, (data) => delegate('handlePanelInputEnter', data));
+        // this._subscribe(EVENTS.PANEL_INPUT_BLURRED, (data) => delegate('handlePanelInputBlur', data));
+        this._subscribe(
             EVENTS.LOCATION_INPUT_ENTER_PRESSED,
             (data) => delegate('handleLocationInputEnter', data)
         );
         // [NEW] (v6294) Add subscription for K2 mode toggle
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_TOGGLED_K2_MODE,
             (data) => delegate('handleModeToggle', data)
         );
         // [REMOVED] (Phase 3 Cleanup) Obsolete K2 mode events
-        // this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_LF_EDIT_MODE, () => delegate('handleLFEditRequest'));
-        this.eventAggregator.subscribe(
+        // this._subscribe(EVENTS.USER_REQUESTED_LF_EDIT_MODE, () => delegate('handleLFEditRequest'));
+        this._subscribe(
             EVENTS.USER_REQUESTED_LF_DELETE_MODE,
             () => delegate('handleLFDeleteRequest')
         );
-        // this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_SSET_MODE, () => delegate('handleSSetRequest'));
-        this.eventAggregator.subscribe(
+        // this._subscribe(EVENTS.USER_REQUESTED_SSET_MODE, () => delegate('handleSSetRequest'));
+        this._subscribe(
             EVENTS.USER_TOGGLED_K3_EDIT_MODE,
             () => delegate('handleToggleK3EditMode')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_BATCH_CYCLE,
             (data) => delegate('handleBatchCycle', data)
         );
 
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.DUAL_CHAIN_MODE_CHANGED,
             (data) => delegate('handleDualChainModeChange', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.CHAIN_ENTER_PRESSED,
             (data) => delegate('handleChainEnterPressed', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.DRIVE_MODE_CHANGED,
             (data) => delegate('handleDriveModeChange', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.ACCESSORY_COUNTER_CHANGED,
             (data) => delegate('handleAccessoryCounterChange', data)
         );
     }
 
     _subscribeGlobalEvents() {
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_NAVIGATED_TO_DETAIL_VIEW,
             () => this.workflowService.handleNavigationToDetailView()
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_NAVIGATED_TO_QUICK_QUOTE_VIEW,
             () => this.workflowService.handleNavigationToQuickQuoteView()
         );
-        this.eventAggregator.subscribe(EVENTS.USER_SWITCHED_TAB, (data) =>
+        this._subscribe(EVENTS.USER_SWITCHED_TAB, (data) =>
             this.workflowService.handleTabSwitch(data)
         );
         // [MOVED] USER_REQUESTED_LOAD moved to _subscribeF4Events
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_CHOSE_LOAD_DIRECTLY,
             () => this.workflowService.handleLoadDirectly()
         );
-        this.eventAggregator.subscribe(EVENTS.FILE_LOADED, (data) =>
+        this._subscribe(EVENTS.FILE_LOADED, (data) =>
             this.workflowService.handleFileLoad(data)
         );
     }
 
     _subscribeF1Events() {
-        this.eventAggregator.subscribe(EVENTS.F1_TAB_ACTIVATED, () =>
+        this._subscribe(EVENTS.F1_TAB_ACTIVATED, () =>
             this.workflowService.handleF1TabActivation()
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.F1_DISCOUNT_CHANGED,
             (data) => this.workflowService.handleF1DiscountChange(data)
         );
     }
 
     _subscribeF3Events() {
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_PRINTABLE_QUOTE,
             () => this.workflowService.handlePrintableQuoteRequest()
         );
         // [NEW] (Phase 4, Step 1)
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_GMAIL_QUOTE,
             () => this.workflowService.handleGmailQuoteRequest()
         );
@@ -8013,21 +8048,26 @@ export class AppController {
 
     // [NEW] Centralized subscription for all F4 actions, delegating to WorkflowService.
     _subscribeF4Events() {
-        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_SAVE, () =>
+        this._subscribe(EVENTS.USER_REQUESTED_SAVE, () =>
             this.workflowService.handleSaveToFile()
         );
-        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_EXPORT_CSV, () =>
+        this._subscribe(EVENTS.USER_REQUESTED_EXPORT_CSV, () =>
             this.workflowService.handleExportCSV()
         );
-        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_LOAD, () =>
+        this._subscribe(EVENTS.USER_REQUESTED_LOAD, () =>
             this.workflowService.handleUserRequestedLoad()
         );
-        // [NEW] (Bug Fix) Add the missing subscription for the cloud load event
-        this.eventAggregator.subscribe(
+        // [NEW] (Bug Fix) Add the missing subscription for the old cloud load event (which will now fail)
+        this._subscribe(
             EVENTS.USER_REQUESTED_LOAD_FROM_CLOUD,
             () => this.workflowService.handleLoadFromCloud()
         );
-        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_RESET, () =>
+        // [NEW] (v6298) Add subscription for the new search dialog event
+        this._subscribe(
+            EVENTS.USER_REQUESTED_SEARCH_DIALOG,
+            () => this.workflowService.handleSearchDialogRequest()
+        );
+        this._subscribe(EVENTS.USER_REQUESTED_RESET, () =>
             this.workflowService.handleReset()
         );
     }
@@ -8196,7 +8236,7 @@ export class ConfigManager {
 
 /**
  * EventAggregator (Ê∫ùÈÄö‰∏≠Ê®?/ ‰∏≠Â§ÆÁ•ûÁ?Á≥ªÁµ±)
- * ÂØ¶Áèæ‰∫Ü„ÄåÁôºÂ∏?Ë®ÇÈñ±?çÊ®°ÂºèÔ??ØÊï¥?ãÊ??®Á?ÂºèÁ?‰∫ã‰ª∂?öË??∏Â??? */
+ * ÂØ¶‰?‰∫Ü„ÄåÁôºÂ∏?Ë®ÇÈñ±?çÊ®°ÂºèÔ??ØÊï¥?ãÊ??®Á?‰∫ã‰ª∂Á∏ΩÁ??∏Â??? */
 export class EventAggregator {
     constructor() {
         this.events = {};
@@ -8204,7 +8244,7 @@ export class EventAggregator {
 
     /**
      * Ë®ÇÈñ±‰∏Ä?ã‰?‰ª?     * @param {string} eventName - ‰∫ã‰ª∂?çÁ®±
-     * @param {Function} callback - ‰∫ã‰ª∂Ëß∏Áôº?ÇË??∑Ë??ÑÂ?Ë™øÂáΩÂº?     */
+     * @param {Function} callback - ‰∫ã‰ª∂Ëß∏Áôº?ÇË??∑Ë??ÑÂ?Ë™øÂáΩ??     */
     subscribe(eventName, callback) {
         if (!this.events[eventName]) {
             this.events[eventName] = [];
@@ -8213,8 +8253,21 @@ export class EventAggregator {
     }
 
     /**
+     * [NEW] ?ñÊ?Ë®ÇÈñ±‰∏Ä?ã‰?‰ª?     * @param {string} eventName - ‰∫ã‰ª∂?çÁ®±
+     * @param {Function} callback - ?àÂ?Ë®ªÂ??ÑÂ?Ë™øÂáΩ??     */
+    unsubscribe(eventName, callback) {
+        if (!this.events[eventName]) {
+            return;
+        }
+
+        this.events[eventName] = this.events[eventName].filter(
+            (cb) => cb !== callback
+        );
+    }
+
+    /**
      * ?ºÂ?‰∏Ä?ã‰?‰ª?     * @param {string} eventName - ‰∫ã‰ª∂?çÁ®±
-     * @param {*} data - Ë¶ÅÂÇ≥?ûÁµ¶Ë®ÇÈñ±?ÖÁ??∏Ê?
+     * @param {*} data - Ë¶ÅÂÇ≥?ûÁµ¶Ë®ÇÈñ±?ÖÁ?Ë≥áÊ?
      */
     publish(eventName, data) {
         if (this.events[eventName]) {
@@ -8233,7 +8286,9 @@ import { UIManager } from './ui/ui-manager.js';
 import { InputHandler } from './ui/input-handler.js';
 import { paths } from './config/paths.js';
 import { EVENTS, DOM_IDS } from './config/constants.js';
-// [REMOVED]
+// [NEW] (v6298-fix) Import reset actions
+import * as uiActions from './actions/ui-actions.js';
+import * as quoteActions from './actions/quote-actions.js';
 
 class App {
     constructor() {
@@ -8244,6 +8299,17 @@ class App {
 
         // [MODIFIED] Initialize only non-UI services first.
         this.appContext.initialize(restoredData);
+
+        // [NEW] (v6298-fix-3) Store listener reference
+        this.stateChangeListener = null;
+
+        // [NEW] (v6298-fix-4) Store references to components that need destruction
+        this.appController = null;
+        this.k1TabInputHandler = null;
+        this.k2TabInputHandler = null;
+        this.k3TabInputHandler = null;
+        this.k4TabInputHandler = null;
+        this.k5TabInputHandler = null;
     }
 
     async _loadPartials() {
@@ -8338,6 +8404,8 @@ class App {
         // [NEW] (v6297) Get Auth Service early
         const authService = this.appContext.get('authService');
         const eventAggregator = this.appContext.get('eventAggregator');
+        // [NEW] (v6298-fix) Get State Service for reset
+        const stateService = this.appContext.get('stateService');
 
         // [NEW] (v6297) Observe auth state
         authService.observeAuthState(
@@ -8350,12 +8418,42 @@ class App {
                     this._initializeAppUI(eventAggregator);
                 }
             },
-            (user) => {
+            () => { // [MODIFIED] (v6298-fix) Removed 'user' param, it's null
                 // --- On User Logged Out ---
                 console.log("No user logged in. Showing login screen.");
+
+                // [NEW] (v6298-fix) Reset application state and UI
+                this._resetApplicationState(stateService, eventAggregator); // [MODIFIED] (v6298-fix-3) Pass aggregator
+
                 // Show login screen, hide app
                 document.getElementById('login-container')?.classList.remove('is-hidden');
                 document.getElementById(DOM_IDS.APP)?.classList.add('is-hidden');
+
+                // [NEW] (v6298-fix) Force-hide panels that might be expanded
+                document.getElementById(DOM_IDS.FUNCTION_PANEL)?.classList.remove('is-expanded');
+                document.getElementById(DOM_IDS.LEFT_PANEL)?.classList.remove('is-expanded');
+
+                // [NEW] (v6298-fix-4) Force-hide panel toggles
+                document.getElementById(DOM_IDS.FUNCTION_PANEL_TOGGLE)?.classList.add('is-hidden');
+                document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE)?.classList.add('is-hidden');
+
+
+                // [NEW] (v6298-fix-2) Manually reset the login form's DOM state
+                const loginButton = document.getElementById('login-button');
+                const loginPassword = document.getElementById('login-password');
+                const loginErrorMessage = document.getElementById('login-error-message');
+
+                if (loginButton) {
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'Login';
+                }
+                if (loginPassword) {
+                    loginPassword.value = ''; // Clear password field
+                }
+                if (loginErrorMessage) {
+                    loginErrorMessage.classList.add('is-hidden');
+                    loginErrorMessage.textContent = '';
+                }
             }
         );
 
@@ -8365,7 +8463,7 @@ class App {
 
         // [NEW] (v6297) Initialize the login form handler *immediately* after loading partials.
         // This fixes the bug where the login button did nothing.
-        this._initializeLoginHandler(authService);
+        this._initializeLoginHandler(authService, eventAggregator); // [MODIFIED] (v6298) Pass eventAggregator
 
         // [REMOVED] (v6297) We no longer initialize the UI here.
         // It will be initialized by the auth observer callback.
@@ -8375,15 +8473,77 @@ class App {
     }
 
     /**
+     * [NEW] (v6298-fix) Resets the entire application state and destroys UI instances.
+     */
+    _resetApplicationState(stateService, eventAggregator) { // [MODIFIED] (v6298-fix-3)
+        if (!stateService) return;
+
+        // [NEW] (v6298-fix-4) Destroy all components that have listeners
+        if (this.appController) {
+            this.appController.destroy();
+            this.appController = null;
+        }
+        if (this.k1TabInputHandler) {
+            this.k1TabInputHandler.destroy();
+            this.k1TabInputHandler = null;
+        }
+        if (this.k2TabInputHandler) {
+            this.k2TabInputHandler.destroy();
+            this.k2TabInputHandler = null;
+        }
+        if (this.k3TabInputHandler) {
+            this.k3TabInputHandler.destroy();
+            this.k3TabInputHandler = null;
+        }
+        if (this.k4TabInputHandler) {
+            this.k4TabInputHandler.destroy();
+            this.k4TabInputHandler = null;
+        }
+        if (this.k5TabInputHandler) {
+            this.k5TabInputHandler.destroy();
+            this.k5TabInputHandler = null;
+        }
+        // [END v6298-fix-4]
+
+        // [NEW] (v6298-fix-3) Destroy components *before* nulling them
+        if (this.inputHandler) {
+            this.inputHandler.destroy();
+        }
+        if (this.uiManager) {
+            this.uiManager.destroy();
+        }
+
+        // 1. Nullify instances to force re-initialization on next login
+        // [MODIFIED] (v6298-fix-2) This MUST happen first to prevent the race condition.
+        this.uiManager = null;
+        this.inputHandler = null; // Assuming InputHandler is property of App
+
+        // [NEW] (v6298-fix-3) Unsubscribe the main render listener
+        if (this.stateChangeListener) {
+            eventAggregator.unsubscribe(EVENTS.STATE_CHANGED, this.stateChangeListener);
+            this.stateChangeListener = null;
+        }
+
+        // 2. Dispatch actions to reset the state to its initial value
+        stateService.dispatch(quoteActions.resetQuoteData());
+        stateService.dispatch(uiActions.resetUi());
+
+        console.log("Application state and UI instances have been reset.");
+    }
+
+
+    /**
      * [NEW] (v6297) (FIX) This logic is moved from UIManager to main.js
      * It runs *before* authentication to make the login form interactive.
+     * [MODIFIED] (v6298) Added forgot password logic.
      */
-    _initializeLoginHandler(authService) {
+    _initializeLoginHandler(authService, eventAggregator) {
         const loginForm = document.getElementById('login-form');
         const loginButton = document.getElementById('login-button');
         const loginEmail = document.getElementById('login-email');
         const loginPassword = document.getElementById('login-password');
         const loginErrorMessage = document.getElementById('login-error-message');
+        const forgotPasswordLink = document.getElementById(DOM_IDS.FORGOT_PASSWORD_LINK); // [NEW] (v6298)
 
         if (!loginForm || !authService) {
             console.warn("Login form or AuthService not found, login cannot be initialized.");
@@ -8413,6 +8573,35 @@ class App {
                 loginButton.textContent = 'Login';
             }
         });
+
+        // [NEW] (v6298) Add listener for "Forgot Password"
+        if (forgotPasswordLink) {
+            forgotPasswordLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const email = loginEmail.value || window.prompt('Please enter your account email to receive a password reset link:');
+
+                if (!email) {
+                    eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                        message: 'Email address is required.',
+                        type: 'error',
+                    });
+                    return;
+                }
+
+                loginErrorMessage.classList.add('is-hidden');
+                const result = await authService.sendPasswordReset(email);
+
+                if (result.success) {
+                    eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                        message: result.message,
+                        type: 'info',
+                    });
+                } else {
+                    loginErrorMessage.textContent = result.message;
+                    loginErrorMessage.classList.remove('is-hidden');
+                }
+            });
+        }
     }
 
     /**
@@ -8425,16 +8614,22 @@ class App {
         this.appContext.initializeUIComponents();
 
         // Step 3: Get all fully initialized instances from the context.
+        // [MODIFIED] (v6298-fix-4) Store references
         const calculationService = this.appContext.get('calculationService');
         const configManager = this.appContext.get('configManager');
-        const appController = this.appContext.get('appController');
+        this.appController = this.appContext.get('appController');
         const rightPanelComponent = this.appContext.get('rightPanelComponent');
         const leftPanelTabManager = this.appContext.get('leftPanelTabManager');
         const k1TabComponent = this.appContext.get('k1TabComponent');
+        this.k1TabInputHandler = this.appContext.get('k1TabInputHandler');
         const k2TabComponent = this.appContext.get('k2TabComponent');
+        this.k2TabInputHandler = this.appContext.get('k2TabInputHandler');
         const k3TabComponent = this.appContext.get('k3TabComponent');
+        this.k3TabInputHandler = this.appContext.get('k3TabInputHandler');
         const k4TabComponent = this.appContext.get('k4TabComponent');
+        this.k4TabInputHandler = this.appContext.get('k4TabInputHandler');
         const k5TabComponent = this.appContext.get('k5TabComponent');
+        this.k5TabInputHandler = this.appContext.get('k5TabInputHandler');
 
         // [REMOVED]
 
@@ -8457,11 +8652,17 @@ class App {
         // Step 5: Continue with the rest of the application startup.
         await configManager.initialize();
 
-        eventAggregator.subscribe(EVENTS.STATE_CHANGED, (state) => {
-            this.uiManager.render(state);
-        });
+        // [MODIFIED] (v6298-fix-3) Store the listener reference
+        this.stateChangeListener = (state) => {
+            // Only render if the uiManager instance still exists.
+            // This check will fail during logout, preventing the crash.
+            if (this.uiManager) {
+                this.uiManager.render(state);
+            }
+        };
+        eventAggregator.subscribe(EVENTS.STATE_CHANGED, this.stateChangeListener);
 
-        appController.publishInitialState();
+        this.appController.publishInitialState(); // [MODIFIED] (v6298-fix-4) Use stored ref
 
         this.inputHandler = new InputHandler(eventAggregator);
         this.inputHandler.initialize();
@@ -8477,6 +8678,10 @@ class App {
         // [NEW] (v6297) Show the app and hide the login screen
         document.getElementById('login-container')?.classList.add('is-hidden');
         document.getElementById(DOM_IDS.APP)?.classList.remove('is-hidden');
+
+        // [NEW] (v6298-fix-4) Show panel toggles
+        document.getElementById(DOM_IDS.FUNCTION_PANEL_TOGGLE)?.classList.remove('is-hidden');
+        document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE)?.classList.remove('is-hidden');
 
         console.log("Main App UI Initialized and interactive.");
     }
@@ -9066,11 +9271,17 @@ export const EVENTS = {
     USER_REQUESTED_EXPORT_CSV: 'userRequestedExportCSV',
     USER_REQUESTED_RESET: 'userRequestedReset',
     USER_REQUESTED_LOAD: 'userRequestedLoad',
-    USER_REQUESTED_LOAD_FROM_CLOUD: 'userRequestedLoadFromCloud', // [NEW]
+    USER_REQUESTED_LOAD_FROM_CLOUD: 'userRequestedLoadFromCloud', // [MODIFIED] This is now the OLD button event
     USER_CHOSE_SAVE_THEN_LOAD: 'userChoseSaveThenLoad',
     USER_CHOSE_LOAD_DIRECTLY: 'userChoseLoadDirectly',
     TRIGGER_FILE_LOAD: 'triggerFileLoad',
     FILE_LOADED: 'fileLoaded',
+
+    // --- [NEW] v6298 F4 & Auth Events ---
+    USER_REQUESTED_LOGOUT: 'userRequestedLogout',
+    USER_REQUESTED_PASSWORD_RESET: 'userRequestedPasswordReset',
+    USER_REQUESTED_SEARCH_DIALOG: 'userRequestedSearchDialog',
+    // --- End v6298 ---
 
     // --- User Actions: F1/F2 Panels ---
     F1_TAB_ACTIVATED: 'f1TabActivated',
@@ -9144,6 +9355,20 @@ export const DOM_IDS = {
     // --- F3 Panel Elements ---
     BTN_ADD_QUOTE: 'btn-add-quote', // [NEW]
     BTN_GTH: 'btn-gth', // [NEW]
+
+    // --- [NEW] v6298 F4 Panel Elements ---
+    F4_BTN_SEARCH_DIALOG: 'f4-key-search-dialog',
+    F4_BTN_LOGOUT: 'f4-key-logout',
+
+    // --- [NEW] v6298 Search Dialog Elements ---
+    DIALOG_SEARCH_INPUT: 'dialog-search-input',
+    DIALOG_SEARCH_BUTTON: 'dialog-search-button',
+    DIALOG_SEARCH_RESULTS: 'dialog-search-results',
+    DIALOG_SEARCH_MESSAGE: 'dialog-search-message',
+
+    // --- [NEW] v6298 Login Page Elements ---
+    FORGOT_PASSWORD_LINK: 'forgot-password-link',
+    // --- End v6298 ---
 
     // --- Dialog-specific Elements ---
     DIALOG_INPUT_1CH: 'dialog-input-1ch',
@@ -10093,6 +10318,7 @@ import {
     signInWithEmailAndPassword,
     onAuthStateChanged,
     signOut,
+    sendPasswordResetEmail, // [NEW] Import the password reset function
 } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js';
 
 /**
@@ -10140,6 +10366,27 @@ export class AuthService {
             console.error('Logout failed:', error);
         }
     }
+
+    /**
+     * [NEW] Sends a password reset email to the provided email address.
+     * @param {string} email
+     * @returns {Promise<{success: boolean, message: string}>}
+     */
+    async sendPasswordReset(email) {
+        if (!email) {
+            return { success: false, message: 'Email is required to send a reset link.' };
+        }
+        try {
+            await sendPasswordResetEmail(auth, email);
+            console.log('Password reset email sent to:', email);
+            return { success: true, message: `Password reset link sent to ${email}. Please check your inbox.` };
+        } catch (error) {
+            console.error('Password reset failed:', error.code, error.message);
+            const friendlyMessage = this._mapErrorToMessage(error.code);
+            return { success: false, message: friendlyMessage };
+        }
+    }
+
 
     /**
      * Attaches a listener to Firebase Auth state changes.
@@ -11232,43 +11479,47 @@ export class MigrationService {
 
 --- FILE START: 04-core-code/services/online-storage-service.js ---
 // 04-core-code/services/online-storage-service.js
-// (?ôÊòØ?∞Â??ÑÊ?Ê°?
+// (Ê≠§ÁÇ∫?∞Ê???
 
 import { db } from '../config/firebase-config.js';
 import {
     doc,
     setDoc,
     getDoc,
+    collection, // [NEW] Import collection
+    query, // [NEW] Import query
+    where, // [NEW] Import where
+    getDocs, // [NEW] Import getDocs
 } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js';
 
 /**
- * Â∞áÂ??¥Á??±ÂÉπ?ÆÁâ©‰ª∂Ô??ÖÂê´ f1Snapshot ??f2SnapshotÔºâÂÑ≤Â≠òÊ?Ë¶ÜË???Firestore??
- * @param {object} quoteData - Ë¶ÅÂÑ≤Â≠òÁ??±ÂÉπ?ÆÁâ©‰ª∂„Ä?
+ * Â∞áÂ??¥Á??±ÂÉπ?©‰ª∂ÔºàÂ???f1Snapshot ??f2SnapshotÔºâÂÑ≤Â≠òÊ?Ë¶ÜË???Firestore??
+ * @param {object} quoteData - Ê¨≤ÂÑ≤Â≠òÁ??±ÂÉπ?©‰ª∂??
  * @returns {object} - ‰∏Ä?ãÂ???{ success, message } ?ÑÁâ©‰ª∂„Ä?
  */
 export async function saveQuoteToCloud(quoteData) {
     if (!quoteData || !quoteData.quoteId) {
-        const errorMsg = '?°Ê??≤Â?ÔºöQuote ID ?∫Á©∫??;
+        const errorMsg = '?≤Â?Â§±Ê?ÔºöQuote ID ?∫Á©∫??;
         console.error(errorMsg);
         return { success: false, message: errorMsg };
     }
 
     try {
-        // 'quotes' ?ØË??ôÂ∫´‰∏≠Á??åÈ??à„ÄçÂ?Á®±Ô??èË??ôÂ§æÔº?
-        // quoteData.quoteId ?Ø„ÄåÊ?‰ª∂„ÄçÂ?Á®±Ô??èÊ?Ê°àÂ?Á®±Ô?
+        // 'quotes' ?ØË??ôÂ∫´‰∏≠Á??ÜÂ??çÁ®±ÔºàË??ôÂ§æÔº?
+        // quoteData.quoteId ?Ø„ÄåÊ?‰ª∂„ÄçÂ?Á®±Ô?Ê™îÊ??çÁ®±Ôº?
         await setDoc(doc(db, 'quotes', quoteData.quoteId), quoteData);
-        const successMsg = `?êÂ??≤Â??≥Èõ≤Á´? ${quoteData.quoteId}`;
+        const successMsg = `?±ÂÉπ?ÆÂ∑≤?≤Â??≥Èõ≤Á´?${quoteData.quoteId}`;
         console.log(successMsg);
         return { success: true, message: successMsg };
     } catch (e) {
-        console.error('?≤Â??≥Èõ≤Á´ØÂ§±??', e);
-        return { success: false, message: `?≤Â??≥Èõ≤Á´ØÂ§±?? ${e.message}` };
+        console.error('?≤Â??≥Èõ≤Á´ØÂ§±?óÔ?', e);
+        return { success: false, message: `?≤Â??≥Èõ≤Á´ØÂ§±?óÔ? ${e.message}` };
     }
 }
 
 /**
  * ?πÊ? Quote ID Âæ?Firestore ËÆÄ?ñ‰?‰ªΩÂ†±?πÂñÆ?á‰ª∂??
- * @param {string} quoteId - Ë¶ÅË??ñÁ??±ÂÉπ??ID??
+ * @param {string} quoteId - Ê¨≤Ë??ñÁ??±ÂÉπ??ID??
  * @returns {object} - ‰∏Ä?ãÂ???{ success, data, message } ?ÑÁâ©‰ª∂„Ä?
  */
 export async function loadQuoteFromCloud(quoteId) {
@@ -11281,11 +11532,11 @@ export async function loadQuoteFromCloud(quoteId) {
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-            console.log('?êÂ?ÂæûÈõ≤Á´ØË???', quoteId);
+            console.log('Â∑≤Â??≤Á´ØËÆÄ?ñÔ?', quoteId);
             return {
                 success: true,
                 data: docSnap.data(),
-                message: '?êÂ?ÂæûÈõ≤Á´ØË??ñ„Ä?,
+                message: 'Â∑≤Â??≤Á´ØËÆÄ?ñ„Ä?,
             };
         } else {
             const errorMsg = '?®Ë??ôÂ∫´‰∏≠Êâæ‰∏çÂà∞Ë©≤Á??±ÂÉπ?Æ„Ä?;
@@ -11293,12 +11544,75 @@ export async function loadQuoteFromCloud(quoteId) {
             return { success: false, data: null, message: errorMsg };
         }
     } catch (e) {
-        console.error('ÂæûÈõ≤Á´ØË??ñÂ§±??', e);
+        console.error('ÂæûÈõ≤Á´ØË??ñÂ§±?óÔ?', e);
+        // [MODIFIED] ?ïÊ?Ê¨äÈ??ØË™§
+        if (e.code === 'permission-denied') {
+            return {
+                success: false,
+                data: null,
+                message: 'Ê¨äÈ?‰∏çË∂≥?ÇÊÇ®?ØËÉΩÊ≤íÊ?Ê¨äÈ?ËÆÄ?ñÊ≠§Ê™îÊ?ÔºåÊ??ÖÊ?Ê°à‰?Â≠òÂú®??,
+            };
+        }
         return {
             success: false,
             data: null,
             message: `ËÆÄ?ñÊ??ºÁ??ØË™§: ${e.message}`,
         };
+    }
+}
+
+/**
+ * [NEW] ?πÊ??ªÂÖ•??UID ??ÂÆ¢Êà∂?çÁ®± ?úÂ??±ÂÉπ?Æ„Ä?
+ * @param {string} uid - ?ªÂÖ•?ÖÁ? Firebase UID??
+ * @param {string} customerName - Ê¨≤Ê?Â∞ãÁ?ÂÆ¢Êà∂?çÁ®±??
+ * @returns {Promise<{success: boolean, data: Array, message: string}>}
+ */
+export async function searchQuotesByOwner(uid, customerName) {
+    if (!uid) {
+        return { success: false, data: [], message: 'User ID is missing.' };
+    }
+    if (!customerName) {
+        return { success: false, data: [], message: 'Customer Name is required for search.' };
+    }
+
+    try {
+        // Âª∫Á?‰∏Ä?ãË??àÊü•Ë©?(Compound Query)
+        const q = query(
+            collection(db, 'quotes'),
+            where("ownerUid", "==", uid),
+            where("customer.name", "==", customerName)
+        );
+
+        const querySnapshot = await getDocs(q);
+        const results = [];
+        querySnapshot.forEach((doc) => {
+            results.push(doc.data());
+        });
+
+        if (results.length === 0) {
+            return { success: true, data: [], message: 'No quotes found matching that criteria.' };
+        }
+
+        return { success: true, data: results, message: `Found ${results.length} quotes.` };
+    } catch (e) {
+        console.error('Search failed:', e);
+
+        // **?úÈçµÔºöÊ??âÁ¥¢ÂºïÈåØË™?*
+        if (e.code === 'failed-precondition') {
+            const indexCreationURL = e.message.match(/(https?:\/\/[^\s]+)/);
+            if (indexCreationURL && indexCreationURL[0]) {
+                const url = indexCreationURL[0];
+                console.warn(`Firestore Á¥¢Â?Áº∫Â§±?ÇË?ÈªûÊ?Ê≠§ÈÄ??Âª∫Á?Á¥¢Â?Ôº?${url}`);
+                return {
+                    success: false,
+                    data: [],
+                    message: 'A required database index is missing. A link to create it has been logged to the console (F12). Please ask the administrator to create the index.',
+                    needsIndex: true, // ?πÊ?Ê®ôË?
+                    indexUrl: url
+                };
+            }
+        }
+        return { success: false, data: [], message: `Search error: ${e.message}` };
     }
 }
 --- FILE END ---
@@ -11914,6 +12228,7 @@ import { paths } from '../config/paths.js';
 import {
     saveQuoteToCloud,
     loadQuoteFromCloud,
+    searchQuotesByOwner, // [NEW] (v6298) Import search function
 } from './online-storage-service.js';
 
 /**
@@ -11938,7 +12253,7 @@ export class WorkflowService {
         this.productFactory = productFactory;
         this.detailConfigView = detailConfigView;
         this.quoteGeneratorService = quoteGeneratorService; // [NEW] Store the injected service
-        this.authService = authService; // [NEW] (v6S97) Store authService
+        this.authService = authService; // [NEW] (v6297) Store authService
         this.quotePreviewComponent = null; // Will be set by AppContext
 
         console.log('WorkflowService Initialized.');
@@ -12206,12 +12521,15 @@ export class WorkflowService {
         this.eventAggregator.publish(EVENTS.TRIGGER_FILE_LOAD);
     }
 
-    // [NEW] Handle request to load from cloud
-    async handleLoadFromCloud() {
-        const quoteId = window.prompt(
-            'Ë´ãËº∏?•Ë?ËÆÄ?ñÁ? Quote ID (‰æãÂ?: RB2024103114):'
-        );
-        if (!quoteId || quoteId.trim() === '') return;
+    // [MODIFIED] (v6298) Refactored to be a simple loader.
+    async handleLoadFromCloud(quoteId) {
+        if (!quoteId || quoteId.trim() === '') {
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Invalid Quote ID.',
+                type: 'error',
+            });
+            return;
+        }
 
         const result = await loadQuoteFromCloud(quoteId.trim());
 
@@ -12225,6 +12543,199 @@ export class WorkflowService {
             });
         }
     }
+
+    // [NEW] (v6298) Handles the new search dialog workflow
+    handleSearchDialogRequest() {
+        this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
+            message: 'Search Cloud Storage',
+            gridTemplateColumns: '1fr',
+            layout: [
+                [
+                    {
+                        type: 'input',
+                        id: DOM_IDS.DIALOG_SEARCH_INPUT,
+                        placeholder: 'Enter Customer Name...',
+                        inputType: 'text',
+                        colspan: 1,
+                        disableEnterConfirm: true, // We have a dedicated search button
+                    },
+                ],
+                [
+                    {
+                        type: 'button',
+                        text: 'Search',
+                        id: DOM_IDS.DIALOG_SEARCH_BUTTON,
+                        className: 'primary-confirm-button',
+                        colspan: 1,
+                        callback: () => {
+                            const input = document.getElementById(DOM_IDS.DIALOG_SEARCH_INPUT);
+                            const customerName = input ? input.value : '';
+                            this._executeSearch(customerName);
+                            return false; // Keep dialog open
+                        },
+                    },
+                ],
+                [
+                    {
+                        type: 'text',
+                        text: 'Enter a customer name and press Search.',
+                        id: DOM_IDS.DIALOG_SEARCH_MESSAGE,
+                        className: 'search-message',
+                        colspan: 1,
+                    },
+                ],
+                [
+                    {
+                        type: 'button',
+                        text: 'Cancel',
+                        className: 'secondary',
+                        colspan: 1,
+                        callback: () => {
+                            this.stateService.dispatch(uiActions.setModalActive(false));
+                            return true; // Close dialog
+                        },
+                    },
+                ],
+            ],
+            onOpen: () => {
+                this.stateService.dispatch(uiActions.setModalActive(true));
+                const input = document.getElementById(DOM_IDS.DIALOG_SEARCH_INPUT);
+                const searchButton = document.getElementById(DOM_IDS.DIALOG_SEARCH_BUTTON);
+                if (input) {
+                    input.addEventListener('keydown', (event) => {
+                        if (event.key === 'Enter') {
+                            event.preventDefault();
+                            searchButton?.click();
+                        }
+                    });
+                    setTimeout(() => input.focus(), 50);
+                }
+            },
+            closeOnOverlayClick: false,
+        });
+    }
+
+    // [NEW] (v6298) Private helper to execute search and show results
+    async _executeSearch(customerName) {
+        if (!customerName || customerName.trim() === '') {
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Customer name is required.', type: 'error' });
+            return;
+        }
+
+        if (!this.authService || !this.authService.currentUser) {
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'You must be logged in to search.', type: 'error' });
+            return;
+        }
+
+        const uid = this.authService.currentUser.uid;
+        const result = await searchQuotesByOwner(uid, customerName.trim());
+
+        if (result.needsIndex) {
+            // Firestore Indexing Error
+            this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
+                message: 'Database Index Required',
+                gridTemplateColumns: '1fr',
+                layout: [
+                    [
+                        { type: 'text', text: 'To enable search, a database index must be created. This is a one-time setup.' },
+                    ],
+                    [
+                        { type: 'text', text: 'Please copy the link from the browser console (F12) and follow the instructions.' },
+                    ],
+                    [
+                        {
+                            type: 'button', text: 'Close', className: 'secondary', callback: () => {
+                                this.stateService.dispatch(uiActions.setModalActive(false));
+                                return true;
+                            }
+                        }
+                    ]
+                ],
+                onOpen: () => this.stateService.dispatch(uiActions.setModalActive(true)),
+                closeOnOverlayClick: false
+            });
+        } else if (result.success) {
+            // Show results (or no results message)
+            this._showSearchResultsDialog(result.data, result.message);
+        } else {
+            // Show other errors
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: result.message, type: 'error' });
+        }
+    }
+
+    // [NEW] (v6298) Private helper to show search results in a new dialog
+    _showSearchResultsDialog(results, message) {
+        const layout = [];
+
+        if (results.length > 0) {
+            // Create a scrollable list of buttons
+            const resultsHtml = results
+                .sort((a, b) => (b.issueDate || '').localeCompare(a.issueDate || '')) // Sort descending
+                .map(quote =>
+                    `<button class="dialog-button search-result-button" data-quote-id="${quote.quoteId}">
+                        <strong>${quote.quoteId}</strong> (${quote.issueDate || 'No Date'})
+                        <br>
+                        <small>${quote.customer.name || 'No Name'}</small>
+                    </button>`
+                ).join('');
+
+            layout.push([
+                {
+                    type: 'html', // Custom type to inject raw HTML
+                    html: `<div id="${DOM_IDS.DIALOG_SEARCH_RESULTS}">${resultsHtml}</div>`
+                }
+            ]);
+        } else {
+            // Show the "no results" message
+            layout.push([
+                {
+                    type: 'text',
+                    text: message,
+                    id: DOM_IDS.DIALOG_SEARCH_MESSAGE,
+                    className: 'search-message',
+                }
+            ]);
+        }
+
+        // Add Back and Close buttons
+        layout.push([
+            {
+                type: 'button', text: 'Back to Search', className: 'secondary',
+                callback: () => {
+                    this.handleSearchDialogRequest(); // Re-open the first dialog
+                    return false; // Prevent this dialog from closing
+                }
+            },
+            {
+                type: 'button', text: 'Close', className: 'secondary',
+                callback: () => {
+                    this.stateService.dispatch(uiActions.setModalActive(false));
+                    return true;
+                }
+            }
+        ]);
+
+        this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
+            message: `Search Results (${results.length})`,
+            gridTemplateColumns: '1fr 1fr',
+            layout: layout,
+            onOpen: () => {
+                this.stateService.dispatch(uiActions.setModalActive(true));
+                // Add listeners to the new result buttons
+                const resultsContainer = document.getElementById(DOM_IDS.DIALOG_SEARCH_RESULTS);
+                resultsContainer?.addEventListener('click', (event) => {
+                    const button = event.target.closest('.search-result-button');
+                    if (button && button.dataset.quoteId) {
+                        const quoteId = button.dataset.quoteId;
+                        this.stateService.dispatch(uiActions.setModalActive(false)); // Hide dialog
+                        this.handleLoadFromCloud(quoteId); // Load the selected quote
+                    }
+                });
+            },
+            closeOnOverlayClick: false,
+        });
+    }
+
 
     // [REFACTORED] Extracted file load logic into a private helper
     _dispatchLoadActions(data, message) {
@@ -12641,6 +13152,10 @@ export class DialogComponent {
                         button.classList.add(...cellConfig.className.split(' '));
                     }
                     button.textContent = cellConfig.text;
+                    // [NEW] (v6298) Add ID if provided
+                    if (cellConfig.id) {
+                        button.id = cellConfig.id;
+                    }
 
                     button.addEventListener('click', () => {
                         let shouldHide = true;
@@ -12690,7 +13205,16 @@ export class DialogComponent {
                 } else if (cellConfig.type === 'text') {
                     cell.classList.add('text-cell');
                     cell.textContent = cellConfig.text;
+                    // [NEW] (v6298) Add ID if provided
+                    if (cellConfig.id) {
+                        cell.id = cellConfig.id;
+                    }
+                    // [NEW] (v6298) Support for injecting raw HTML (for search results)
+                } else if (cellConfig.type === 'html') {
+                    cell.classList.add('html-cell');
+                    cell.innerHTML = cellConfig.html || '';
                 }
+
 
                 if (cellConfig.className && cellConfig.type !== 'button') {
                     cell.classList.add(...cellConfig.className.split(' '));
@@ -12734,7 +13258,54 @@ export class InputHandler {
         this.longPressTimer = null;
         this.pressThreshold = 500; // 500ms for a long press
         this.isLongPress = false;
+
+        // [NEW] (v6298-fix-4) Store references for easy removal
+        this.boundHandlers = [];
+        this.aggregatorSubscriptions = [];
+        this.fileLoader = document.getElementById(DOM_IDS.FILE_LOADER);
+        this.numericToggle = document.getElementById(DOM_IDS.PANEL_TOGGLE);
+        this.keyboard = document.getElementById(DOM_IDS.NUMERIC_KEYBOARD);
+        this.table = document.getElementById(DOM_IDS.RESULTS_TABLE);
     }
+
+    /**
+     * [NEW] (v6298-fix-4) Adds an event listener and stores its reference for removal.
+     */
+    _addListener(element, event, handler, options = {}) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler, options });
+        element.addEventListener(event, boundHandler, options);
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Subscribes to the event aggregator and stores the reference.
+     */
+    _subscribe(eventName, handler) {
+        const boundHandler = handler.bind(this);
+        this.aggregatorSubscriptions.push({ eventName, handler: boundHandler });
+        this.eventAggregator.subscribe(eventName, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Removes all registered listeners and subscriptions.
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler, options }) => {
+            if (element) { // Add check if element still exists
+                element.removeEventListener(event, handler, options);
+            }
+        });
+        this.boundHandlers = [];
+
+        this.aggregatorSubscriptions.forEach(({ eventName, handler }) => {
+            this.eventAggregator.unsubscribe(eventName, handler);
+        });
+        this.aggregatorSubscriptions = [];
+
+        console.log("InputHandler destroyed and all listeners removed.");
+    }
+
 
     initialize() {
         this._setupNumericKeyboard();
@@ -12745,87 +13316,95 @@ export class InputHandler {
         this._setupPhysicalKeyboard();
     }
 
+    // [MODIFIED] (v6298-fix-4) All handlers refactored to be removable.
+
     _setupPhysicalKeyboard() {
-        window.addEventListener('keydown', (event) => {
-            // [MODIFIED] Added 'textarea' to the selector to prevent the handler
-            // from intercepting its keyboard events, thus fixing the backspace bug.
-            if (event.target.matches('input:not([readonly]), textarea')) {
-                return;
-            }
+        // Use helper to add the listener
+        this._addListener(window, 'keydown', this._onKeyDown);
+    }
 
-            let keyToPublish = null;
-            let eventToPublish = EVENTS.NUMERIC_KEY_PRESSED;
-            const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+    _onKeyDown(event) {
+        // [MODIFIED] Added 'textarea' to the selector to prevent the handler
+        // from intercepting its keyboard events, thus fixing the backspace bug.
+        if (event.target.matches('input:not([readonly]), textarea')) {
+            return;
+        }
 
-            if (arrowKeys.includes(event.key)) {
-                event.preventDefault();
-                const direction = event.key.replace('Arrow', '').toLowerCase();
-                this.eventAggregator.publish(EVENTS.USER_MOVED_ACTIVE_CELL, { direction });
-                return;
+        let keyToPublish = null;
+        let eventToPublish = EVENTS.NUMERIC_KEY_PRESSED;
+        const arrowKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
 
-            }
-            if (event.key >= '0' && event.key <= '9') {
-                keyToPublish = event.key;
-            }
-            // [FIX] Add a check to ensure event.key is not null or undefined before calling .toLowerCase()
+        if (arrowKeys.includes(event.key)) {
+            event.preventDefault();
+            const direction = event.key.replace('Arrow', '').toLowerCase();
+            this.eventAggregator.publish(EVENTS.USER_MOVED_ACTIVE_CELL, { direction });
+            return;
 
-            else if (event.key) {
-                switch (event.key.toLowerCase()) {
-                    case 'w': keyToPublish = 'W'; break;
-                    case 'h': keyToPublish = 'H'; break;
-                    case 't': this.eventAggregator.publish(EVENTS.USER_REQUESTED_CYCLE_TYPE); return;
-                    case '$': this.eventAggregator.publish(EVENTS.USER_REQUESTED_CALCULATE_AND_SUM); return;
-                    case 'enter': keyToPublish = 'ENT'; event.preventDefault(); break;
-                    case 'backspace': keyToPublish = 'DEL'; event.preventDefault(); break;
-                    case
-                        'delete': eventToPublish = EVENTS.USER_REQUESTED_CLEAR_ROW; break;
-                }
-            }
-            if (keyToPublish !== null) {
-                this.eventAggregator.publish(eventToPublish, { key: keyToPublish });
-            } else if (eventToPublish === EVENTS.USER_REQUESTED_CLEAR_ROW) {
-                this.eventAggregator.publish(eventToPublish);
-            }
+        }
+        if (event.key >= '0' && event.key <= '9') {
+            keyToPublish = event.key;
+        }
+        // [FIX] Add a check to ensure event.key is not null or undefined before calling .toLowerCase()
 
-        });
+        else if (event.key) {
+            switch (event.key.toLowerCase()) {
+                case 'w': keyToPublish = 'W'; break;
+                case 'h': keyToPublish = 'H'; break;
+                case 't': this.eventAggregator.publish(EVENTS.USER_REQUESTED_CYCLE_TYPE); return;
+                case '$': this.eventAggregator.publish(EVENTS.USER_REQUESTED_CALCULATE_AND_SUM); return;
+                case 'enter': keyToPublish = 'ENT'; event.preventDefault(); break;
+                case 'backspace': keyToPublish = 'DEL'; event.preventDefault(); break;
+                case
+                    'delete': eventToPublish = EVENTS.USER_REQUESTED_CLEAR_ROW; break;
+            }
+        }
+
+        if (keyToPublish !== null) {
+            this.eventAggregator.publish(eventToPublish, { key: keyToPublish });
+        } else if (eventToPublish === EVENTS.USER_REQUESTED_CLEAR_ROW) {
+            this.eventAggregator.publish(eventToPublish);
+        }
     }
 
     _setupFileLoader() {
-        const fileLoader = document.getElementById(DOM_IDS.FILE_LOADER);
-        if (fileLoader) {
-            fileLoader.addEventListener('change', (event) => {
-                const file = event.target.files[0];
-                if (!file) { return; }
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const content = e.target.result;
-                    this.eventAggregator.publish(EVENTS.FILE_LOADED, { fileName: file.name, content: content });
-
-                };
-                reader.onerror = () => {
-                    this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: `Error reading file: ${reader.error}`, type: 'error' });
-                };
-
-                reader.readAsText(file);
-                event.target.value = '';
-            });
+        if (this.fileLoader) {
+            this._addListener(this.fileLoader, 'change', this._onFileChange);
         }
-        this.eventAggregator.subscribe(EVENTS.TRIGGER_FILE_LOAD, () => {
-            if (fileLoader) {
-                fileLoader.click();
+        this._subscribe(EVENTS.TRIGGER_FILE_LOAD, this._onTriggerFileLoad);
+    }
 
-            }
-        });
+    _onFileChange(event) {
+        const file = event.target.files[0];
+        if (!file) { return; }
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const content = e.target.result;
+            this.eventAggregator.publish(EVENTS.FILE_LOADED, { fileName: file.name, content: content });
+
+        };
+        reader.onerror = () => {
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: `Error reading file: ${reader.error}`, type: 'error' });
+        };
+
+        reader.readAsText(file);
+        event.target.value = '';
+    }
+
+    _onTriggerFileLoad() {
+        if (this.fileLoader) {
+            this.fileLoader.click();
+        }
     }
 
     _setupPanelToggles() {
-        const numericToggle = document.getElementById(DOM_IDS.PANEL_TOGGLE);
-        if (numericToggle) {
-            numericToggle.addEventListener('click', () => {
-                this.eventAggregator.publish(EVENTS.USER_TOGGLED_NUMERIC_KEYBOARD);
-            });
+        if (this.numericToggle) {
+            this._addListener(this.numericToggle, 'click', this._onNumericToggleClick);
         }
+    }
+
+    _onNumericToggleClick() {
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_NUMERIC_KEYBOARD);
     }
 
 
@@ -12833,9 +13412,9 @@ export class InputHandler {
         const setupButton = (id, eventName) => {
             const button = document.getElementById(id);
             if (button) {
-                button.addEventListener('click', () => {
+                // [MODIFIED] Use _addListener helper
+                this._addListener(button, 'click', () => {
                     this.eventAggregator.publish(eventName);
-
                 });
             }
         };
@@ -12846,11 +13425,11 @@ export class InputHandler {
     }
 
     _setupNumericKeyboard() {
-        const keyboard = document.getElementById(DOM_IDS.NUMERIC_KEYBOARD);
-        if (!keyboard) return;
+        if (!this.keyboard) return;
 
         const addLongPressSupport = (button, longPressEventName, clickEventName, data = {}) => {
 
+            // [MODIFIED] Store bound handlers
             const startPress = (e) => {
                 e.preventDefault();
                 this.isLongPress = false;
@@ -12868,12 +13447,14 @@ export class InputHandler {
                 }
             };
 
-            button.addEventListener('mousedown', startPress);
-            button.addEventListener('touchstart', startPress, { passive: false });
-            button.addEventListener('mouseup', endPress);
-            button.addEventListener('mouseleave', () => clearTimeout(this.longPressTimer));
-            button.addEventListener('touchend',
-                endPress);
+            const clearTimer = () => clearTimeout(this.longPressTimer);
+
+            // [MODIFIED] Use _addListener helper
+            this._addListener(button, 'mousedown', startPress);
+            this._addListener(button, 'touchstart', startPress, { passive: false });
+            this._addListener(button, 'mouseup', endPress);
+            this._addListener(button, 'mouseleave', clearTimer);
+            this._addListener(button, 'touchend', endPress);
         };
 
         const addButtonListener = (id, eventName, data = {}) => {
@@ -12882,8 +13463,8 @@ export class InputHandler {
                 if (id === 'key-type') {
                     addLongPressSupport(button, EVENTS.TYPE_BUTTON_LONG_PRESSED, EVENTS.USER_REQUESTED_CYCLE_TYPE, data);
                 } else {
-
-                    button.addEventListener('click', () => {
+                    // [MODIFIED] Use _addListener helper
+                    this._addListener(button, 'click', () => {
                         this.eventAggregator.publish(eventName, data);
                     });
                 }
@@ -12891,7 +13472,6 @@ export class InputHandler {
         };
 
         // Main grid keys
-
         addButtonListener('key-7', EVENTS.NUMERIC_KEY_PRESSED, { key: '7' });
         addButtonListener('key-8', EVENTS.NUMERIC_KEY_PRESSED, { key: '8' });
         addButtonListener('key-9', EVENTS.NUMERIC_KEY_PRESSED, { key: '9' });
@@ -12917,60 +13497,56 @@ export class InputHandler {
     }
 
     _setupTableInteraction() {
-        const table = document.getElementById(DOM_IDS.RESULTS_TABLE);
-        if (table) {
-            const startPress = (e) => {
-                const target = e.target;
-                if (target.tagName === 'TD'
-                    && target.dataset.column === 'TYPE') {
-                    this.isLongPress = false;
-                    this.longPressTimer = setTimeout(() => {
-                        this.isLongPress = true;
-                        const rowIndex = target.parentElement.dataset.rowIndex;
+        if (this.table) {
+            // [MODIFIED] Use _addListener helper for all table interactions
+            this._addListener(this.table, 'mousedown', this._onTableStartPress);
+            this._addListener(this.table, 'touchstart', this._onTableStartPress, { passive: false });
+            this._addListener(this.table, 'mouseup', this._onTableEndPress);
+            this._addListener(this.table, 'touchend', this._onTableEndPress);
+            this._addListener(this.table, 'mouseleave', this._onTableMouseLeave, true);
+        }
+    }
 
-                        this.eventAggregator.publish(EVENTS.TYPE_CELL_LONG_PRESSED, { rowIndex: parseInt(rowIndex, 10) });
-                    }, this.pressThreshold);
-                }
-            };
+    _onTableStartPress(e) {
+        const target = e.target;
+        if (target.tagName === 'TD'
+            && target.dataset.column === 'TYPE') {
+            this.isLongPress = false;
+            this.longPressTimer = setTimeout(() => {
+                this.isLongPress = true;
+                const rowIndex = target.parentElement.dataset.rowIndex;
 
-            const endPress = (e) => {
-                clearTimeout(this.longPressTimer);
-                if (!this.isLongPress) {
-                    const target = e.target;
-                    if (target.tagName === 'TD') {
-                        const column = target.dataset.column;
-                        const rowIndex = target.parentElement.dataset.rowIndex;
-                        if (column && rowIndex) {
+                this.eventAggregator.publish(EVENTS.TYPE_CELL_LONG_PRESSED, { rowIndex: parseInt(rowIndex, 10) });
+            }, this.pressThreshold);
+        }
+    }
 
-                            const eventData = { rowIndex: parseInt(rowIndex, 10), column };
-                            if (column === 'sequence') {
-                                this.eventAggregator.publish(EVENTS.SEQUENCE_CELL_CLICKED, eventData);
-                            } else {
+    _onTableEndPress(e) {
+        if (e.type === 'touchend') e.preventDefault(); // Prevent duplicated 'mouseup'
+        clearTimeout(this.longPressTimer);
+        if (!this.isLongPress) {
+            const target = e.target;
+            if (target.tagName === 'TD') {
+                const column = target.dataset.column;
+                const rowIndex = target.parentElement.dataset.rowIndex;
+                if (column && rowIndex) {
 
-                                this.eventAggregator.publish(EVENTS.TABLE_CELL_CLICKED, eventData);
-                            }
-                        }
+                    const eventData = { rowIndex: parseInt(rowIndex, 10), column };
+                    if (column === 'sequence') {
+                        this.eventAggregator.publish(EVENTS.SEQUENCE_CELL_CLICKED, eventData);
+                    } else {
+
+                        this.eventAggregator.publish(EVENTS.TABLE_CELL_CLICKED, eventData);
                     }
                 }
-                this.isLongPress =
-                    false;
-            };
-
-            table.addEventListener('mousedown', startPress);
-            table.addEventListener('touchstart', startPress, { passive: false });
-
-            table.addEventListener('mouseup', endPress);
-
-            table.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                endPress(e);
-            });
-
-            table.addEventListener('mouseleave', () => {
-                clearTimeout(this.longPressTimer);
-
-            }, true);
+            }
         }
+        this.isLongPress =
+            false;
+    }
+
+    _onTableMouseLeave() {
+        clearTimeout(this.longPressTimer);
     }
 }
 --- FILE END ---
@@ -12994,6 +13570,11 @@ export class LeftPanelTabManager {
         this.panelElement = panelElement;
         this.eventAggregator = eventAggregator;
         this.panelToggle = document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE);
+        this.tabContainer = this.panelElement.querySelector('.tab-container'); // [NEW] Cache container
+
+        // [NEW] Store bound handlers for proper removal
+        this.handleToggleClick = this._onToggleClick.bind(this);
+        this.handleTabClick = this._onTabClick.bind(this);
 
         // Cache tab elements (from left-panel-component)
         this.tabButtons = this.panelElement.querySelectorAll('.tab-button');
@@ -13012,15 +13593,27 @@ export class LeftPanelTabManager {
     }
 
     /**
+     * [NEW] (v6298-fix-4) Removes event listeners to prevent memory leaks.
+     */
+    destroy() {
+        if (this.panelToggle) {
+            this.panelToggle.removeEventListener('click', this.handleToggleClick);
+        }
+        if (this.tabContainer) {
+            this.tabContainer.removeEventListener('click', this.handleTabClick);
+        }
+        console.log("LeftPanelTabManager destroyed.");
+    }
+
+
+    /**
      * Sets up the listener for the main navigation toggle (handle).
      * (Logic from left-panel-input-handler.js)
      */
     _setupNavigationToggle() {
-        const leftPanelToggle = document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE);
-        if (leftPanelToggle) {
-            leftPanelToggle.addEventListener('click', () => {
-                this.eventAggregator.publish(EVENTS.USER_NAVIGATED_TO_DETAIL_VIEW);
-            });
+        if (this.panelToggle) {
+            // [MODIFIED] Use stored handler
+            this.panelToggle.addEventListener('click', this.handleToggleClick);
         }
     }
 
@@ -13029,16 +13622,25 @@ export class LeftPanelTabManager {
      * (Logic from left-panel-input-handler.js)
      */
     _setupTabButtons() {
-        const tabContainer = document.querySelector('#left-panel .tab-container');
-        if (tabContainer) {
-            tabContainer.addEventListener('click', (event) => {
-                const target = event.target.closest('.tab-button');
-                if (target && !target.disabled) {
-                    this.eventAggregator.publish(EVENTS.USER_SWITCHED_TAB, { tabId: target.id });
-                }
-            });
+        if (this.tabContainer) {
+            // [MODIFIED] Use stored handler
+            this.tabContainer.addEventListener('click', this.handleTabClick);
         }
     }
+
+    // [NEW] Event handler for toggle click
+    _onToggleClick() {
+        this.eventAggregator.publish(EVENTS.USER_NAVIGATED_TO_DETAIL_VIEW);
+    }
+
+    // [NEW] Event handler for tab click
+    _onTabClick(event) {
+        const target = event.target.closest('.tab-button');
+        if (target && !target.disabled) {
+            this.eventAggregator.publish(EVENTS.USER_SWITCHED_TAB, { tabId: target.id });
+        }
+    }
+
 
     /**
      * Renders the UI state of the tabs (e.g., active tab, background color).
@@ -13159,6 +13761,8 @@ export class PanelComponent {
      */
     constructor(config) {
         this.config = config;
+        this.toggleHandler = this.toggle.bind(this); // [NEW] Store the handler reference
+        this.retractHandler = this.retract.bind(this); // [NEW] Store the handler reference
 
         // --- Configuration Validation ---
         if (!this.config.panelElement || !this.config.toggleElement || !this.config.eventAggregator || !this.config.expandedClass) {
@@ -13170,10 +13774,12 @@ export class PanelComponent {
     }
 
     initialize() {
-        this.config.toggleElement.addEventListener('click', () => this.toggle());
+        // [MODIFIED] Use the stored reference
+        this.config.toggleElement.addEventListener('click', this.toggleHandler);
 
         if (this.config.retractEventName) {
-            this.config.eventAggregator.subscribe(this.config.retractEventName, () => this.retract());
+            // [MODIFIED] Use the stored reference
+            this.config.eventAggregator.subscribe(this.config.retractEventName, this.retractHandler);
         }
     }
 
@@ -13202,6 +13808,20 @@ export class PanelComponent {
     expand() {
         this.config.panelElement.classList.add(this.config.expandedClass);
     }
+
+    /**
+     * [NEW] (v6298-fix-4) Removes event listeners to prevent memory leaks.
+     */
+    destroy() {
+        if (this.config.toggleElement) {
+            this.config.toggleElement.removeEventListener('click', this.toggleHandler);
+        }
+
+        if (this.config.retractEventName) {
+            this.config.eventAggregator.unsubscribe(this.config.retractEventName, this.retractHandler);
+        }
+        console.log(`PanelComponent for ${this.config.panelElement.id} destroyed.`);
+    }
 }
 --- FILE END ---
 
@@ -13218,14 +13838,15 @@ import { paths } from '../config/paths.js'; // [NEW] Import paths for dynamic lo
  * [MODIFIED] This component now dynamically loads (lazy loads) views on demand.
  */
 export class RightPanelComponent {
-    constructor({ panelElement, eventAggregator, stateService, calculationService }) { // [MODIFIED]
-        if (!panelElement || !eventAggregator || !stateService || !calculationService) {
-            throw new Error("Panel element, event aggregator, stateService, and calculationService are required for RightPanelComponent.");
+    constructor({ panelElement, eventAggregator, stateService, calculationService, authService }) { // [MODIFIED]
+        if (!panelElement || !eventAggregator || !stateService || !calculationService || !authService) {
+            throw new Error("Panel element, event aggregator, stateService, calculationService, and authService are required for RightPanelComponent.");
         }
         this.panelElement = panelElement;
         this.eventAggregator = eventAggregator;
         this.stateService = stateService; // [NEW] Store injected service
         this.calculationService = calculationService; // [NEW] Store injected service
+        this.authService = authService; // [NEW] (v6298) Store injected service
         this.state = null;
 
         // [MODIFIED] Views are no longer pre-injected. They will be loaded on demand.
@@ -13236,20 +13857,46 @@ export class RightPanelComponent {
         this.tabButtons = this.panelElement.querySelectorAll('.tab-button');
         this.tabContents = this.panelElement.querySelectorAll('.tab-content');
 
+        // [NEW] (v6298-fix-5) Store bound handler
+        this.boundTabClickHandler = this._onTabClick.bind(this);
+
         this.initialize();
         console.log("RightPanelComponent (Refactored as a Lazy-Loading Manager) Initialized.");
     }
 
     initialize() {
         if (this.tabContainer) {
-            this.tabContainer.addEventListener('click', (event) => {
-                const target = event.target.closest('.tab-button');
-                if (target && !target.disabled) {
-                    this.setActiveTab(target.id);
-                }
-            });
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this.tabContainer.addEventListener('click', this.boundTabClickHandler);
         }
     }
+
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners and instantiated views.
+     */
+    destroy() {
+        if (this.tabContainer) {
+            this.tabContainer.removeEventListener('click', this.boundTabClickHandler);
+        }
+
+        // Destroy all dynamically loaded views that were instantiated
+        for (const viewKey in this.views) {
+            if (this.views[viewKey] && typeof this.views[viewKey].destroy === 'function') {
+                this.views[viewKey].destroy();
+            }
+        }
+        this.views = {};
+        this.activeView = null;
+        console.log("RightPanelComponent destroyed.");
+    }
+
+    _onTabClick(event) {
+        const target = event.target.closest('.tab-button');
+        if (target && !target.disabled) {
+            this.setActiveTab(target.id);
+        }
+    }
+
 
     render(state) {
         this.state = state; // Cache the latest state
@@ -13312,7 +13959,8 @@ export class RightPanelComponent {
                         const { F4ActionsView } = await import('./views/f4-actions-view.js');
                         this.views[tabId] = new F4ActionsView({
                             panelElement: this.panelElement,
-                            eventAggregator: this.eventAggregator
+                            eventAggregator: this.eventAggregator,
+                            authService: this.authService // [NEW] (v6298) Pass auth service
                         });
                         break;
                     }
@@ -13654,24 +14302,18 @@ export class UIManager {
         // this.loginContainer = document.getElementById('login-container');
         // ... (all login element caching removed)
 
+        // [NEW] (v6298-fix-4) Store subscriptions and handlers
+        this.subscriptions = [];
+        this.boundToggleNumericKeyboard = this._toggleNumericKeyboard.bind(this);
+        this.boundFocusElement = this._focusElement.bind(this);
+
         this.initialize();
     }
 
     initialize() {
-        this.eventAggregator.subscribe(EVENTS.USER_TOGGLED_NUMERIC_KEYBOARD, () => this._toggleNumericKeyboard());
-
-        // [NEW] Add a global listener for focus events.
-        this.eventAggregator.subscribe(EVENTS.FOCUS_ELEMENT, ({ elementId }) => {
-            const element = document.getElementById(elementId);
-            if (element) {
-                setTimeout(() => {
-                    element.focus();
-                    if (typeof element.select === 'function') {
-                        element.select();
-                    }
-                }, 50); // A small delay to ensure the element is rendered and focusable.
-            }
-        });
+        // [MODIFIED] (v6298-fix-4) Use _subscribe helper
+        this._subscribe(EVENTS.USER_TOGGLED_NUMERIC_KEYBOARD, this.boundToggleNumericKeyboard);
+        this._subscribe(EVENTS.FOCUS_ELEMENT, this.boundFocusElement);
 
         // [REMOVED] (v6297) Call to _initializeLoginHandler removed
         // this._initializeLoginHandler();
@@ -13680,17 +14322,72 @@ export class UIManager {
     }
 
     /**
+     * [NEW] (v6298-fix-4) Helper to subscribe and store references
+     */
+    _subscribe(eventName, handler) {
+        this.subscriptions.push({ eventName, handler });
+        this.eventAggregator.subscribe(eventName, handler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Removes all sub-component event listeners and subscriptions.
+     */
+    destroy() {
+        if (this.functionPanel) {
+            this.functionPanel.destroy();
+            this.functionPanel = null;
+        }
+        if (this.leftPanelTabManager) {
+            this.leftPanelTabManager.destroy();
+            this.leftPanelTabManager = null;
+        }
+        // [NEW] (v6298-fix-5) Destroy the right panel component
+        if (this.rightPanelComponent) {
+            this.rightPanelComponent.destroy();
+            this.rightPanelComponent = null;
+        }
+
+        // Unsubscribe from eventAggregator
+        this.subscriptions.forEach(({ eventName, handler }) => {
+            this.eventAggregator.unsubscribe(eventName, handler);
+        });
+        this.subscriptions = [];
+
+        // Other components like tableComponent, summaryComponent, etc.,
+        // don't attach persistent listeners to document/window,
+        // so they are implicitly destroyed when uiManager is nulled in main.js.
+        console.log("UIManager destroyed.");
+    }
+
+    _focusElement({ elementId }) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            setTimeout(() => {
+                element.focus();
+                if (typeof element.select === 'function') {
+                    element.select();
+                }
+            }, 50); // A small delay to ensure the element is rendered and focusable.
+        }
+    }
+
+
+    /**
      * [REMOVED] (v6297) Login handler logic is now in main.js
      */
     // _initializeLoginHandler() { ... }
 
     _initializeResizeObserver() {
         const resizeObserver = new ResizeObserver(() => {
-            if (this.leftPanelElement.classList.contains('is-expanded')) {
+            if (this.leftPanelElement && this.leftPanelElement.classList.contains('is-expanded')) {
                 this._updateExpandedPanelPosition();
             }
         });
-        resizeObserver.observe(this.appElement);
+        // Check if appElement exists before observing
+        if (this.appElement) {
+            resizeObserver.observe(this.appElement);
+        }
+        this.resizeObserver = resizeObserver; // Store for potential disconnection
     }
 
     _updateExpandedPanelPosition() {
@@ -13717,7 +14414,6 @@ export class UIManager {
         this.leftPanelElement.style.top = `${newTop}px`;
         this.leftPanelElement.style.width = `${newWidth}px`;
         this.leftPanelElement.style.height = `${newHeight}px`;
-
         this.leftPanelElement.style.setProperty('--left-panel-width', `${newWidth}px`);
     }
 
@@ -13739,9 +14435,10 @@ export class UIManager {
 
         this.tableComponent.render(state);
         this.summaryComponent.render(currentProductData.summary, state.ui.isSumOutdated);
-
         // [MODIFIED] Delegate tab/panel rendering to the new LeftPanelTabManager
-        this.leftPanelTabManager.render(state.ui);
+        if (this.leftPanelTabManager) { // [NEW] (v6298-fix-5) Add safety check
+            this.leftPanelTabManager.render(state.ui);
+        }
 
         // [MODIFIED] Delegate K1/K3/K4/K5 rendering to their own components
         if (this.k1TabComponent) {
@@ -13761,7 +14458,9 @@ export class UIManager {
             this.k5TabComponent.render(state.ui, state.quoteData); // Renders K5
         }
 
-        this.rightPanelComponent.render(state);
+        if (this.rightPanelComponent) { // [NEW] (v6298-fix-5) Add safety check
+            this.rightPanelComponent.render(state);
+        }
 
         this._updateButtonStates(state);
         this._updateLeftPanelState(state.ui.currentView);
@@ -13787,7 +14486,6 @@ export class UIManager {
 
         const selectionCount = multiSelectSelectedIndexes.length;
         const isSingleSelection = selectionCount === 1;
-
         // --- Insert Button Logic ---
         let insertDisabled = true;
         if (isSingleSelection) {
@@ -14553,6 +15251,26 @@ export class UIManager {
     cursor: wait;
 }
 
+/* [NEW] Styles for the "Forgot password?" link */
+.login-forgot-password {
+    text-align: center;
+    margin-top: 4px;
+    /* Reduced margin to bring it closer to the form */
+}
+
+.login-forgot-password a {
+    font-size: 0.9em;
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: text-decoration 0.2s;
+}
+
+.login-forgot-password a:hover {
+    text-decoration: underline;
+}
+
+/* End of new styles */
+
 .login-error-message {
     font-size: 0.9em;
     color: #c0392b;
@@ -14847,7 +15565,7 @@ export class UIManager {
     height: 100%;
     background-color: #e5e7eb;
     border-left: 1px solid var(--panel-border-color);
-    box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
     z-index: 100;
     transform: translateX(100%);
     transition: transform 0.3s ease-in-out, background-color 0.3s ease-in-out;
@@ -14876,7 +15594,17 @@ export class UIManager {
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: opacity 0.3s, visibility 0.3s;
+    /* [NEW] (v6298-fix-4) Add transition */
 }
+
+/* [NEW] (v6298-fix-4) Hide the toggle when logged out */
+#function-panel-toggle.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
 
 #function-panel-toggle .toggle-arrow {
     width: 24px;
@@ -14927,7 +15655,8 @@ export class UIManager {
 }
 
 #function-panel .tab-button.active {
-    background-color: #f3f4f6; /* Lighter background for the active tab */
+    background-color: #f3f4f6;
+    /* Lighter background for the active tab */
     border-color: var(--tab-active-color);
     color: var(--tab-active-color);
 }
@@ -14955,16 +15684,31 @@ export class UIManager {
 }
 
 /* --- Function Grid Styles (Now inside a tab) --- */
+/* [REMOVED] Old .function-grid (2 columns) */
+/*
 .function-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr); /* Changed to 2 columns for better spacing */
+    grid-template-columns: repeat(2, 1fr); 
     gap: 10px;
 }
+*/
 
-.function-grid button {
+/* [NEW] New .f4-grid-concise (single column) */
+.f4-grid-concise {
+    display: grid;
+    grid-template-columns: 1fr;
+    /* Single column layout */
+    gap: 12px;
+    /* Increased gap */
+}
+
+/* [MODIFIED] Apply styles to the new grid class */
+.f4-grid-concise .f4-button {
     width: 100%;
     padding: 10px 5px;
-    font-size: 1em;
+    font-size: 1.1em;
+    /* Increased font size */
+    font-weight: 500;
     background-color: #fff;
     border: 1px solid #ccc;
     border-radius: 4px;
@@ -14972,17 +15716,46 @@ export class UIManager {
     transition: background-color 0.2s, opacity 0.2s;
 }
 
-.function-grid button:disabled {
+.f4-grid-concise .f4-button:disabled {
     background-color: #f3f4f6;
     opacity: 0.5;
     cursor: not-allowed;
 }
 
 /* Specific button styles */
-#key-save { background-color: #dcfce7; }
-#key-load { background-color: #ffedd5; }
-#key-export { background-color: #d1fae5; }
-#key-reset { background-color: #ef4444; color: white; font-weight: bold; border-color: #dc2626; }
+#f1-key-save {
+    background-color: #dcfce7;
+    border-color: #a7f3d0;
+}
+
+#f1-key-export {
+    background-color: #d1fae5;
+    border-color: #a7f3d0;
+}
+
+#f1-key-load {
+    background-color: #ffedd5;
+    border-color: #fed7aa;
+}
+
+/* [NEW] Style for the new Search/Load button */
+#f4-key-search-dialog {
+    background-color: #e0f2fe;
+    border-color: #bae6fd;
+}
+
+/* [NEW] Style for the new Logout button */
+#f4-key-logout {
+    background-color: #fee2e2;
+    border-color: #fecaca;
+}
+
+#f1-key-reset {
+    background-color: #ef4444;
+    color: white;
+    font-weight: bold;
+    border-color: #dc2626;
+}
 --- FILE END ---
 
 --- FILE START: 04-core-code/ui/css/toast-notification.css ---
@@ -16189,6 +16962,9 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
         <div class="login-actions">
             <button type="submit" id="login-button" class="login-button">Login</button>
+        </div>
+        <div class="login-forgot-password">
+            <a href="#" id="forgot-password-link">Forgot password?</a>
         </div>
     </form>
     <div id="login-error-message" class="login-error-message is-hidden"></div>
@@ -17455,7 +18231,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 <textarea id="f3-customer-address" class="textarea-field" rows="3"></textarea>
             </div>
             <div></div>
-            <div class_="grid-cell">Phone</div>
+            <div class="grid-cell">Phone</div>
             <div class="grid-cell grid-span-2">
                 <input type="tel" id="f3-customer-phone" class="input-field">
             </div>
@@ -17494,12 +18270,12 @@ document.addEventListener('DOMContentLoaded', function () {
         </div>
     </div>
     <div id="f4-content" class="tab-content">
-
-        <div class="f4-grid">
+        <div class="f4-grid-concise">
             <button id="f1-key-save" class="f4-button">Save</button>
             <button id="f1-key-export" class="f4-button">Export</button>
             <button id="f1-key-load" class="f4-button">Load File</button>
-            <button id="f4-key-load-cloud" class="f4-button" style="background-color: #e0f2fe;">Load from Cloud</button>
+            <button id="f4-key-search-dialog" class="f4-button">Search / Load Quote</button>
+            <button id="f4-key-logout" class="f4-button">Logout</button>
             <button id="f1-key-reset" class="f4-button">Reset</button>
         </div>
     </div>
@@ -17555,26 +18331,55 @@ import { EVENTS, DOM_IDS } from '../../../config/constants.js';
 export class K1TabInputHandler {
     constructor({ eventAggregator }) {
         this.eventAggregator = eventAggregator;
+
+        // [NEW] (v6298-fix-4) Store element references
+        this.locationButton = document.getElementById('btn-focus-location');
+        this.locationInput = document.getElementById(DOM_IDS.LOCATION_INPUT_BOX);
+
+        // [NEW] (v6298-fix-4) Store bound handlers
+        this.boundHandlers = [];
+
         console.log("K1TabInputHandler Initialized.");
     }
 
-    initialize() {
-        const locationButton = document.getElementById('btn-focus-location');
-        if (locationButton) {
-             locationButton.addEventListener('click', () => {
-                this.eventAggregator.publish(EVENTS.USER_REQUESTED_FOCUS_MODE, { column: 'location' });
-            });
-        }
+    /**
+     * [NEW] (v6298-fix-4) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
 
-        const locationInput = document.getElementById(DOM_IDS.LOCATION_INPUT_BOX);
-        if (locationInput) {
-            locationInput.addEventListener('keydown', (event) => {
-                 if (event.key === 'Enter') {
-                    event.preventDefault();
-                    this.eventAggregator.publish(EVENTS.LOCATION_INPUT_ENTER_PRESSED, {
-                        value: event.target.value
-                     });
-                }
+    /**
+     * [NEW] (v6298-fix-4) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("K1TabInputHandler destroyed.");
+    }
+
+    initialize() {
+        // [MODIFIED] (v6298-fix-4) Use helper
+        this._addListener(this.locationButton, 'click', this._onLocationButtonClick);
+        this._addListener(this.locationInput, 'keydown', this._onLocationInputKeydown);
+    }
+
+    _onLocationButtonClick() {
+        this.eventAggregator.publish(EVENTS.USER_REQUESTED_FOCUS_MODE, { column: 'location' });
+    }
+
+    _onLocationInputKeydown(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            this.eventAggregator.publish(EVENTS.LOCATION_INPUT_ENTER_PRESSED, {
+                value: event.target.value
             });
         }
     }
@@ -17670,48 +18475,67 @@ import { EVENTS, DOM_IDS } from '../../../config/constants.js';
 export class K2TabInputHandler {
     constructor({ eventAggregator }) {
         this.eventAggregator = eventAggregator;
+
+        // [NEW] (v6298-fix-4) Store element references
+        this.fabricButton = document.getElementById('btn-focus-fabric');
+        this.lfButton = document.getElementById('btn-light-filter');
+        this.lfDelButton = document.getElementById('btn-lf-del');
+        this.sSetButton = document.getElementById('btn-k2-sset');
+
+        // [NEW] (v6298-fix-4) Store bound handlers
+        this.boundHandlers = [];
+
         console.log("K2TabInputHandler Initialized.");
     }
 
-    initialize() {
-        // This logic was moved from LeftPanelInputHandler's _setupK2Inputs
-        const fabricButton = document.getElementById('btn-focus-fabric');
-        if (fabricButton) {
-            // [MODIFIED] Changed event to trigger new dialog flow
-            fabricButton.addEventListener('click', () => {
-                this.eventAggregator.publish(EVENTS.USER_REQUESTED_NC_DIALOG);
-            });
-        }
-        const lfButton = document.getElementById('btn-light-filter');
-        if (lfButton) {
-            lfButton.addEventListener('click', () => {
-                // [MODIFIED] (v6294) Changed event to trigger mode toggle
-                this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'LF' });
-            });
-        }
-        const lfDelButton = document.getElementById('btn-lf-del');
-        if (lfDelButton) {
-            lfDelButton.addEventListener('click', () => {
-                // [MODIFIED] (v6294) Changed event to trigger mode toggle
-                this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'LFD' });
-            });
-        }
+    /**
+     * [NEW] (v6298-fix-4) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
 
-        // [MODIFIED] (Phase 3) Add listener for SSet button
-        const sSetButton = document.getElementById('btn-k2-sset');
-        if (sSetButton) {
-            sSetButton.addEventListener('click', () => {
-                // [MODIFIED] (v6294 SSet) Changed event to trigger mode toggle
-                this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'SSet' });
-            });
-        }
+    /**
+     * [NEW] (v6298-fix-4) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("K2TabInputHandler destroyed.");
+    }
+
+    initialize() {
+        // [MODIFIED] (v6298-fix-4) Use helper
+        this._addListener(this.fabricButton, 'click', this._onFabricClick);
+        this._addListener(this.lfButton, 'click', this._onLFFClick);
+        this._addListener(this.lfDelButton, 'click', this._onLFDClick);
+        this._addListener(this.sSetButton, 'click', this._onSSetClick);
 
         // [REMOVED] (Phase 3 Cleanup) Obsolete listeners for the deleted table
-        // const batchTable = document.getElementById(DOM_IDS.FABRIC_BATCH_TABLE);
-        // if (batchTable) {
-        //     batchTable.addEventListener('keydown', (event) => { ... });
-        //     batchTable.addEventListener('blur', (event) => { ... });
-        // }
+    }
+
+    // [NEW] (v6298-fix-4) Extracted handlers
+    _onFabricClick() {
+        this.eventAggregator.publish(EVENTS.USER_REQUESTED_NC_DIALOG);
+    }
+
+    _onLFFClick() {
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'LF' });
+    }
+
+    _onLFDClick() {
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'LFD' });
+    }
+
+    _onSSetClick() {
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'SSet' });
     }
 }
 --- FILE END ---
@@ -17827,28 +18651,64 @@ import { EVENTS } from '../../../config/constants.js';
 export class K3TabInputHandler {
     constructor({ eventAggregator }) {
         this.eventAggregator = eventAggregator;
+
+        // [NEW] (v6298-fix-4) Store element references
+        this.editButton = document.getElementById('btn-k3-edit');
+        this.batchCycleButtons = [
+            { id: 'btn-batch-cycle-over', column: 'over' },
+            { id: 'btn-batch-cycle-oi', column: 'oi' },
+            { id: 'btn-batch-cycle-lr', column: 'lr' }
+        ];
+
+        // [NEW] (v6298-fix-4) Store bound handlers
+        this.boundHandlers = [];
+
         console.log("K3TabInputHandler Initialized.");
     }
 
-    initialize() {
-        const editButton = document.getElementById('btn-k3-edit');
-        if (editButton) {
-            editButton.addEventListener('click', () => {
-                this.eventAggregator.publish(EVENTS.USER_TOGGLED_K3_EDIT_MODE);
-             });
-        }
+    /**
+     * [NEW] (v6298-fix-4) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
 
-        const setupBatchCycleButton = (buttonId, column) => {
-            const button = document.getElementById(buttonId);
-            if (button) {
-                button.addEventListener('click', () => {
-                    this.eventAggregator.publish(EVENTS.USER_REQUESTED_BATCH_CYCLE, { column });
-                });
+    /**
+     * [NEW] (v6298-fix-4) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
             }
-        };
-        setupBatchCycleButton('btn-batch-cycle-over', 'over');
-        setupBatchCycleButton('btn-batch-cycle-oi', 'oi');
-        setupBatchCycleButton('btn-batch-cycle-lr', 'lr');
+        });
+        this.boundHandlers = [];
+        console.log("K3TabInputHandler destroyed.");
+    }
+
+
+    initialize() {
+        // [MODIFIED] (v6298-fix-4) Use helper
+        this._addListener(this.editButton, 'click', this._onEditClick);
+
+        this.batchCycleButtons.forEach(({ id, column }) => {
+            const button = document.getElementById(id);
+            if (button) {
+                // Create a specific handler for each button
+                const handler = () => {
+                    this.eventAggregator.publish(EVENTS.USER_REQUESTED_BATCH_CYCLE, { column });
+                };
+                this._addListener(button, 'click', handler);
+            }
+        });
+    }
+
+    // [NEW] (v6298-fix-4) Extracted handlers
+    _onEditClick() {
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K3_EDIT_MODE);
     }
 }
 --- FILE END ---
@@ -17973,8 +18833,36 @@ import { EVENTS } from '../../../config/constants.js';
 export class K4TabInputHandler {
     constructor({ eventAggregator }) {
         this.eventAggregator = eventAggregator;
+
+        // [NEW] (v6298-fix-4) Store bound handlers
+        this.boundHandlers = [];
+
         console.log("K4TabInputHandler Initialized.");
     }
+
+    /**
+     * [NEW] (v6298-fix-4) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("K4TabInputHandler destroyed.");
+    }
+
 
     initialize() {
         // This logic was moved from LeftPanelInputHandler's _setupK5Inputs
@@ -17984,7 +18872,8 @@ export class K4TabInputHandler {
             if (button) {
                 // [REFACTOR] Removed special handling for the remote button.
                 // It now fires a standard 'driveModeChanged' event, same as other accessory buttons.
-                button.addEventListener('click', () => {
+                // [MODIFIED] (v6298-fix-4) Use helper
+                this._addListener(button, 'click', () => {
                     this.eventAggregator.publish(EVENTS.DRIVE_MODE_CHANGED, { mode });
                 });
             }
@@ -18000,7 +18889,8 @@ export class K4TabInputHandler {
         const setupK4CounterButton = (buttonId, accessory, direction) => {
             const button = document.getElementById(buttonId);
             if (button) {
-                button.addEventListener('click', () => {
+                // [MODIFIED] (v6298-fix-4) Use helper
+                this._addListener(button, 'click', () => {
                     this.eventAggregator.publish(EVENTS.ACCESSORY_COUNTER_CHANGED, { accessory, direction });
                 });
             }
@@ -18262,8 +19152,41 @@ import { EVENTS } from '../../../config/constants.js';
 export class K5TabInputHandler {
     constructor({ eventAggregator }) {
         this.eventAggregator = eventAggregator;
+
+        // [NEW] (v6298-fix-4) Store element references
+        this.k5DualButton = document.getElementById('btn-k5-dual');
+        this.k5ChainButton = document.getElementById('btn-k5-chain');
+        this.k5Input = document.getElementById('k5-input-display');
+
+        // [NEW] (v6298-fix-4) Store bound handlers
+        this.boundHandlers = [];
+
         console.log("K5TabInputHandler Initialized.");
     }
+
+    /**
+     * [NEW] (v6298-fix-4) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("K5TabInputHandler destroyed.");
+    }
+
 
     initialize() {
         // This logic was moved from LeftPanelInputHandler's _setupK4Inputs
@@ -18271,7 +19194,8 @@ export class K5TabInputHandler {
         const setupK5Button = (buttonId, mode) => {
             const button = document.getElementById(buttonId);
             if (button) {
-                button.addEventListener('click', () => {
+                // [MODIFIED] (v6298-fix-4) Use helper
+                this._addListener(button, 'click', () => {
                     this.eventAggregator.publish(EVENTS.DUAL_CHAIN_MODE_CHANGED, { mode });
                 });
             }
@@ -18280,16 +19204,15 @@ export class K5TabInputHandler {
         setupK5Button('btn-k5-dual', 'dual');
         setupK5Button('btn-k5-chain', 'chain');
 
-        // [MODIFIED] Corrected ID from 'k4-input-display' to 'k5-input-display'
-        const k5Input = document.getElementById('k5-input-display');
-        if (k5Input) {
-            k5Input.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    this.eventAggregator.publish(EVENTS.CHAIN_ENTER_PRESSED, {
-                        value: event.target.value
-                    });
-                }
+        // [MODIFIED] (v6298-fix-4) Use helper
+        this._addListener(this.k5Input, 'keydown', this._onK5InputKeydown);
+    }
+
+    _onK5InputKeydown(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            this.eventAggregator.publish(EVENTS.CHAIN_ENTER_PRESSED, {
+                value: event.target.value
             });
         }
     }
@@ -19086,9 +20009,35 @@ export class F1CostView {
         this.calculationService = calculationService;
         this.stateService = stateService; // [NEW] Injected dependency
 
+        // [NEW] (v6298-fix-5) Store bound handlers
+        this.boundHandlers = [];
+
         this._cacheF1Elements();
         this._initializeF1Listeners();
         console.log("F1CostView Initialized.");
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("F1CostView destroyed.");
     }
 
     _cacheF1Elements() {
@@ -19132,48 +20081,43 @@ export class F1CostView {
 
     _initializeF1Listeners() {
         const remote1chQtyDiv = this.f1.displays.qty['remote-1ch'];
-        if (remote1chQtyDiv) {
-            // [REFACTORED] Directly call the handler instead of publishing an event
-            remote1chQtyDiv.addEventListener('click', () => this.handleRemoteDistribution());
-        }
+        // [MODIFIED] (v6298-fix-5) Use helper
+        this._addListener(remote1chQtyDiv, 'click', this.handleRemoteDistribution);
 
         const slimQtyDiv = this.f1.displays.qty['slim'];
-        if (slimQtyDiv) {
-            // [REFACTORED] Directly call the handler instead of publishing an event
-            slimQtyDiv.addEventListener('click', () => this.handleDualDistribution());
-        }
+        // [MODIFIED] (v6298-fix-5) Use helper
+        this._addListener(slimQtyDiv, 'click', this.handleDualDistribution);
 
         const discountInput = this.f1.inputs['discount'];
-        if (discountInput) {
-            discountInput.addEventListener('input', (event) => {
-                const percentage = parseFloat(event.target.value) || 0;
-                this.eventAggregator.publish(EVENTS.F1_DISCOUNT_CHANGED, { percentage });
-            });
-
-            // [NEW] Add blur on Enter key press
-            discountInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.target.blur();
-                }
-            });
-        }
+        // [MODIFIED] (v6298-fix-5) Use helper
+        this._addListener(discountInput, 'input', this._onDiscountInput);
+        this._addListener(discountInput, 'keydown', this._onInputKeydown);
 
         // [NEW] (v6295) Add listener for Wifi input
         const wifiInput = this.f1.inputs['wifihub'];
-        if (wifiInput) {
-            wifiInput.addEventListener('input', (event) => {
-                const quantity = parseFloat(event.target.value) || 0;
-                // Dispatch the new action to update state
-                this.stateService.dispatch(uiActions.setF1WifiQty(quantity));
-            });
+        // [MODIFIED] (v6298-fix-5) Use helper
+        this._addListener(wifiInput, 'input', this._onWifiInput);
+        this._addListener(wifiInput, 'keydown', this._onInputKeydown);
+    }
 
-            wifiInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.target.blur();
-                }
-            });
+    // [NEW] (v6298-fix-5) Extracted handlers
+    _onDiscountInput(event) {
+        const percentage = parseFloat(event.target.value) || 0;
+        this.eventAggregator.publish(EVENTS.F1_DISCOUNT_CHANGED, { percentage });
+    }
+
+    _onWifiInput(event) {
+        const quantity = parseFloat(event.target.value) || 0;
+        // Dispatch the new action to update state
+        this.stateService.dispatch(uiActions.setF1WifiQty(quantity));
+    }
+
+    _onInputKeydown(event) {
+        if (event.key === 'Enter') {
+            event.target.blur();
         }
     }
+
 
     render(state) {
         if (!this.f1 || !state || !state.quoteData || !state.ui) return;
@@ -19187,11 +20131,11 @@ export class F1CostView {
         const componentPrices = {};
         const winderQty = items.filter(item => item.winder === 'HD').length;
         componentPrices.winder = this.calculationService.calculateF1ComponentPrice('winder', winderQty);
-        this.f1.displays.qty.winder.textContent = winderQty;
+        if (this.f1.displays.qty.winder) this.f1.displays.qty.winder.textContent = winderQty;
 
         const motorQty = items.filter(item => !!item.motor).length;
         componentPrices.motor = this.calculationService.calculateF1ComponentPrice('motor', motorQty);
-        this.f1.displays.qty.motor.textContent = motorQty;
+        if (this.f1.displays.qty.motor) this.f1.displays.qty.motor.textContent = motorQty;
 
         // [FIX] (v6295-fix-2) Implement auto-sync of total remotes from K4
         const totalRemoteCount = ui.driveRemoteCount || 0;
@@ -19219,16 +20163,16 @@ export class F1CostView {
 
         componentPrices['remote-1ch'] = this.calculationService.calculateF1ComponentPrice('remote-1ch', remote1chQty);
         componentPrices['remote-16ch'] = this.calculationService.calculateF1ComponentPrice('remote-16ch', remote16chQty);
-        this.f1.displays.qty['remote-1ch'].textContent = remote1chQty;
-        this.f1.displays.qty['remote-16ch'].textContent = remote16chQty;
+        if (this.f1.displays.qty['remote-1ch']) this.f1.displays.qty['remote-1ch'].textContent = remote1chQty;
+        if (this.f1.displays.qty['remote-16ch']) this.f1.displays.qty['remote-16ch'].textContent = remote16chQty;
 
         const chargerQty = ui.driveChargerCount || 0;
         componentPrices.charger = this.calculationService.calculateF1ComponentPrice('charger', chargerQty);
-        this.f1.displays.qty.charger.textContent = chargerQty;
+        if (this.f1.displays.qty.charger) this.f1.displays.qty.charger.textContent = chargerQty;
 
         const cordQty = ui.driveCordCount || 0;
         componentPrices['3m-cord'] = this.calculationService.calculateF1ComponentPrice('3m-cord', cordQty);
-        this.f1.displays.qty['3m-cord'].textContent = cordQty;
+        if (this.f1.displays.qty['3m-cord']) this.f1.displays.qty['3m-cord'].textContent = cordQty;
 
         const totalDualPairs = Math.floor(items.filter(item => item.dual === 'D').length / 2);
         const comboQty = (ui.f1.dual_combo_qty === null) ? totalDualPairs : ui.f1.dual_combo_qty;
@@ -19236,13 +20180,13 @@ export class F1CostView {
             0 : ui.f1.dual_slim_qty;
         componentPrices['dual-combo'] = this.calculationService.calculateF1ComponentPrice('dual-combo', comboQty);
         componentPrices.slim = this.calculationService.calculateF1ComponentPrice('slim', slimQty);
-        this.f1.displays.qty['dual-combo'].textContent = comboQty;
-        this.f1.displays.qty.slim.textContent = slimQty;
+        if (this.f1.displays.qty['dual-combo']) this.f1.displays.qty['dual-combo'].textContent = comboQty;
+        if (this.f1.displays.qty.slim) this.f1.displays.qty.slim.textContent = slimQty;
 
         // [NEW] (v6295) Add Wifi calculation
         const wifiQty = ui.f1.wifi_qty || 0;
         componentPrices.wifihub = this.calculationService.calculateF1ComponentPrice('wifihub', wifiQty);
-        if (document.activeElement !== this.f1.inputs.wifihub) {
+        if (this.f1.inputs.wifihub && document.activeElement !== this.f1.inputs.wifihub) {
             this.f1.inputs.wifihub.value = formatDisplay(wifiQty) || '';
         }
         if (this.f1.displays.price.wifihub) {
@@ -19255,18 +20199,18 @@ export class F1CostView {
             }
         }
         const componentTotal = Object.values(componentPrices).reduce((sum, price) => sum + price, 0);
-        this.f1.displays.price.total.textContent = formatPrice(componentTotal);
+        if (this.f1.displays.price.total) this.f1.displays.price.total.textContent = formatPrice(componentTotal);
 
         // --- RB Pricing Calculation ---
         const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
         const discountPercentage = ui.f1.discountPercentage || 0;
         const rbPrice = retailTotal * (1 - (discountPercentage / 100));
 
-        this.f1.displays.price['rb-retail'].textContent = formatPrice(retailTotal);
-        if (document.activeElement !== this.f1.inputs.discount) {
+        if (this.f1.displays.price['rb-retail']) this.f1.displays.price['rb-retail'].textContent = formatPrice(retailTotal);
+        if (this.f1.inputs.discount && document.activeElement !== this.f1.inputs.discount) {
             this.f1.inputs.discount.value = formatDisplay(discountPercentage) || '';
         }
-        this.f1.displays.price['rb-price'].textContent = formatPrice(rbPrice);
+        if (this.f1.displays.price['rb-price']) this.f1.displays.price['rb-price'].textContent = formatPrice(rbPrice);
 
         // --- Final Summary Calculation ---
         const subTotal = componentTotal + rbPrice;
@@ -19275,16 +20219,16 @@ export class F1CostView {
 
         // [NEW] (F1/F2 Refactor Phase 2) Dispatch the calculated totals to the central state
         this.stateService.dispatch(uiActions.setF1CostTotals(subTotal, finalTotal));
-        this.f1.displays.price['sub-total'].textContent = formatPrice(subTotal);
-        this.f1.displays.price.gst.textContent = formatPrice(gst);
-        this.f1.displays.price['final-total'].textContent = formatPrice(finalTotal);
+        if (this.f1.displays.price['sub-total']) this.f1.displays.price['sub-total'].textContent = formatPrice(subTotal);
+        if (this.f1.displays.price.gst) this.f1.displays.price.gst.textContent = formatPrice(gst);
+        if (this.f1.displays.price['final-total']) this.f1.displays.price['final-total'].textContent = formatPrice(finalTotal);
     }
 
     activate() {
         this.eventAggregator.publish(EVENTS.F1_TAB_ACTIVATED);
 
-        // [MODIFIED] (v6294) (Á¨?12 Ê¨°Á∑®‰ø?
-        // ?¢Âæ© F1 ?®Ê??âË?ÁΩÆ‰??ÑËá™?ïË??¶Â??ΩÔ?‰ΩøÂÖ∂??F2 ?ÑË??∫‰??¥„Ä?
+        // [MODIFIED] (v6294) (Á¨?2Ê¨°Á∑®‰ø?
+        // ?¢Âæ© F1 ?®Ê??âË?ÁΩÆ‰??ÑËá™?ïÂ??¶Â??ΩÔ?‰ΩøÂÖ∂??F2 ?ÑË??∫‰??¥„Ä?
         // if (!window.matchMedia("(max-width: 600px)").matches) {
         setTimeout(() => {
             const discountInput = this.f1.inputs.discount;
@@ -19474,9 +20418,35 @@ export class F2SummaryView {
             'f2-deposit' // 'f2-balance' is readonly, so no focus
         ];
 
+        // [NEW] (v6298-fix-5) Store bound handlers
+        this.boundHandlers = [];
+
         this._cacheF2Elements();
         this._initializeF2Listeners();
         console.log("F2SummaryView Initialized.");
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("F2SummaryView destroyed.");
     }
 
     _cacheF2Elements() {
@@ -19529,11 +20499,12 @@ export class F2SummaryView {
     _initializeF2Listeners() {
         const setupF2InputListener = (inputElement) => {
             if (inputElement) {
-                inputElement.addEventListener('change', (event) => {
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(inputElement, 'change', (event) => {
                     this.handleF2ValueChange({ id: event.target.id, value: event.target.value });
                 });
 
-                inputElement.addEventListener('keydown', (event) => {
+                this._addListener(inputElement, 'keydown', (event) => {
                     if (event.key === 'Enter') {
                         event.preventDefault();
                         this.focusNextF2Input(event.target.id);
@@ -19549,15 +20520,14 @@ export class F2SummaryView {
         });
 
         const feeCells = [
-
             { el: this.f2.c13_deliveryFee, type: 'delivery' },
             { el: this.f2.c14_installFee, type: 'install' },
             { el: this.f2.c15_removalFee, type: 'removal' }
         ];
         feeCells.forEach(({ el, type }) => {
             if (el) {
-                el.addEventListener('click', () => {
-
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(el, 'click', () => {
                     this.handleToggleFeeExclusion({ feeType: type });
                 });
             }
@@ -19565,10 +20535,8 @@ export class F2SummaryView {
 
         // [NEW] (Phase 2) Add listener for GST toggle
         if (this.f2.label_gst) {
-            this.f2.label_gst.addEventListener('click', () => {
-
-                this.handleToggleGstExclusion();
-            });
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this._addListener(this.f2.label_gst, 'click', this.handleToggleGstExclusion);
         }
     }
 
@@ -19591,12 +20559,13 @@ export class F2SummaryView {
         const chargerPrice = accessories.chargerCostSum || 0;
         const cordPrice = accessories.cordCostSum || 0;
 
-        this.f2.b2_winderPrice.textContent = formatIntegerCurrency(winderPrice);
-        this.f2.b3_dualPrice.textContent = formatIntegerCurrency(dualPrice);
-        this.f2.b6_motorPrice.textContent = formatIntegerCurrency(motorPrice);
-        this.f2.b7_remotePrice.textContent = formatIntegerCurrency(remotePrice);
-        this.f2.b8_chargerPrice.textContent = formatIntegerCurrency(chargerPrice);
-        this.f2.b9_cordPrice.textContent = formatIntegerCurrency(cordPrice);
+        // [MODIFIED] (v6298-fix-5) Add checks for element existence
+        if (this.f2.b2_winderPrice) this.f2.b2_winderPrice.textContent = formatIntegerCurrency(winderPrice);
+        if (this.f2.b3_dualPrice) this.f2.b3_dualPrice.textContent = formatIntegerCurrency(dualPrice);
+        if (this.f2.b6_motorPrice) this.f2.b6_motorPrice.textContent = formatIntegerCurrency(motorPrice);
+        if (this.f2.b7_remotePrice) this.f2.b7_remotePrice.textContent = formatIntegerCurrency(remotePrice);
+        if (this.f2.b8_chargerPrice) this.f2.b8_chargerPrice.textContent = formatIntegerCurrency(chargerPrice);
+        if (this.f2.b9_cordPrice) this.f2.b9_cordPrice.textContent = formatIntegerCurrency(cordPrice);
 
         // [MODIFIED] (v6295) Get Wifi Qty from F1 state and calculate price
         const wifiQty = state.ui.f1.wifi_qty || 0;
@@ -19612,54 +20581,54 @@ export class F2SummaryView {
             (f2State.installFeeExcluded ? 0 : installFee) +
             (f2State.removalFeeExcluded ? 0 : removalFee);
 
-        this.f2.b4_acceSum.textContent = formatIntegerCurrency(acceSum);
+        if (this.f2.b4_acceSum) this.f2.b4_acceSum.textContent = formatIntegerCurrency(acceSum);
         // [MODIFIED] (v6295) Render new wifiSum to the b10 div
-        this.f2.b10_wifiQty.textContent = formatIntegerCurrency(wifiSum);
-        this.f2.b11_eAcceSum.textContent = formatIntegerCurrency(eAcceSum);
-        this.f2.c13_deliveryFee.textContent = formatIntegerCurrency(deliveryFee);
-        this.f2.c14_installFee.textContent = formatIntegerCurrency(installFee);
-        this.f2.c15_removalFee.textContent = formatIntegerCurrency(removalFee);
-        this.f2.b16_surchargeFee.textContent = formatIntegerCurrency(surchargeFee);
+        if (this.f2.b10_wifiQty) this.f2.b10_wifiQty.textContent = formatIntegerCurrency(wifiSum);
+        if (this.f2.b11_eAcceSum) this.f2.b11_eAcceSum.textContent = formatIntegerCurrency(eAcceSum);
+        if (this.f2.c13_deliveryFee) this.f2.c13_deliveryFee.textContent = formatIntegerCurrency(deliveryFee);
+        if (this.f2.c14_installFee) this.f2.c14_installFee.textContent = formatIntegerCurrency(installFee);
+        if (this.f2.c15_removalFee) this.f2.c15_removalFee.textContent = formatIntegerCurrency(removalFee);
+        if (this.f2.b16_surchargeFee) this.f2.b16_surchargeFee.textContent = formatIntegerCurrency(surchargeFee);
 
-        this.f2.a17_totalSum.textContent = formatValue(f2State.totalSumForRbTime);
-        this.f2.c17_1stRbPrice.textContent = formatDecimalCurrency(f2State.firstRbPrice);
-        this.f2.b19_disRbPrice.textContent = formatDecimalCurrency(f2State.disRbPrice);
-        this.f2.b20_singleprofit.textContent = formatDecimalCurrency(f2State.singleprofit);
-        this.f2.b21_rbProfit.textContent = formatDecimalCurrency(f2State.rbProfit);
+        if (this.f2.a17_totalSum) this.f2.a17_totalSum.textContent = formatValue(f2State.totalSumForRbTime);
+        if (this.f2.c17_1stRbPrice) this.f2.c17_1stRbPrice.textContent = formatDecimalCurrency(f2State.firstRbPrice);
+        if (this.f2.b19_disRbPrice) this.f2.b19_disRbPrice.textContent = formatDecimalCurrency(f2State.disRbPrice);
+        if (this.f2.b20_singleprofit) this.f2.b20_singleprofit.textContent = formatDecimalCurrency(f2State.singleprofit);
+        if (this.f2.b21_rbProfit) this.f2.b21_rbProfit.textContent = formatDecimalCurrency(f2State.rbProfit);
 
         // [MODIFIED] (Phase 8) Use the correct state keys defined in initial-state.js
-        this.f2.b22_sumprice.textContent = formatDecimalCurrency(f2State.sumPrice);
-        this.f2.f2_17_pre_sum.textContent = formatDecimalCurrency(f2State.f2_17_pre_sum);
-        this.f2.b24_gst.textContent = formatDecimalCurrency(f2State.gst);
-        this.f2.grand_total.textContent = formatDecimalCurrency(f2State.grandTotal);
-        this.f2.b25_netprofit.textContent = formatDecimalCurrency(f2State.netProfit);
+        if (this.f2.b22_sumprice) this.f2.b22_sumprice.textContent = formatDecimalCurrency(f2State.sumPrice);
+        if (this.f2.f2_17_pre_sum) this.f2.f2_17_pre_sum.textContent = formatDecimalCurrency(f2State.f2_17_pre_sum);
+        if (this.f2.b24_gst) this.f2.b24_gst.textContent = formatDecimalCurrency(f2State.gst);
+        if (this.f2.grand_total) this.f2.grand_total.textContent = formatDecimalCurrency(f2State.grandTotal);
+        if (this.f2.b25_netprofit) this.f2.b25_netprofit.textContent = formatDecimalCurrency(f2State.netProfit);
 
         // --- Render Inputs ---
         // [REMOVED] (v6295) Wifi input is no longer rendered
         // if (document.activeElement !== this.f2.b10_wifiQty) this.f2.b10_wifiQty.value = formatValue(f2State.wifiQty);
-        if (document.activeElement !== this.f2.b13_deliveryQty) this.f2.b13_deliveryQty.value = formatValue(f2State.deliveryQty);
-        if (document.activeElement !== this.f2.b14_installQty) this.f2.b14_installQty.value = formatValue(f2State.installQty);
-        if (document.activeElement !== this.f2.b15_removalQty) this.f2.b15_removalQty.value = formatValue(f2State.removalQty);
-        if (document.activeElement !== this.f2.b17_mulTimes) this.f2.b17_mulTimes.value = formatValue(f2State.mulTimes);
-        if (document.activeElement !== this.f2.b18_discount) this.f2.b18_discount.value = formatValue(f2State.discount);
+        if (this.f2.b13_deliveryQty && document.activeElement !== this.f2.b13_deliveryQty) this.f2.b13_deliveryQty.value = formatValue(f2State.deliveryQty);
+        if (this.f2.b14_installQty && document.activeElement !== this.f2.b14_installQty) this.f2.b14_installQty.value = formatValue(f2State.installQty);
+        if (this.f2.b15_removalQty && document.activeElement !== this.f2.b15_removalQty) this.f2.b15_removalQty.value = formatValue(f2State.removalQty);
+        if (this.f2.b17_mulTimes && document.activeElement !== this.f2.b17_mulTimes) this.f2.b17_mulTimes.value = formatValue(f2State.mulTimes);
+        if (this.f2.b18_discount && document.activeElement !== this.f2.b18_discount) this.f2.b18_discount.value = formatValue(f2State.discount);
 
         // [MODIFIED] (Phase 9) `newOffer` input now defaults to `sumPrice` if null
-        if (document.activeElement !== this.f2.new_offer) {
+        if (this.f2.new_offer && document.activeElement !== this.f2.new_offer) {
             const newOfferValue = (f2State.newOffer !== null && f2State.newOffer !== undefined) ? f2State.newOffer : f2State.sumPrice;
             this.f2.new_offer.value = formatValue(newOfferValue);
         }
 
         // [NEW] v6290 Render Deposit and Balance
-        if (document.activeElement !== this.f2.deposit) {
+        if (this.f2.deposit && document.activeElement !== this.f2.deposit) {
             this.f2.deposit.value = formatValue(f2State.deposit);
         }
         // Balance is read-only, so no need to check activeElement
-        this.f2.balance.value = formatValue(f2State.balance);
+        if (this.f2.balance) this.f2.balance.value = formatValue(f2State.balance);
 
 
-        this.f2.c13_deliveryFee.classList.toggle('is-excluded', f2State.deliveryFeeExcluded);
-        this.f2.c14_installFee.classList.toggle('is-excluded', f2State.installFeeExcluded);
-        this.f2.c15_removalFee.classList.toggle('is-excluded', f2State.removalFeeExcluded);
+        if (this.f2.c13_deliveryFee) this.f2.c13_deliveryFee.classList.toggle('is-excluded', f2State.deliveryFeeExcluded);
+        if (this.f2.c14_installFee) this.f2.c14_installFee.classList.toggle('is-excluded', f2State.installFeeExcluded);
+        if (this.f2.c15_removalFee) this.f2.c15_removalFee.classList.toggle('is-excluded', f2State.removalFeeExcluded);
 
         // [NEW] (Phase 2) Toggle GST exclusion styles
         if (this.f2.label_gst) this.f2.label_gst.classList.toggle('is-excluded', f2State.gstExcluded);
@@ -19813,10 +20782,42 @@ export class F3QuotePrepView {
         this.stateService = stateService; // [NEW] Store stateService
         this.userOverrodeDueDate = false; // [NEW] Mechanism 3 flag
 
+        // [NEW] (v6298-fix-5) Store bound handlers
+        this.boundHandlers = [];
+        this.focusOrder = [
+            'quoteId', 'issueDate', 'dueDate',
+            'customerName', 'customerAddress', 'customerPhone', 'customerEmail',
+            'generalNotes', 'termsConditions',
+        ];
+
         this._cacheF3Elements();
         this._initializeF3Listeners();
         console.log('F3QuotePrepView Initialized.');
     }
+
+    /**
+     * [NEW] (v6298-fix-5) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("F3QuotePrepView destroyed.");
+    }
+
 
     // [NEW] Robust helper to format a Date object to "YYYY-MM-DD" in LOCAL time.
     _formatDateToYMD(date) {
@@ -19875,7 +20876,8 @@ export class F3QuotePrepView {
         // [NEW] Helper to dispatch state updates on 'change' event
         const addStateUpdateListener = (inputElement, actionCreator) => {
             if (inputElement) {
-                inputElement.addEventListener('change', (event) => {
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(inputElement, 'change', (event) => {
                     this.stateService.dispatch(
                         actionCreator(event.target.value)
                     );
@@ -19886,7 +20888,8 @@ export class F3QuotePrepView {
         // [NEW] Helper for customer properties
         const addCustomerUpdateListener = (inputElement, key) => {
             if (inputElement) {
-                inputElement.addEventListener('change', (event) => {
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(inputElement, 'change', (event) => {
                     this.stateService.dispatch(
                         quoteActions.updateCustomerProperty(
                             key,
@@ -19915,7 +20918,8 @@ export class F3QuotePrepView {
 
         // --- [NEW] Mechanism 3: Listen for manual override on Due Date ---
         if (this.f3.inputs.dueDate) {
-            this.f3.inputs.dueDate.addEventListener('input', () => {
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this._addListener(this.f3.inputs.dueDate, 'input', () => {
                 this.userOverrodeDueDate = true;
             });
             // Also dispatch its value change to state
@@ -19925,7 +20929,8 @@ export class F3QuotePrepView {
         }
 
         // --- Date Chaining Logic (MODIFIED for Mechanism 3 & Timezone Fix) ---
-        this.f3.inputs.issueDate.addEventListener('input', (event) => {
+        // [MODIFIED] (v6298-fix-5) Use helper
+        this._addListener(this.f3.inputs.issueDate, 'input', (event) => {
             const issueDateValue = event.target.value;
             // [NEW] Dispatch issueDate change to state
             this.stateService.dispatch(
@@ -19967,7 +20972,8 @@ export class F3QuotePrepView {
 
         // --- Add Quote Button Listener ---
         if (this.f3.buttons.addQuote) {
-            this.f3.buttons.addQuote.addEventListener('click', () => {
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this._addListener(this.f3.buttons.addQuote, 'click', () => {
                 this.eventAggregator.publish(
                     EVENTS.USER_REQUESTED_PRINTABLE_QUOTE
                 );
@@ -19976,7 +20982,8 @@ export class F3QuotePrepView {
 
         // --- [NEW] GTH Button Listener ---
         if (this.f3.buttons.btnGth) {
-            this.f3.buttons.btnGth.addEventListener('click', () => {
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this._addListener(this.f3.buttons.btnGth, 'click', () => {
                 this.eventAggregator.publish(
                     EVENTS.USER_REQUESTED_GMAIL_QUOTE
                 );
@@ -19984,22 +20991,11 @@ export class F3QuotePrepView {
         }
 
         // --- Focus Jumping Logic ---
-        const focusOrder = [
-            'quoteId',
-            'issueDate',
-            'dueDate',
-            'customerName',
-            'customerAddress',
-            'customerPhone',
-            'customerEmail',
-            /* [REMOVED] 'finalOfferPrice', */ 'generalNotes',
-            'termsConditions',
-        ];
-
-        focusOrder.forEach((key, index) => {
+        this.focusOrder.forEach((key, index) => {
             const currentElement = this.f3.inputs[key];
             if (currentElement) {
-                currentElement.addEventListener('keydown', (event) => {
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(currentElement, 'keydown', (event) => {
                     if (
                         event.key === 'Enter' ||
                         (event.key === 'Tab' && !event.shiftKey)
@@ -20015,8 +21011,8 @@ export class F3QuotePrepView {
                         event.preventDefault();
                         event.stopPropagation(); // Stop the event from bubbling up
                         const nextIndex = index + 1;
-                        if (nextIndex < focusOrder.length) {
-                            const nextKey = focusOrder[nextIndex];
+                        if (nextIndex < this.focusOrder.length) {
+                            const nextKey = this.focusOrder[nextIndex];
                             this.f3.inputs[nextKey]?.focus();
                         } else {
                             this.f3.buttons.addQuote?.focus();
@@ -20156,20 +21152,48 @@ export class F3QuotePrepView {
 --- FILE START: 04-core-code/ui/views/f4-actions-view.js ---
 // File: 04-core-code/ui/views/f4-actions-view.js
 
-import { EVENTS } from '../../config/constants.js';
+import { EVENTS, DOM_IDS } from '../../config/constants.js';
 
 /**
  * @fileoverview A dedicated sub-view for handling all logic related to the F4 (Actions) tab.
  */
 export class F4ActionsView {
-    constructor({ panelElement, eventAggregator }) {
+    constructor({ panelElement, eventAggregator, authService }) { // [MODIFIED] (v6298) Added authService
         this.panelElement = panelElement;
         this.eventAggregator = eventAggregator;
+        this.authService = authService; // [NEW] (v6298) Store authService
+
+        // [NEW] (v6298-fix-5) Store bound handlers
+        this.boundHandlers = [];
 
         this._cacheF4Elements();
         this._initializeF4Listeners();
         console.log('F4ActionsView Initialized.');
     }
+
+    /**
+     * [NEW] (v6298-fix-5) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("F4ActionsView destroyed.");
+    }
+
 
     _cacheF4Elements() {
         const query = (id) => this.panelElement.querySelector(id);
@@ -20178,19 +21202,20 @@ export class F4ActionsView {
                 'f1-key-save': query('#f1-key-save'),
                 'f1-key-export': query('#f1-key-export'),
                 'f1-key-load': query('#f1-key-load'),
-                'f4-key-load-cloud': query('#f4-key-load-cloud'), // [NEW]
+                'f4-key-load-cloud': query(`#${DOM_IDS.F4_BTN_SEARCH_DIALOG}`), // [MODIFIED] Old ID no longer exists, new ID used
+                'f4-key-logout': query(`#${DOM_IDS.F4_BTN_LOGOUT}`), // [NEW]
                 'f1-key-reset': query('#f1-key-reset'),
             },
         };
     }
 
     _initializeF4Listeners() {
-        // [MODIFIED] Add new event for cloud load
+        // [MODIFIED] Add new event for cloud load, search dialog, and logout
         const buttonEventMap = {
             'f1-key-save': EVENTS.USER_REQUESTED_SAVE,
             'f1-key-export': EVENTS.USER_REQUESTED_EXPORT_CSV,
             'f1-key-load': EVENTS.USER_REQUESTED_LOAD,
-            'f4-key-load-cloud': EVENTS.USER_REQUESTED_LOAD_FROM_CLOUD, // [NEW]
+            'f4-key-load-cloud': EVENTS.USER_REQUESTED_SEARCH_DIALOG, // [MODIFIED] (v6298) This button now triggers the search dialog
             'f1-key-reset': EVENTS.USER_REQUESTED_RESET,
         };
 
@@ -20201,11 +21226,24 @@ export class F4ActionsView {
                 if (id === 'f1-key-load') {
                     button.textContent = 'Load File';
                 }
-                button.addEventListener(
-                    'click',
-                    () => this.eventAggregator.publish(eventName)
-                );
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(button, 'click', () => {
+                    this.eventAggregator.publish(eventName);
+                });
             }
+        }
+
+        // [NEW] (v6298) Specific listener for Logout button
+        const logoutButton = this.f4.buttons['f4-key-logout'];
+        if (logoutButton) {
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this._addListener(logoutButton, 'click', () => {
+                if (this.authService) {
+                    this.authService.logout();
+                } else {
+                    console.error("AuthService not available in F4ActionsView.");
+                }
+            });
         }
     }
 
