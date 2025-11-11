@@ -9,11 +9,11 @@ import { DialogComponent } from './dialog-component.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
 // [NEW] Import LeftPanelTabManager
 import { LeftPanelTabManager } from './left-panel-tab-manager.js';
-// [NEW] (v6297) Import AuthService (though it will be unused until logout is added)
-import { AuthService } from '../services/auth-service.js';
+// [REMOVED] (v6297) AuthService import is no longer needed here
+// import { AuthService } from '../services/auth-service.js';
 
 export class UIManager {
-    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k4TabComponent, k5TabComponent, authService }) { // [MODIFIED]
+    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k4TabComponent, k5TabComponent }) { // [MODIFIED] authService removed
         this.appElement = appElement;
         this.eventAggregator = eventAggregator;
         this.calculationService = calculationService;
@@ -24,7 +24,7 @@ export class UIManager {
         this.k3TabComponent = k3TabComponent; // [NEW] Store instance
         this.k4TabComponent = k4TabComponent; // [NEW] Store instance
         this.k5TabComponent = k5TabComponent; // [NEW] Store instance
-        this.authService = authService; // [NEW] (v6297) Store authService
+        // [REMOVED] (v6297) this.authService = authService;
 
         this.numericKeyboardPanel = document.getElementById(DOM_IDS.NUMERIC_KEYBOARD_PANEL);
 
@@ -71,13 +71,9 @@ export class UIManager {
             eventAggregator: this.eventAggregator
         });
 
-        // [NEW] (v6297) Cache login elements
-        this.loginContainer = document.getElementById('login-container');
-        this.loginForm = document.getElementById('login-form');
-        this.loginButton = document.getElementById('login-button');
-        this.loginEmail = document.getElementById('login-email');
-        this.loginPassword = document.getElementById('login-password');
-        this.loginErrorMessage = document.getElementById('login-error-message');
+        // [REMOVED] (v6297) Login elements are no longer cached here
+        // this.loginContainer = document.getElementById('login-container');
+        // ... (all login element caching removed)
 
         this.initialize();
     }
@@ -98,49 +94,16 @@ export class UIManager {
             }
         });
 
-        // [NEW] (v6297) Initialize login handler
-        // Note: This UIManager is only created *after* login,
-        // so this handler is dormant until we add a logout feature.
-        // We are adding it here to complete the file modification.
-        this._initializeLoginHandler();
+        // [REMOVED] (v6297) Call to _initializeLoginHandler removed
+        // this._initializeLoginHandler();
 
         this._initializeResizeObserver();
     }
 
     /**
-     * [NEW] (v6297) Adds listeners to the login form.
-     * This logic will be triggered by main.js *before* UIManager is initialized.
-     * ... (Self-correction: UIManager is initialized AFTER login,
-     * so this logic needs to be in main.js. But for this file's integrity,
-     * we will add the method as planned, even if it's not called yet.)
+     * [REMOVED] (v6297) Login handler logic is now in main.js
      */
-    _initializeLoginHandler() {
-        if (!this.loginForm) return;
-
-        this.loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!this.authService) return;
-
-            this.loginButton.disabled = true;
-            this.loginButton.textContent = 'Logging in...';
-            this.loginErrorMessage.classList.add('is-hidden');
-
-            const email = this.loginEmail.value;
-            const password = this.loginPassword.value;
-
-            const result = await this.authService.login(email, password);
-
-            if (result.success) {
-                // The onAuthStateChanged listener in main.js will handle showing the app
-            } else {
-                // Show error message
-                this.loginErrorMessage.textContent = result.message;
-                this.loginErrorMessage.classList.remove('is-hidden');
-                this.loginButton.disabled = false;
-                this.loginButton.textContent = 'Login';
-            }
-        });
-    }
+    // _initializeLoginHandler() { ... }
 
     _initializeResizeObserver() {
         const resizeObserver = new ResizeObserver(() => {

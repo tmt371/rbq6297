@@ -118,7 +118,10 @@ class App {
                 // --- On User Logged In ---
                 console.log(`User ${user.email} logged in. Initializing main app...`);
                 // Load and initialize the main app UI ONLY after login.
-                this._initializeAppUI(eventAggregator);
+                // [FIX] Check if UIManager already exists to prevent re-initialization on hot-reload
+                if (!this.uiManager) {
+                    this._initializeAppUI(eventAggregator);
+                }
             },
             (user) => {
                 // --- On User Logged Out ---
@@ -133,11 +136,56 @@ class App {
         // This now loads the login-component.html as well.
         await this._loadPartials();
 
-        // [NEW] (v6297) We no longer initialize the UI here.
+        // [NEW] (v6297) Initialize the login form handler *immediately* after loading partials.
+        // This fixes the bug where the login button did nothing.
+        this._initializeLoginHandler(authService);
+
+        // [REMOVED] (v6297) We no longer initialize the UI here.
         // It will be initialized by the auth observer callback.
 
         console.log("Application running. Waiting for auth state...");
         document.body.classList.add('app-is-ready');
+    }
+
+    /**
+     * [NEW] (v6297) (FIX) This logic is moved from UIManager to main.js
+     * It runs *before* authentication to make the login form interactive.
+     */
+    _initializeLoginHandler(authService) {
+        const loginForm = document.getElementById('login-form');
+        const loginButton = document.getElementById('login-button');
+        const loginEmail = document.getElementById('login-email');
+        const loginPassword = document.getElementById('login-password');
+        const loginErrorMessage = document.getElementById('login-error-message');
+
+        if (!loginForm || !authService) {
+            console.warn("Login form or AuthService not found, login cannot be initialized.");
+            return;
+        }
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            loginButton.disabled = true;
+            loginButton.textContent = 'Logging in...';
+            loginErrorMessage.classList.add('is-hidden');
+
+            const email = loginEmail.value;
+            const password = loginPassword.value;
+
+            const result = await authService.login(email, password);
+
+            if (result.success) {
+                // Success! The onAuthStateChanged listener will now
+                // fire and call _initializeAppUI() to show the main app.
+            } else {
+                // Show error message
+                loginErrorMessage.textContent = result.message;
+                loginErrorMessage.classList.remove('is-hidden');
+                loginButton.disabled = false;
+                loginButton.textContent = 'Login';
+            }
+        });
     }
 
     /**
@@ -175,9 +223,8 @@ class App {
             k3TabComponent, // [NEW] Inject K3 component
             k4TabComponent, // [NEW] Inject K4 component
             k5TabComponent, // [NEW] Inject K5 component
-            // [REMOVED]
-            // [NEW] (v6297) Pass Auth Service to UI Manager
-            authService: this.appContext.get('authService'),
+            // [REMOVED] (v6297) authService is no longer needed here
+            // authService: this.appContext.get('authService'),
         });
 
         // Step 5: Continue with the rest of the application startup.
