@@ -16,13 +16,37 @@ export class NotificationComponent {
         }
         this.container = containerElement;
         this.eventAggregator = eventAggregator;
-        
+
+        // [NEW] (v6298-fix) Store subscriptions for destruction
+        this.subscriptions = [];
+
         this.initialize();
         console.log("NotificationComponent Initialized.");
     }
 
     initialize() {
-        this.eventAggregator.subscribe(EVENTS.SHOW_NOTIFICATION, (data) => this.show(data));
+        // [MODIFIED] (v6298-fix) Use subscription helper
+        this._subscribe(EVENTS.SHOW_NOTIFICATION, (data) => this.show(data));
+    }
+
+    /**
+     * [NEW] (v6298-fix) Helper to subscribe and store references
+     */
+    _subscribe(eventName, handler) {
+        const boundHandler = handler.bind(this);
+        this.subscriptions.push({ eventName, handler: boundHandler });
+        this.eventAggregator.subscribe(eventName, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix) Destroys all event subscriptions.
+     */
+    destroy() {
+        this.subscriptions.forEach(({ eventName, handler }) => {
+            this.eventAggregator.unsubscribe(eventName, handler);
+        });
+        this.subscriptions = [];
+        console.log("NotificationComponent destroyed.");
     }
 
     /**

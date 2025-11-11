@@ -120,6 +120,17 @@ export class UIManager {
             this.rightPanelComponent = null;
         }
 
+        // [NEW] (v6298-fix) Add missing destroy calls for children components
+        if (this.notificationComponent) {
+            this.notificationComponent.destroy();
+            this.notificationComponent = null;
+        }
+        if (this.dialogComponent) {
+            this.dialogComponent.destroy();
+            this.dialogComponent = null;
+        }
+        // [END v6298-fix]
+
         // Unsubscribe from eventAggregator
         this.subscriptions.forEach(({ eventName, handler }) => {
             this.eventAggregator.unsubscribe(eventName, handler);
@@ -200,7 +211,7 @@ export class UIManager {
         // [NEW] Add modal lock class to the main app container
         this.appElement.classList.toggle('is-modal-active', state.ui.isModalActive);
 
-        // [NEW] (v6294 K5) (步驟 1) Add class for chain mode focus
+        // [NEW] (v6294 K5) (æ­¥é? 1) Add class for chain mode focus
         this.appElement.classList.toggle('chain-mode-active', state.ui.dualChainMode === 'chain');
 
         const currentProductKey = state.quoteData.currentProduct;

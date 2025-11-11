@@ -18,12 +18,42 @@ export class DialogComponent {
         // [MODIFIED] Renamed for clarity, this is now the grid container
         this.contentGridContainer = this.overlay.querySelector('.dialog-content-grid');
 
+        // [NEW] (v6298-fix) Store subscriptions for destruction
+        this.subscriptions = [];
+        // [NEW] (v6298-fix) Store overlay listener for destruction
+        this.boundOverlayClick = this._onOverlayClick.bind(this);
+
         this.initialize();
         console.log("DialogComponent (Refactored for Grid Layout) Initialized.");
     }
 
+    /**
+     * [NEW] (v6298-fix) Helper to subscribe and store references
+     */
+    _subscribe(eventName, handler) {
+        const boundHandler = handler.bind(this);
+        this.subscriptions.push({ eventName, handler: boundHandler });
+        this.eventAggregator.subscribe(eventName, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix) Destroys all event subscriptions and listeners.
+     */
+    destroy() {
+        this.subscriptions.forEach(({ eventName, handler }) => {
+            this.eventAggregator.unsubscribe(eventName, handler);
+        });
+        this.subscriptions = [];
+
+        if (this.overlay) {
+            this.overlay.removeEventListener('click', this.boundOverlayClick);
+        }
+        console.log("DialogComponent destroyed.");
+    }
+
     initialize() {
-        this.eventAggregator.subscribe(EVENTS.SHOW_LOAD_CONFIRMATION_DIALOG, () => {
+        // [MODIFIED] (v6298-fix) Use subscription helper
+        this._subscribe(EVENTS.SHOW_LOAD_CONFIRMATION_DIALOG, () => {
             this.show({
                 message: 'The current quote contains unsaved data. What would you like to do?',
                 gridTemplateColumns: '1fr 1fr 1fr', // [NEW] Explicitly define columns
@@ -37,13 +67,20 @@ export class DialogComponent {
             });
         });
 
-        this.eventAggregator.subscribe(EVENTS.SHOW_CONFIRMATION_DIALOG, (config) => this.show(config));
+        // [MODIFIED] (v6298-fix) Use subscription helper
+        this._subscribe(EVENTS.SHOW_CONFIRMATION_DIALOG, (config) => this.show(config));
 
-        this.overlay.addEventListener('click', (event) => {
-            if (event.target === this.overlay && this.closeOnOverlayClick) {
-                this.hide();
-            }
-        });
+        // [MODIFIED] (v6298-fix) Use stored listener
+        if (this.overlay) {
+            this.overlay.addEventListener('click', this.boundOverlayClick);
+        }
+    }
+
+    // [NEW] (v6298-fix) Extracted overlay click handler
+    _onOverlayClick(event) {
+        if (event.target === this.overlay && this.closeOnOverlayClick) {
+            this.hide();
+        }
     }
 
     /**
