@@ -33,7 +33,7 @@ export class WorkflowService {
         this.productFactory = productFactory;
         this.detailConfigView = detailConfigView;
         this.quoteGeneratorService = quoteGeneratorService; // [NEW] Store the injected service
-        this.authService = authService; // [NEW] (v6297) Store authService
+        this.authService = authService; // [NEW] (v6S97) Store authService
         this.quotePreviewComponent = null; // Will be set by AppContext
 
         console.log('WorkflowService Initialized.');
@@ -169,12 +169,13 @@ export class WorkflowService {
         let dataWithSnapshot = JSON.parse(JSON.stringify(quoteData));
 
         // --- [NEW] (v6297) 0. Capture Owner UID ---
+        // [FIX] Check for authService AND authService.currentUser
         if (this.authService && this.authService.currentUser) {
             dataWithSnapshot.ownerUid = this.authService.currentUser.uid;
         } else {
             console.error("WorkflowService: Cannot save. AuthService is missing or user is not logged in.");
             // We still proceed, but the ownerUid will be null.
-            // Our Firestore rules will (soon) block this.
+            // Our Firestore rules (which we will update later) will block this.
         }
 
         // --- 1. Capture F1 Snapshot (from Phase 4) ---
@@ -230,7 +231,7 @@ export class WorkflowService {
         // dataWithSnapshot.quoteId = getValue('f3-quote-id');
         // ... (all other getValue calls removed)
 
-        // --- [NEW] (v6J95) Capture F2 Snapshot ---
+        // --- [NEW] (v6295) Capture F2 Snapshot ---
         // Save the entire F2 state object
         dataWithSnapshot.f2Snapshot = JSON.parse(JSON.stringify(ui.f2));
 

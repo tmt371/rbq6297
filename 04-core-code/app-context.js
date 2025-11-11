@@ -282,7 +282,7 @@ import { DOM_IDS } from './config/constants.js'; // [MODIFIED]
 import { K1TabInputHandler } from './ui/tabs/k1-tab/k1-tab-input-handler.js';
 import { K1TabComponent } from './ui/tabs/k1-tab/k1-tab-component.js';
 import { K2TabInputHandler } from './ui/tabs/k2-tab/k2-tab-input-handler.js'; // [NEW]
-import { K2TabComponent } from './ui/tabs/k2-tab/k2-tab-component.js'; // [NEW] (v6294)
+import { K2TabComponent } from './ui/tabs/k2-tab/k2-tab-component.js'; // [NEW] (v6g294)
 import { K3TabInputHandler } from './ui/tabs/k3-tab/k3-tab-input-handler.js';
 import { K3TabComponent } from './ui/tabs/k3-tab/k3-tab-component.js';
 import { K4TabInputHandler } from './ui/tabs/k4-tab/k4-tab-input-handler.js';
