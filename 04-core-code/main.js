@@ -19,6 +19,9 @@ class App {
 
         // [MODIFIED] Initialize only non-UI services first.
         this.appContext.initialize(restoredData);
+
+        // [NEW] (v6298-fix-3) Store listener reference
+        this.stateChangeListener = null;
     }
 
     async _loadPartials() {
@@ -132,7 +135,7 @@ class App {
                 console.log("No user logged in. Showing login screen.");
 
                 // [NEW] (v6298-fix) Reset application state and UI
-                this._resetApplicationState(stateService);
+                this._resetApplicationState(stateService, eventAggregator); // [MODIFIED] (v6298-fix-3) Pass aggregator
 
                 // Show login screen, hide app
                 document.getElementById('login-container')?.classList.remove('is-hidden');
@@ -141,6 +144,11 @@ class App {
                 // [NEW] (v6298-fix) Force-hide panels that might be expanded
                 document.getElementById(DOM_IDS.FUNCTION_PANEL)?.classList.remove('is-expanded');
                 document.getElementById(DOM_IDS.LEFT_PANEL)?.classList.remove('is-expanded');
+
+                // [NEW] (v6298-fix-3) Force-hide panel toggles
+                document.getElementById(DOM_IDS.FUNCTION_PANEL_TOGGLE)?.classList.add('is-hidden');
+                document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE)?.classList.add('is-hidden');
+
 
                 // [NEW] (v6298-fix-2) Manually reset the login form's DOM state
                 const loginButton = document.getElementById('login-button');
@@ -179,13 +187,27 @@ class App {
     /**
      * [NEW] (v6298-fix) Resets the entire application state and destroys UI instances.
      */
-    _resetApplicationState(stateService) {
+    _resetApplicationState(stateService, eventAggregator) { // [MODIFIED] (v6298-fix-3)
         if (!stateService) return;
+
+        // [NEW] (v6298-fix-3) Destroy components *before* nulling them
+        if (this.inputHandler) {
+            this.inputHandler.destroy();
+        }
+        if (this.uiManager) {
+            this.uiManager.destroy();
+        }
 
         // 1. Nullify instances to force re-initialization on next login
         // [MODIFIED] (v6298-fix-2) This MUST happen first to prevent the race condition.
         this.uiManager = null;
         this.inputHandler = null; // Assuming InputHandler is property of App
+
+        // [NEW] (v6298-fix-3) Unsubscribe the main render listener
+        if (this.stateChangeListener) {
+            eventAggregator.unsubscribe(EVENTS.STATE_CHANGED, this.stateChangeListener);
+            this.stateChangeListener = null;
+        }
 
         // 2. Dispatch actions to reset the state to its initial value
         stateService.dispatch(quoteActions.resetQuoteData());
@@ -309,14 +331,15 @@ class App {
         // Step 5: Continue with the rest of the application startup.
         await configManager.initialize();
 
-        // [MODIFIED] (v6298-fix-2) Add safety check
-        eventAggregator.subscribe(EVENTS.STATE_CHANGED, (state) => {
+        // [MODIFIED] (v6298-fix-3) Store the listener reference
+        this.stateChangeListener = (state) => {
             // Only render if the uiManager instance still exists.
             // This check will fail during logout, preventing the crash.
             if (this.uiManager) {
                 this.uiManager.render(state);
             }
-        });
+        };
+        eventAggregator.subscribe(EVENTS.STATE_CHANGED, this.stateChangeListener);
 
         appController.publishInitialState();
 
@@ -334,6 +357,10 @@ class App {
         // [NEW] (v6297) Show the app and hide the login screen
         document.getElementById('login-container')?.classList.add('is-hidden');
         document.getElementById(DOM_IDS.APP)?.classList.remove('is-hidden');
+
+        // [NEW] (v6298-fix-3) Show panel toggles
+        document.getElementById(DOM_IDS.FUNCTION_PANEL_TOGGLE)?.classList.remove('is-hidden');
+        document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE)?.classList.remove('is-hidden');
 
         console.log("Main App UI Initialized and interactive.");
     }

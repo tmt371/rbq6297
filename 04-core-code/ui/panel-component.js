@@ -15,6 +15,8 @@ export class PanelComponent {
      */
     constructor(config) {
         this.config = config;
+        this.toggleHandler = this.toggle.bind(this); // [NEW] Store the handler reference
+        this.retractHandler = this.retract.bind(this); // [NEW] Store the handler reference
 
         // --- Configuration Validation ---
         if (!this.config.panelElement || !this.config.toggleElement || !this.config.eventAggregator || !this.config.expandedClass) {
@@ -26,10 +28,12 @@ export class PanelComponent {
     }
 
     initialize() {
-        this.config.toggleElement.addEventListener('click', () => this.toggle());
+        // [MODIFIED] Use the stored reference
+        this.config.toggleElement.addEventListener('click', this.toggleHandler);
 
         if (this.config.retractEventName) {
-            this.config.eventAggregator.subscribe(this.config.retractEventName, () => this.retract());
+            // [MODIFIED] Use the stored reference
+            this.config.eventAggregator.subscribe(this.config.retractEventName, this.retractHandler);
         }
     }
 
@@ -57,5 +61,17 @@ export class PanelComponent {
      */
     expand() {
         this.config.panelElement.classList.add(this.config.expandedClass);
+    }
+
+    /**
+     * [NEW] Removes event listeners to prevent memory leaks.
+     */
+    destroy() {
+        this.config.toggleElement.removeEventListener('click', this.toggleHandler);
+
+        if (this.config.retractEventName) {
+            this.config.eventAggregator.unsubscribe(this.config.retractEventName, this.retractHandler);
+        }
+        console.log(`PanelComponent for ${this.config.panelElement.id} destroyed.`);
     }
 }

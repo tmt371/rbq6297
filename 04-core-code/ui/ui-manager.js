@@ -101,6 +101,25 @@ export class UIManager {
     }
 
     /**
+     * [NEW] (v6298-fix) Removes all sub-component event listeners.
+     */
+    destroy() {
+        if (this.functionPanel) {
+            this.functionPanel.destroy();
+            this.functionPanel = null;
+        }
+        if (this.leftPanelTabManager) {
+            this.leftPanelTabManager.destroy();
+            this.leftPanelTabManager = null;
+        }
+        // Other components like tableComponent, summaryComponent, etc.,
+        // don't attach persistent listeners to document/window,
+        // so they are implicitly destroyed when uiManager is nulled in main.js.
+        console.log("UIManager destroyed.");
+    }
+
+
+    /**
      * [REMOVED] (v6297) Login handler logic is now in main.js
      */
     // _initializeLoginHandler() { ... }
@@ -138,7 +157,6 @@ export class UIManager {
         this.leftPanelElement.style.top = `${newTop}px`;
         this.leftPanelElement.style.width = `${newWidth}px`;
         this.leftPanelElement.style.height = `${newHeight}px`;
-
         this.leftPanelElement.style.setProperty('--left-panel-width', `${newWidth}px`);
     }
 
@@ -160,7 +178,6 @@ export class UIManager {
 
         this.tableComponent.render(state);
         this.summaryComponent.render(currentProductData.summary, state.ui.isSumOutdated);
-
         // [MODIFIED] Delegate tab/panel rendering to the new LeftPanelTabManager
         this.leftPanelTabManager.render(state.ui);
 
@@ -208,7 +225,6 @@ export class UIManager {
 
         const selectionCount = multiSelectSelectedIndexes.length;
         const isSingleSelection = selectionCount === 1;
-
         // --- Insert Button Logic ---
         let insertDisabled = true;
         if (isSingleSelection) {

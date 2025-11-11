@@ -16,6 +16,11 @@ export class LeftPanelTabManager {
         this.panelElement = panelElement;
         this.eventAggregator = eventAggregator;
         this.panelToggle = document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE);
+        this.tabContainer = this.panelElement.querySelector('.tab-container'); // [NEW] Cache container
+
+        // [NEW] Store bound handlers for proper removal
+        this.handleToggleClick = this._onToggleClick.bind(this);
+        this.handleTabClick = this._onTabClick.bind(this);
 
         // Cache tab elements (from left-panel-component)
         this.tabButtons = this.panelElement.querySelectorAll('.tab-button');
@@ -34,15 +39,27 @@ export class LeftPanelTabManager {
     }
 
     /**
+     * [NEW] Removes event listeners to prevent memory leaks.
+     */
+    destroy() {
+        if (this.panelToggle) {
+            this.panelToggle.removeEventListener('click', this.handleToggleClick);
+        }
+        if (this.tabContainer) {
+            this.tabContainer.removeEventListener('click', this.handleTabClick);
+        }
+        console.log("LeftPanelTabManager destroyed.");
+    }
+
+
+    /**
      * Sets up the listener for the main navigation toggle (handle).
      * (Logic from left-panel-input-handler.js)
      */
     _setupNavigationToggle() {
-        const leftPanelToggle = document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE);
-        if (leftPanelToggle) {
-            leftPanelToggle.addEventListener('click', () => {
-                this.eventAggregator.publish(EVENTS.USER_NAVIGATED_TO_DETAIL_VIEW);
-            });
+        if (this.panelToggle) {
+            // [MODIFIED] Use stored handler
+            this.panelToggle.addEventListener('click', this.handleToggleClick);
         }
     }
 
@@ -51,16 +68,25 @@ export class LeftPanelTabManager {
      * (Logic from left-panel-input-handler.js)
      */
     _setupTabButtons() {
-        const tabContainer = document.querySelector('#left-panel .tab-container');
-        if (tabContainer) {
-            tabContainer.addEventListener('click', (event) => {
-                const target = event.target.closest('.tab-button');
-                if (target && !target.disabled) {
-                    this.eventAggregator.publish(EVENTS.USER_SWITCHED_TAB, { tabId: target.id });
-                }
-            });
+        if (this.tabContainer) {
+            // [MODIFIED] Use stored handler
+            this.tabContainer.addEventListener('click', this.handleTabClick);
         }
     }
+
+    // [NEW] Event handler for toggle click
+    _onToggleClick() {
+        this.eventAggregator.publish(EVENTS.USER_NAVIGATED_TO_DETAIL_VIEW);
+    }
+
+    // [NEW] Event handler for tab click
+    _onTabClick(event) {
+        const target = event.target.closest('.tab-button');
+        if (target && !target.disabled) {
+            this.eventAggregator.publish(EVENTS.USER_SWITCHED_TAB, { tabId: target.id });
+        }
+    }
+
 
     /**
      * Renders the UI state of the tabs (e.g., active tab, background color).
