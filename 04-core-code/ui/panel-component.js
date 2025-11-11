@@ -64,10 +64,12 @@ export class PanelComponent {
     }
 
     /**
-     * [NEW] Removes event listeners to prevent memory leaks.
+     * [NEW] (v6298-fix-4) Removes event listeners to prevent memory leaks.
      */
     destroy() {
-        this.config.toggleElement.removeEventListener('click', this.toggleHandler);
+        if (this.config.toggleElement) {
+            this.config.toggleElement.removeEventListener('click', this.toggleHandler);
+        }
 
         if (this.config.retractEventName) {
             this.config.eventAggregator.unsubscribe(this.config.retractEventName, this.retractHandler);

@@ -41,7 +41,17 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: opacity 0.3s, visibility 0.3s;
+    /* [NEW] (v6298-fix-4) Add transition */
 }
+
+/* [NEW] (v6298-fix-4) Hide the toggle when logged out */
+#function-panel-toggle.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
 
 #function-panel-toggle .toggle-arrow {
     width: 24px;

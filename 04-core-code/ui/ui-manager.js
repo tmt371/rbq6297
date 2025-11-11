@@ -75,24 +75,18 @@ export class UIManager {
         // this.loginContainer = document.getElementById('login-container');
         // ... (all login element caching removed)
 
+        // [NEW] (v6298-fix-4) Store subscriptions and handlers
+        this.subscriptions = [];
+        this.boundToggleNumericKeyboard = this._toggleNumericKeyboard.bind(this);
+        this.boundFocusElement = this._focusElement.bind(this);
+
         this.initialize();
     }
 
     initialize() {
-        this.eventAggregator.subscribe(EVENTS.USER_TOGGLED_NUMERIC_KEYBOARD, () => this._toggleNumericKeyboard());
-
-        // [NEW] Add a global listener for focus events.
-        this.eventAggregator.subscribe(EVENTS.FOCUS_ELEMENT, ({ elementId }) => {
-            const element = document.getElementById(elementId);
-            if (element) {
-                setTimeout(() => {
-                    element.focus();
-                    if (typeof element.select === 'function') {
-                        element.select();
-                    }
-                }, 50); // A small delay to ensure the element is rendered and focusable.
-            }
-        });
+        // [MODIFIED] (v6298-fix-4) Use _subscribe helper
+        this._subscribe(EVENTS.USER_TOGGLED_NUMERIC_KEYBOARD, this.boundToggleNumericKeyboard);
+        this._subscribe(EVENTS.FOCUS_ELEMENT, this.boundFocusElement);
 
         // [REMOVED] (v6297) Call to _initializeLoginHandler removed
         // this._initializeLoginHandler();
@@ -101,7 +95,15 @@ export class UIManager {
     }
 
     /**
-     * [NEW] (v6298-fix) Removes all sub-component event listeners.
+     * [NEW] (v6298-fix-4) Helper to subscribe and store references
+     */
+    _subscribe(eventName, handler) {
+        this.subscriptions.push({ eventName, handler });
+        this.eventAggregator.subscribe(eventName, handler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Removes all sub-component event listeners and subscriptions.
      */
     destroy() {
         if (this.functionPanel) {
@@ -112,10 +114,29 @@ export class UIManager {
             this.leftPanelTabManager.destroy();
             this.leftPanelTabManager = null;
         }
+
+        // Unsubscribe from eventAggregator
+        this.subscriptions.forEach(({ eventName, handler }) => {
+            this.eventAggregator.unsubscribe(eventName, handler);
+        });
+        this.subscriptions = [];
+
         // Other components like tableComponent, summaryComponent, etc.,
         // don't attach persistent listeners to document/window,
         // so they are implicitly destroyed when uiManager is nulled in main.js.
         console.log("UIManager destroyed.");
+    }
+
+    _focusElement({ elementId }) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            setTimeout(() => {
+                element.focus();
+                if (typeof element.select === 'function') {
+                    element.select();
+                }
+            }, 50); // A small delay to ensure the element is rendered and focusable.
+        }
     }
 
 
@@ -126,11 +147,15 @@ export class UIManager {
 
     _initializeResizeObserver() {
         const resizeObserver = new ResizeObserver(() => {
-            if (this.leftPanelElement.classList.contains('is-expanded')) {
+            if (this.leftPanelElement && this.leftPanelElement.classList.contains('is-expanded')) {
                 this._updateExpandedPanelPosition();
             }
         });
-        resizeObserver.observe(this.appElement);
+        // Check if appElement exists before observing
+        if (this.appElement) {
+            resizeObserver.observe(this.appElement);
+        }
+        this.resizeObserver = resizeObserver; // Store for potential disconnection
     }
 
     _updateExpandedPanelPosition() {

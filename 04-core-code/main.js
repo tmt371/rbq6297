@@ -22,6 +22,14 @@ class App {
 
         // [NEW] (v6298-fix-3) Store listener reference
         this.stateChangeListener = null;
+
+        // [NEW] (v6298-fix-4) Store references to components that need destruction
+        this.appController = null;
+        this.k1TabInputHandler = null;
+        this.k2TabInputHandler = null;
+        this.k3TabInputHandler = null;
+        this.k4TabInputHandler = null;
+        this.k5TabInputHandler = null;
     }
 
     async _loadPartials() {
@@ -145,7 +153,7 @@ class App {
                 document.getElementById(DOM_IDS.FUNCTION_PANEL)?.classList.remove('is-expanded');
                 document.getElementById(DOM_IDS.LEFT_PANEL)?.classList.remove('is-expanded');
 
-                // [NEW] (v6298-fix-3) Force-hide panel toggles
+                // [NEW] (v6298-fix-4) Force-hide panel toggles
                 document.getElementById(DOM_IDS.FUNCTION_PANEL_TOGGLE)?.classList.add('is-hidden');
                 document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE)?.classList.add('is-hidden');
 
@@ -189,6 +197,33 @@ class App {
      */
     _resetApplicationState(stateService, eventAggregator) { // [MODIFIED] (v6298-fix-3)
         if (!stateService) return;
+
+        // [NEW] (v6298-fix-4) Destroy all components that have listeners
+        if (this.appController) {
+            this.appController.destroy();
+            this.appController = null;
+        }
+        if (this.k1TabInputHandler) {
+            this.k1TabInputHandler.destroy();
+            this.k1TabInputHandler = null;
+        }
+        if (this.k2TabInputHandler) {
+            this.k2TabInputHandler.destroy();
+            this.k2TabInputHandler = null;
+        }
+        if (this.k3TabInputHandler) {
+            this.k3TabInputHandler.destroy();
+            this.k3TabInputHandler = null;
+        }
+        if (this.k4TabInputHandler) {
+            this.k4TabInputHandler.destroy();
+            this.k4TabInputHandler = null;
+        }
+        if (this.k5TabInputHandler) {
+            this.k5TabInputHandler.destroy();
+            this.k5TabInputHandler = null;
+        }
+        // [END v6298-fix-4]
 
         // [NEW] (v6298-fix-3) Destroy components *before* nulling them
         if (this.inputHandler) {
@@ -299,16 +334,22 @@ class App {
         this.appContext.initializeUIComponents();
 
         // Step 3: Get all fully initialized instances from the context.
+        // [MODIFIED] (v6298-fix-4) Store references
         const calculationService = this.appContext.get('calculationService');
         const configManager = this.appContext.get('configManager');
-        const appController = this.appContext.get('appController');
+        this.appController = this.appContext.get('appController');
         const rightPanelComponent = this.appContext.get('rightPanelComponent');
         const leftPanelTabManager = this.appContext.get('leftPanelTabManager');
         const k1TabComponent = this.appContext.get('k1TabComponent');
+        this.k1TabInputHandler = this.appContext.get('k1TabInputHandler');
         const k2TabComponent = this.appContext.get('k2TabComponent');
+        this.k2TabInputHandler = this.appContext.get('k2TabInputHandler');
         const k3TabComponent = this.appContext.get('k3TabComponent');
+        this.k3TabInputHandler = this.appContext.get('k3TabInputHandler');
         const k4TabComponent = this.appContext.get('k4TabComponent');
+        this.k4TabInputHandler = this.appContext.get('k4TabInputHandler');
         const k5TabComponent = this.appContext.get('k5TabComponent');
+        this.k5TabInputHandler = this.appContext.get('k5TabInputHandler');
 
         // [REMOVED]
 
@@ -341,7 +382,7 @@ class App {
         };
         eventAggregator.subscribe(EVENTS.STATE_CHANGED, this.stateChangeListener);
 
-        appController.publishInitialState();
+        this.appController.publishInitialState(); // [MODIFIED] (v6298-fix-4) Use stored ref
 
         this.inputHandler = new InputHandler(eventAggregator);
         this.inputHandler.initialize();
@@ -358,7 +399,7 @@ class App {
         document.getElementById('login-container')?.classList.add('is-hidden');
         document.getElementById(DOM_IDS.APP)?.classList.remove('is-hidden');
 
-        // [NEW] (v6298-fix-3) Show panel toggles
+        // [NEW] (v6298-fix-4) Show panel toggles
         document.getElementById(DOM_IDS.FUNCTION_PANEL_TOGGLE)?.classList.remove('is-hidden');
         document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE)?.classList.remove('is-hidden');
 

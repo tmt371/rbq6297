@@ -20,10 +20,32 @@ export class AppController {
         this.workflowService = workflowService;
 
         this.autoSaveTimerId = null;
+        this.subscriptions = []; // [NEW] (v6298-fix-4) Store subscriptions
         console.log(
             'AppController (Refactored with grouped subscriptions) Initialized.'
         );
         this.initialize();
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Helper to subscribe and store the reference
+     */
+    _subscribe(eventName, handler) {
+        const boundHandler = handler.bind(this);
+        this.subscriptions.push({ eventName, handler: boundHandler });
+        this.eventAggregator.subscribe(eventName, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Destroys all subscriptions
+     */
+    destroy() {
+        this.subscriptions.forEach(({ eventName, handler }) => {
+            this.eventAggregator.unsubscribe(eventName, handler);
+        });
+        this.subscriptions = [];
+        clearInterval(this.autoSaveTimerId); // Stop autosave timer
+        console.log("AppController destroyed.");
     }
 
     initialize() {
@@ -37,7 +59,8 @@ export class AppController {
         // This is the core of the reactive state update.
         // Any service that updates the state via StateService will trigger this,
         // which in turn re-renders the UI.
-        this.eventAggregator.subscribe(
+        // [MODIFIED] (v6298-fix-4) Use helper
+        this._subscribe(
             EVENTS.INTERNAL_STATE_UPDATED,
             (newState) => {
                 this.eventAggregator.publish(EVENTS.STATE_CHANGED, newState);
@@ -51,53 +74,54 @@ export class AppController {
         const delegate = (handlerName, ...args) =>
             this.quickQuoteView[handlerName](...args);
 
-        this.eventAggregator.subscribe(EVENTS.NUMERIC_KEY_PRESSED, (data) =>
+        // [MODIFIED] (v6298-fix-4) Use helper for all subscriptions
+        this._subscribe(EVENTS.NUMERIC_KEY_PRESSED, (data) =>
             delegate('handleNumericKeyPress', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_INSERT_ROW,
             () => delegate('handleInsertRow')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_DELETE_ROW,
             () => delegate('handleDeleteRow')
         );
         // [MOVED] USER_REQUESTED_SAVE moved to _subscribeF4Events
         // [MOVED] USER_REQUESTED_EXPORT_CSV moved to _subscribeF4Events
         // [MOVED] USER_REQUESTED_RESET moved to _subscribeF4Events
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_CLEAR_ROW,
             () => delegate('handleClearRow')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_MOVED_ACTIVE_CELL,
             (data) => delegate('handleMoveActiveCell', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_CYCLE_TYPE,
             () => delegate('handleCycleType')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_CALCULATE_AND_SUM,
             () => delegate('handleCalculateAndSum')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_TOGGLED_MULTI_SELECT_MODE,
             () => delegate('handleToggleMultiSelectMode')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_CHOSE_SAVE_THEN_LOAD,
             () => delegate('handleSaveThenLoad')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.TYPE_CELL_LONG_PRESSED,
             (data) => delegate('handleTypeCellLongPress', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.TYPE_BUTTON_LONG_PRESSED,
             (data) => delegate('handleTypeButtonLongPress', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_MULTI_TYPE_SET,
             () => delegate('handleMultiTypeSet')
         );
@@ -110,7 +134,7 @@ export class AppController {
                 this.detailConfigView[handlerName](data);
             }
         };
-        this.eventAggregator.subscribe(EVENTS.TABLE_CELL_CLICKED, (data) => {
+        this._subscribe(EVENTS.TABLE_CELL_CLICKED, (data) => {
             const { ui } = this.stateService.getState();
             if (ui.currentView === 'QUICK_QUOTE') {
                 this.quickQuoteView.handleTableCellClick(data);
@@ -118,7 +142,7 @@ export class AppController {
                 this.detailConfigView.handleTableCellClick(data);
             }
         });
-        this.eventAggregator.subscribe(EVENTS.SEQUENCE_CELL_CLICKED, (data) => {
+        this._subscribe(EVENTS.SEQUENCE_CELL_CLICKED, (data) => {
             const { ui } = this.stateService.getState();
             if (ui.currentView === 'QUICK_QUOTE') {
                 this.quickQuoteView.handleSequenceCellClick(data);
@@ -128,95 +152,95 @@ export class AppController {
         });
 
         // Detail Config View Specific Events
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_FOCUS_MODE,
             (data) => delegate('handleFocusModeRequest', data)
         );
         // [REMOVED] (Phase 3 Cleanup) Obsolete panel events
-        // this.eventAggregator.subscribe(EVENTS.PANEL_INPUT_ENTER_PRESSED, (data) => delegate('handlePanelInputEnter', data));
-        // this.eventAggregator.subscribe(EVENTS.PANEL_INPUT_BLURRED, (data) => delegate('handlePanelInputBlur', data));
-        this.eventAggregator.subscribe(
+        // this._subscribe(EVENTS.PANEL_INPUT_ENTER_PRESSED, (data) => delegate('handlePanelInputEnter', data));
+        // this._subscribe(EVENTS.PANEL_INPUT_BLURRED, (data) => delegate('handlePanelInputBlur', data));
+        this._subscribe(
             EVENTS.LOCATION_INPUT_ENTER_PRESSED,
             (data) => delegate('handleLocationInputEnter', data)
         );
         // [NEW] (v6294) Add subscription for K2 mode toggle
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_TOGGLED_K2_MODE,
             (data) => delegate('handleModeToggle', data)
         );
         // [REMOVED] (Phase 3 Cleanup) Obsolete K2 mode events
-        // this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_LF_EDIT_MODE, () => delegate('handleLFEditRequest'));
-        this.eventAggregator.subscribe(
+        // this._subscribe(EVENTS.USER_REQUESTED_LF_EDIT_MODE, () => delegate('handleLFEditRequest'));
+        this._subscribe(
             EVENTS.USER_REQUESTED_LF_DELETE_MODE,
             () => delegate('handleLFDeleteRequest')
         );
-        // this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_SSET_MODE, () => delegate('handleSSetRequest'));
-        this.eventAggregator.subscribe(
+        // this._subscribe(EVENTS.USER_REQUESTED_SSET_MODE, () => delegate('handleSSetRequest'));
+        this._subscribe(
             EVENTS.USER_TOGGLED_K3_EDIT_MODE,
             () => delegate('handleToggleK3EditMode')
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_BATCH_CYCLE,
             (data) => delegate('handleBatchCycle', data)
         );
 
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.DUAL_CHAIN_MODE_CHANGED,
             (data) => delegate('handleDualChainModeChange', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.CHAIN_ENTER_PRESSED,
             (data) => delegate('handleChainEnterPressed', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.DRIVE_MODE_CHANGED,
             (data) => delegate('handleDriveModeChange', data)
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.ACCESSORY_COUNTER_CHANGED,
             (data) => delegate('handleAccessoryCounterChange', data)
         );
     }
 
     _subscribeGlobalEvents() {
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_NAVIGATED_TO_DETAIL_VIEW,
             () => this.workflowService.handleNavigationToDetailView()
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_NAVIGATED_TO_QUICK_QUOTE_VIEW,
             () => this.workflowService.handleNavigationToQuickQuoteView()
         );
-        this.eventAggregator.subscribe(EVENTS.USER_SWITCHED_TAB, (data) =>
+        this._subscribe(EVENTS.USER_SWITCHED_TAB, (data) =>
             this.workflowService.handleTabSwitch(data)
         );
         // [MOVED] USER_REQUESTED_LOAD moved to _subscribeF4Events
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_CHOSE_LOAD_DIRECTLY,
             () => this.workflowService.handleLoadDirectly()
         );
-        this.eventAggregator.subscribe(EVENTS.FILE_LOADED, (data) =>
+        this._subscribe(EVENTS.FILE_LOADED, (data) =>
             this.workflowService.handleFileLoad(data)
         );
     }
 
     _subscribeF1Events() {
-        this.eventAggregator.subscribe(EVENTS.F1_TAB_ACTIVATED, () =>
+        this._subscribe(EVENTS.F1_TAB_ACTIVATED, () =>
             this.workflowService.handleF1TabActivation()
         );
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.F1_DISCOUNT_CHANGED,
             (data) => this.workflowService.handleF1DiscountChange(data)
         );
     }
 
     _subscribeF3Events() {
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_PRINTABLE_QUOTE,
             () => this.workflowService.handlePrintableQuoteRequest()
         );
         // [NEW] (Phase 4, Step 1)
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_GMAIL_QUOTE,
             () => this.workflowService.handleGmailQuoteRequest()
         );
@@ -224,26 +248,26 @@ export class AppController {
 
     // [NEW] Centralized subscription for all F4 actions, delegating to WorkflowService.
     _subscribeF4Events() {
-        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_SAVE, () =>
+        this._subscribe(EVENTS.USER_REQUESTED_SAVE, () =>
             this.workflowService.handleSaveToFile()
         );
-        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_EXPORT_CSV, () =>
+        this._subscribe(EVENTS.USER_REQUESTED_EXPORT_CSV, () =>
             this.workflowService.handleExportCSV()
         );
-        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_LOAD, () =>
+        this._subscribe(EVENTS.USER_REQUESTED_LOAD, () =>
             this.workflowService.handleUserRequestedLoad()
         );
         // [NEW] (Bug Fix) Add the missing subscription for the old cloud load event (which will now fail)
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_LOAD_FROM_CLOUD,
             () => this.workflowService.handleLoadFromCloud()
         );
         // [NEW] (v6298) Add subscription for the new search dialog event
-        this.eventAggregator.subscribe(
+        this._subscribe(
             EVENTS.USER_REQUESTED_SEARCH_DIALOG,
             () => this.workflowService.handleSearchDialogRequest()
         );
-        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_RESET, () =>
+        this._subscribe(EVENTS.USER_REQUESTED_RESET, () =>
             this.workflowService.handleReset()
         );
     }

@@ -9,8 +9,36 @@ import { EVENTS } from '../../../config/constants.js';
 export class K4TabInputHandler {
     constructor({ eventAggregator }) {
         this.eventAggregator = eventAggregator;
+
+        // [NEW] (v6298-fix-4) Store bound handlers
+        this.boundHandlers = [];
+
         console.log("K4TabInputHandler Initialized.");
     }
+
+    /**
+     * [NEW] (v6298-fix-4) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("K4TabInputHandler destroyed.");
+    }
+
 
     initialize() {
         // This logic was moved from LeftPanelInputHandler's _setupK5Inputs
@@ -20,7 +48,8 @@ export class K4TabInputHandler {
             if (button) {
                 // [REFACTOR] Removed special handling for the remote button.
                 // It now fires a standard 'driveModeChanged' event, same as other accessory buttons.
-                button.addEventListener('click', () => {
+                // [MODIFIED] (v6298-fix-4) Use helper
+                this._addListener(button, 'click', () => {
                     this.eventAggregator.publish(EVENTS.DRIVE_MODE_CHANGED, { mode });
                 });
             }
@@ -36,7 +65,8 @@ export class K4TabInputHandler {
         const setupK4CounterButton = (buttonId, accessory, direction) => {
             const button = document.getElementById(buttonId);
             if (button) {
-                button.addEventListener('click', () => {
+                // [MODIFIED] (v6298-fix-4) Use helper
+                this._addListener(button, 'click', () => {
                     this.eventAggregator.publish(EVENTS.ACCESSORY_COUNTER_CHANGED, { accessory, direction });
                 });
             }

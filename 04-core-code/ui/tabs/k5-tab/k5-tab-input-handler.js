@@ -9,8 +9,41 @@ import { EVENTS } from '../../../config/constants.js';
 export class K5TabInputHandler {
     constructor({ eventAggregator }) {
         this.eventAggregator = eventAggregator;
+
+        // [NEW] (v6298-fix-4) Store element references
+        this.k5DualButton = document.getElementById('btn-k5-dual');
+        this.k5ChainButton = document.getElementById('btn-k5-chain');
+        this.k5Input = document.getElementById('k5-input-display');
+
+        // [NEW] (v6298-fix-4) Store bound handlers
+        this.boundHandlers = [];
+
         console.log("K5TabInputHandler Initialized.");
     }
+
+    /**
+     * [NEW] (v6298-fix-4) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-4) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("K5TabInputHandler destroyed.");
+    }
+
 
     initialize() {
         // This logic was moved from LeftPanelInputHandler's _setupK4Inputs
@@ -18,7 +51,8 @@ export class K5TabInputHandler {
         const setupK5Button = (buttonId, mode) => {
             const button = document.getElementById(buttonId);
             if (button) {
-                button.addEventListener('click', () => {
+                // [MODIFIED] (v6298-fix-4) Use helper
+                this._addListener(button, 'click', () => {
                     this.eventAggregator.publish(EVENTS.DUAL_CHAIN_MODE_CHANGED, { mode });
                 });
             }
@@ -27,16 +61,15 @@ export class K5TabInputHandler {
         setupK5Button('btn-k5-dual', 'dual');
         setupK5Button('btn-k5-chain', 'chain');
 
-        // [MODIFIED] Corrected ID from 'k4-input-display' to 'k5-input-display'
-        const k5Input = document.getElementById('k5-input-display');
-        if (k5Input) {
-            k5Input.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
-                    this.eventAggregator.publish(EVENTS.CHAIN_ENTER_PRESSED, {
-                        value: event.target.value
-                    });
-                }
+        // [MODIFIED] (v6298-fix-4) Use helper
+        this._addListener(this.k5Input, 'keydown', this._onK5InputKeydown);
+    }
+
+    _onK5InputKeydown(event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            this.eventAggregator.publish(EVENTS.CHAIN_ENTER_PRESSED, {
+                value: event.target.value
             });
         }
     }

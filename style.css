@@ -124,8 +124,17 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 101;
-    transition: transform 0.3s ease-in-out;
+    transition: transform 0.3s ease-in-out, opacity 0.3s, visibility 0.3s;
+    /* [MODIFIED] (v6298-fix-4) */
 }
+
+/* [NEW] (v6298-fix-4) Hide the toggle when logged out */
+#left-panel-toggle.is-hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
 
 #left-panel-toggle .toggle-arrow {
     width: 20px;

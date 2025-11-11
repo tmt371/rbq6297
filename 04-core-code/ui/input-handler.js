@@ -9,7 +9,7 @@ export class InputHandler {
         this.pressThreshold = 500; // 500ms for a long press
         this.isLongPress = false;
 
-        // [NEW] (v6298-fix-3) Store references for easy removal
+        // [NEW] (v6298-fix-4) Store references for easy removal
         this.boundHandlers = [];
         this.aggregatorSubscriptions = [];
         this.fileLoader = document.getElementById(DOM_IDS.FILE_LOADER);
@@ -19,7 +19,7 @@ export class InputHandler {
     }
 
     /**
-     * [NEW] (v6298-fix-3) Adds an event listener and stores its reference for removal.
+     * [NEW] (v6298-fix-4) Adds an event listener and stores its reference for removal.
      */
     _addListener(element, event, handler, options = {}) {
         if (!element) return;
@@ -29,7 +29,7 @@ export class InputHandler {
     }
 
     /**
-     * [NEW] (v6298-fix-3) Subscribes to the event aggregator and stores the reference.
+     * [NEW] (v6298-fix-4) Subscribes to the event aggregator and stores the reference.
      */
     _subscribe(eventName, handler) {
         const boundHandler = handler.bind(this);
@@ -38,11 +38,13 @@ export class InputHandler {
     }
 
     /**
-     * [NEW] (v6298-fix-3) Removes all registered listeners and subscriptions.
+     * [NEW] (v6298-fix-4) Removes all registered listeners and subscriptions.
      */
     destroy() {
         this.boundHandlers.forEach(({ element, event, handler, options }) => {
-            element.removeEventListener(event, handler, options);
+            if (element) { // Add check if element still exists
+                element.removeEventListener(event, handler, options);
+            }
         });
         this.boundHandlers = [];
 
@@ -64,7 +66,7 @@ export class InputHandler {
         this._setupPhysicalKeyboard();
     }
 
-    // [MODIFIED] (v6298-fix-3) All handlers refactored to be removable.
+    // [MODIFIED] (v6298-fix-4) All handlers refactored to be removable.
 
     _setupPhysicalKeyboard() {
         // Use helper to add the listener

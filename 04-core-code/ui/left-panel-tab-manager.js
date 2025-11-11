@@ -39,7 +39,7 @@ export class LeftPanelTabManager {
     }
 
     /**
-     * [NEW] Removes event listeners to prevent memory leaks.
+     * [NEW] (v6298-fix-4) Removes event listeners to prevent memory leaks.
      */
     destroy() {
         if (this.panelToggle) {
