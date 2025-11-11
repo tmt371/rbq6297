@@ -13,9 +13,35 @@ export class F1CostView {
         this.calculationService = calculationService;
         this.stateService = stateService; // [NEW] Injected dependency
 
+        // [NEW] (v6298-fix-5) Store bound handlers
+        this.boundHandlers = [];
+
         this._cacheF1Elements();
         this._initializeF1Listeners();
         console.log("F1CostView Initialized.");
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("F1CostView destroyed.");
     }
 
     _cacheF1Elements() {
@@ -59,48 +85,43 @@ export class F1CostView {
 
     _initializeF1Listeners() {
         const remote1chQtyDiv = this.f1.displays.qty['remote-1ch'];
-        if (remote1chQtyDiv) {
-            // [REFACTORED] Directly call the handler instead of publishing an event
-            remote1chQtyDiv.addEventListener('click', () => this.handleRemoteDistribution());
-        }
+        // [MODIFIED] (v6298-fix-5) Use helper
+        this._addListener(remote1chQtyDiv, 'click', this.handleRemoteDistribution);
 
         const slimQtyDiv = this.f1.displays.qty['slim'];
-        if (slimQtyDiv) {
-            // [REFACTORED] Directly call the handler instead of publishing an event
-            slimQtyDiv.addEventListener('click', () => this.handleDualDistribution());
-        }
+        // [MODIFIED] (v6298-fix-5) Use helper
+        this._addListener(slimQtyDiv, 'click', this.handleDualDistribution);
 
         const discountInput = this.f1.inputs['discount'];
-        if (discountInput) {
-            discountInput.addEventListener('input', (event) => {
-                const percentage = parseFloat(event.target.value) || 0;
-                this.eventAggregator.publish(EVENTS.F1_DISCOUNT_CHANGED, { percentage });
-            });
-
-            // [NEW] Add blur on Enter key press
-            discountInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.target.blur();
-                }
-            });
-        }
+        // [MODIFIED] (v6298-fix-5) Use helper
+        this._addListener(discountInput, 'input', this._onDiscountInput);
+        this._addListener(discountInput, 'keydown', this._onInputKeydown);
 
         // [NEW] (v6295) Add listener for Wifi input
         const wifiInput = this.f1.inputs['wifihub'];
-        if (wifiInput) {
-            wifiInput.addEventListener('input', (event) => {
-                const quantity = parseFloat(event.target.value) || 0;
-                // Dispatch the new action to update state
-                this.stateService.dispatch(uiActions.setF1WifiQty(quantity));
-            });
+        // [MODIFIED] (v6298-fix-5) Use helper
+        this._addListener(wifiInput, 'input', this._onWifiInput);
+        this._addListener(wifiInput, 'keydown', this._onInputKeydown);
+    }
 
-            wifiInput.addEventListener('keydown', (event) => {
-                if (event.key === 'Enter') {
-                    event.target.blur();
-                }
-            });
+    // [NEW] (v6298-fix-5) Extracted handlers
+    _onDiscountInput(event) {
+        const percentage = parseFloat(event.target.value) || 0;
+        this.eventAggregator.publish(EVENTS.F1_DISCOUNT_CHANGED, { percentage });
+    }
+
+    _onWifiInput(event) {
+        const quantity = parseFloat(event.target.value) || 0;
+        // Dispatch the new action to update state
+        this.stateService.dispatch(uiActions.setF1WifiQty(quantity));
+    }
+
+    _onInputKeydown(event) {
+        if (event.key === 'Enter') {
+            event.target.blur();
         }
     }
+
 
     render(state) {
         if (!this.f1 || !state || !state.quoteData || !state.ui) return;
@@ -114,11 +135,11 @@ export class F1CostView {
         const componentPrices = {};
         const winderQty = items.filter(item => item.winder === 'HD').length;
         componentPrices.winder = this.calculationService.calculateF1ComponentPrice('winder', winderQty);
-        this.f1.displays.qty.winder.textContent = winderQty;
+        if (this.f1.displays.qty.winder) this.f1.displays.qty.winder.textContent = winderQty;
 
         const motorQty = items.filter(item => !!item.motor).length;
         componentPrices.motor = this.calculationService.calculateF1ComponentPrice('motor', motorQty);
-        this.f1.displays.qty.motor.textContent = motorQty;
+        if (this.f1.displays.qty.motor) this.f1.displays.qty.motor.textContent = motorQty;
 
         // [FIX] (v6295-fix-2) Implement auto-sync of total remotes from K4
         const totalRemoteCount = ui.driveRemoteCount || 0;
@@ -146,16 +167,16 @@ export class F1CostView {
 
         componentPrices['remote-1ch'] = this.calculationService.calculateF1ComponentPrice('remote-1ch', remote1chQty);
         componentPrices['remote-16ch'] = this.calculationService.calculateF1ComponentPrice('remote-16ch', remote16chQty);
-        this.f1.displays.qty['remote-1ch'].textContent = remote1chQty;
-        this.f1.displays.qty['remote-16ch'].textContent = remote16chQty;
+        if (this.f1.displays.qty['remote-1ch']) this.f1.displays.qty['remote-1ch'].textContent = remote1chQty;
+        if (this.f1.displays.qty['remote-16ch']) this.f1.displays.qty['remote-16ch'].textContent = remote16chQty;
 
         const chargerQty = ui.driveChargerCount || 0;
         componentPrices.charger = this.calculationService.calculateF1ComponentPrice('charger', chargerQty);
-        this.f1.displays.qty.charger.textContent = chargerQty;
+        if (this.f1.displays.qty.charger) this.f1.displays.qty.charger.textContent = chargerQty;
 
         const cordQty = ui.driveCordCount || 0;
         componentPrices['3m-cord'] = this.calculationService.calculateF1ComponentPrice('3m-cord', cordQty);
-        this.f1.displays.qty['3m-cord'].textContent = cordQty;
+        if (this.f1.displays.qty['3m-cord']) this.f1.displays.qty['3m-cord'].textContent = cordQty;
 
         const totalDualPairs = Math.floor(items.filter(item => item.dual === 'D').length / 2);
         const comboQty = (ui.f1.dual_combo_qty === null) ? totalDualPairs : ui.f1.dual_combo_qty;
@@ -163,13 +184,13 @@ export class F1CostView {
             0 : ui.f1.dual_slim_qty;
         componentPrices['dual-combo'] = this.calculationService.calculateF1ComponentPrice('dual-combo', comboQty);
         componentPrices.slim = this.calculationService.calculateF1ComponentPrice('slim', slimQty);
-        this.f1.displays.qty['dual-combo'].textContent = comboQty;
-        this.f1.displays.qty.slim.textContent = slimQty;
+        if (this.f1.displays.qty['dual-combo']) this.f1.displays.qty['dual-combo'].textContent = comboQty;
+        if (this.f1.displays.qty.slim) this.f1.displays.qty.slim.textContent = slimQty;
 
         // [NEW] (v6295) Add Wifi calculation
         const wifiQty = ui.f1.wifi_qty || 0;
         componentPrices.wifihub = this.calculationService.calculateF1ComponentPrice('wifihub', wifiQty);
-        if (document.activeElement !== this.f1.inputs.wifihub) {
+        if (this.f1.inputs.wifihub && document.activeElement !== this.f1.inputs.wifihub) {
             this.f1.inputs.wifihub.value = formatDisplay(wifiQty) || '';
         }
         if (this.f1.displays.price.wifihub) {
@@ -182,18 +203,18 @@ export class F1CostView {
             }
         }
         const componentTotal = Object.values(componentPrices).reduce((sum, price) => sum + price, 0);
-        this.f1.displays.price.total.textContent = formatPrice(componentTotal);
+        if (this.f1.displays.price.total) this.f1.displays.price.total.textContent = formatPrice(componentTotal);
 
         // --- RB Pricing Calculation ---
         const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
         const discountPercentage = ui.f1.discountPercentage || 0;
         const rbPrice = retailTotal * (1 - (discountPercentage / 100));
 
-        this.f1.displays.price['rb-retail'].textContent = formatPrice(retailTotal);
-        if (document.activeElement !== this.f1.inputs.discount) {
+        if (this.f1.displays.price['rb-retail']) this.f1.displays.price['rb-retail'].textContent = formatPrice(retailTotal);
+        if (this.f1.inputs.discount && document.activeElement !== this.f1.inputs.discount) {
             this.f1.inputs.discount.value = formatDisplay(discountPercentage) || '';
         }
-        this.f1.displays.price['rb-price'].textContent = formatPrice(rbPrice);
+        if (this.f1.displays.price['rb-price']) this.f1.displays.price['rb-price'].textContent = formatPrice(rbPrice);
 
         // --- Final Summary Calculation ---
         const subTotal = componentTotal + rbPrice;
@@ -202,16 +223,16 @@ export class F1CostView {
 
         // [NEW] (F1/F2 Refactor Phase 2) Dispatch the calculated totals to the central state
         this.stateService.dispatch(uiActions.setF1CostTotals(subTotal, finalTotal));
-        this.f1.displays.price['sub-total'].textContent = formatPrice(subTotal);
-        this.f1.displays.price.gst.textContent = formatPrice(gst);
-        this.f1.displays.price['final-total'].textContent = formatPrice(finalTotal);
+        if (this.f1.displays.price['sub-total']) this.f1.displays.price['sub-total'].textContent = formatPrice(subTotal);
+        if (this.f1.displays.price.gst) this.f1.displays.price.gst.textContent = formatPrice(gst);
+        if (this.f1.displays.price['final-total']) this.f1.displays.price['final-total'].textContent = formatPrice(finalTotal);
     }
 
     activate() {
         this.eventAggregator.publish(EVENTS.F1_TAB_ACTIVATED);
 
-        // [MODIFIED] (v6294) (第 12 次編修)
-        // 恢復 F1 在所有裝置上的自動聚焦功能，使其與 F2 的行為一致。
+        // [MODIFIED] (v6294) (第12次編修)
+        // 恢復 F1 在所有裝置上的自動對焦功能，使其與 F2 的行為一致。
         // if (!window.matchMedia("(max-width: 600px)").matches) {
         setTimeout(() => {
             const discountInput = this.f1.inputs.discount;

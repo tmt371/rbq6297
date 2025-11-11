@@ -29,20 +29,46 @@ export class RightPanelComponent {
         this.tabButtons = this.panelElement.querySelectorAll('.tab-button');
         this.tabContents = this.panelElement.querySelectorAll('.tab-content');
 
+        // [NEW] (v6298-fix-5) Store bound handler
+        this.boundTabClickHandler = this._onTabClick.bind(this);
+
         this.initialize();
         console.log("RightPanelComponent (Refactored as a Lazy-Loading Manager) Initialized.");
     }
 
     initialize() {
         if (this.tabContainer) {
-            this.tabContainer.addEventListener('click', (event) => {
-                const target = event.target.closest('.tab-button');
-                if (target && !target.disabled) {
-                    this.setActiveTab(target.id);
-                }
-            });
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this.tabContainer.addEventListener('click', this.boundTabClickHandler);
         }
     }
+
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners and instantiated views.
+     */
+    destroy() {
+        if (this.tabContainer) {
+            this.tabContainer.removeEventListener('click', this.boundTabClickHandler);
+        }
+
+        // Destroy all dynamically loaded views that were instantiated
+        for (const viewKey in this.views) {
+            if (this.views[viewKey] && typeof this.views[viewKey].destroy === 'function') {
+                this.views[viewKey].destroy();
+            }
+        }
+        this.views = {};
+        this.activeView = null;
+        console.log("RightPanelComponent destroyed.");
+    }
+
+    _onTabClick(event) {
+        const target = event.target.closest('.tab-button');
+        if (target && !target.disabled) {
+            this.setActiveTab(target.id);
+        }
+    }
+
 
     render(state) {
         this.state = state; // Cache the latest state

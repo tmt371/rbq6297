@@ -114,6 +114,11 @@ export class UIManager {
             this.leftPanelTabManager.destroy();
             this.leftPanelTabManager = null;
         }
+        // [NEW] (v6298-fix-5) Destroy the right panel component
+        if (this.rightPanelComponent) {
+            this.rightPanelComponent.destroy();
+            this.rightPanelComponent = null;
+        }
 
         // Unsubscribe from eventAggregator
         this.subscriptions.forEach(({ eventName, handler }) => {
@@ -204,7 +209,9 @@ export class UIManager {
         this.tableComponent.render(state);
         this.summaryComponent.render(currentProductData.summary, state.ui.isSumOutdated);
         // [MODIFIED] Delegate tab/panel rendering to the new LeftPanelTabManager
-        this.leftPanelTabManager.render(state.ui);
+        if (this.leftPanelTabManager) { // [NEW] (v6298-fix-5) Add safety check
+            this.leftPanelTabManager.render(state.ui);
+        }
 
         // [MODIFIED] Delegate K1/K3/K4/K5 rendering to their own components
         if (this.k1TabComponent) {
@@ -224,7 +231,9 @@ export class UIManager {
             this.k5TabComponent.render(state.ui, state.quoteData); // Renders K5
         }
 
-        this.rightPanelComponent.render(state);
+        if (this.rightPanelComponent) { // [NEW] (v6298-fix-5) Add safety check
+            this.rightPanelComponent.render(state);
+        }
 
         this._updateButtonStates(state);
         this._updateLeftPanelState(state.ui.currentView);

@@ -26,9 +26,35 @@ export class F2SummaryView {
             'f2-deposit' // 'f2-balance' is readonly, so no focus
         ];
 
+        // [NEW] (v6298-fix-5) Store bound handlers
+        this.boundHandlers = [];
+
         this._cacheF2Elements();
         this._initializeF2Listeners();
         console.log("F2SummaryView Initialized.");
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("F2SummaryView destroyed.");
     }
 
     _cacheF2Elements() {
@@ -81,11 +107,12 @@ export class F2SummaryView {
     _initializeF2Listeners() {
         const setupF2InputListener = (inputElement) => {
             if (inputElement) {
-                inputElement.addEventListener('change', (event) => {
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(inputElement, 'change', (event) => {
                     this.handleF2ValueChange({ id: event.target.id, value: event.target.value });
                 });
 
-                inputElement.addEventListener('keydown', (event) => {
+                this._addListener(inputElement, 'keydown', (event) => {
                     if (event.key === 'Enter') {
                         event.preventDefault();
                         this.focusNextF2Input(event.target.id);
@@ -101,15 +128,14 @@ export class F2SummaryView {
         });
 
         const feeCells = [
-
             { el: this.f2.c13_deliveryFee, type: 'delivery' },
             { el: this.f2.c14_installFee, type: 'install' },
             { el: this.f2.c15_removalFee, type: 'removal' }
         ];
         feeCells.forEach(({ el, type }) => {
             if (el) {
-                el.addEventListener('click', () => {
-
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(el, 'click', () => {
                     this.handleToggleFeeExclusion({ feeType: type });
                 });
             }
@@ -117,10 +143,8 @@ export class F2SummaryView {
 
         // [NEW] (Phase 2) Add listener for GST toggle
         if (this.f2.label_gst) {
-            this.f2.label_gst.addEventListener('click', () => {
-
-                this.handleToggleGstExclusion();
-            });
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this._addListener(this.f2.label_gst, 'click', this.handleToggleGstExclusion);
         }
     }
 
@@ -143,12 +167,13 @@ export class F2SummaryView {
         const chargerPrice = accessories.chargerCostSum || 0;
         const cordPrice = accessories.cordCostSum || 0;
 
-        this.f2.b2_winderPrice.textContent = formatIntegerCurrency(winderPrice);
-        this.f2.b3_dualPrice.textContent = formatIntegerCurrency(dualPrice);
-        this.f2.b6_motorPrice.textContent = formatIntegerCurrency(motorPrice);
-        this.f2.b7_remotePrice.textContent = formatIntegerCurrency(remotePrice);
-        this.f2.b8_chargerPrice.textContent = formatIntegerCurrency(chargerPrice);
-        this.f2.b9_cordPrice.textContent = formatIntegerCurrency(cordPrice);
+        // [MODIFIED] (v6298-fix-5) Add checks for element existence
+        if (this.f2.b2_winderPrice) this.f2.b2_winderPrice.textContent = formatIntegerCurrency(winderPrice);
+        if (this.f2.b3_dualPrice) this.f2.b3_dualPrice.textContent = formatIntegerCurrency(dualPrice);
+        if (this.f2.b6_motorPrice) this.f2.b6_motorPrice.textContent = formatIntegerCurrency(motorPrice);
+        if (this.f2.b7_remotePrice) this.f2.b7_remotePrice.textContent = formatIntegerCurrency(remotePrice);
+        if (this.f2.b8_chargerPrice) this.f2.b8_chargerPrice.textContent = formatIntegerCurrency(chargerPrice);
+        if (this.f2.b9_cordPrice) this.f2.b9_cordPrice.textContent = formatIntegerCurrency(cordPrice);
 
         // [MODIFIED] (v6295) Get Wifi Qty from F1 state and calculate price
         const wifiQty = state.ui.f1.wifi_qty || 0;
@@ -164,54 +189,54 @@ export class F2SummaryView {
             (f2State.installFeeExcluded ? 0 : installFee) +
             (f2State.removalFeeExcluded ? 0 : removalFee);
 
-        this.f2.b4_acceSum.textContent = formatIntegerCurrency(acceSum);
+        if (this.f2.b4_acceSum) this.f2.b4_acceSum.textContent = formatIntegerCurrency(acceSum);
         // [MODIFIED] (v6295) Render new wifiSum to the b10 div
-        this.f2.b10_wifiQty.textContent = formatIntegerCurrency(wifiSum);
-        this.f2.b11_eAcceSum.textContent = formatIntegerCurrency(eAcceSum);
-        this.f2.c13_deliveryFee.textContent = formatIntegerCurrency(deliveryFee);
-        this.f2.c14_installFee.textContent = formatIntegerCurrency(installFee);
-        this.f2.c15_removalFee.textContent = formatIntegerCurrency(removalFee);
-        this.f2.b16_surchargeFee.textContent = formatIntegerCurrency(surchargeFee);
+        if (this.f2.b10_wifiQty) this.f2.b10_wifiQty.textContent = formatIntegerCurrency(wifiSum);
+        if (this.f2.b11_eAcceSum) this.f2.b11_eAcceSum.textContent = formatIntegerCurrency(eAcceSum);
+        if (this.f2.c13_deliveryFee) this.f2.c13_deliveryFee.textContent = formatIntegerCurrency(deliveryFee);
+        if (this.f2.c14_installFee) this.f2.c14_installFee.textContent = formatIntegerCurrency(installFee);
+        if (this.f2.c15_removalFee) this.f2.c15_removalFee.textContent = formatIntegerCurrency(removalFee);
+        if (this.f2.b16_surchargeFee) this.f2.b16_surchargeFee.textContent = formatIntegerCurrency(surchargeFee);
 
-        this.f2.a17_totalSum.textContent = formatValue(f2State.totalSumForRbTime);
-        this.f2.c17_1stRbPrice.textContent = formatDecimalCurrency(f2State.firstRbPrice);
-        this.f2.b19_disRbPrice.textContent = formatDecimalCurrency(f2State.disRbPrice);
-        this.f2.b20_singleprofit.textContent = formatDecimalCurrency(f2State.singleprofit);
-        this.f2.b21_rbProfit.textContent = formatDecimalCurrency(f2State.rbProfit);
+        if (this.f2.a17_totalSum) this.f2.a17_totalSum.textContent = formatValue(f2State.totalSumForRbTime);
+        if (this.f2.c17_1stRbPrice) this.f2.c17_1stRbPrice.textContent = formatDecimalCurrency(f2State.firstRbPrice);
+        if (this.f2.b19_disRbPrice) this.f2.b19_disRbPrice.textContent = formatDecimalCurrency(f2State.disRbPrice);
+        if (this.f2.b20_singleprofit) this.f2.b20_singleprofit.textContent = formatDecimalCurrency(f2State.singleprofit);
+        if (this.f2.b21_rbProfit) this.f2.b21_rbProfit.textContent = formatDecimalCurrency(f2State.rbProfit);
 
         // [MODIFIED] (Phase 8) Use the correct state keys defined in initial-state.js
-        this.f2.b22_sumprice.textContent = formatDecimalCurrency(f2State.sumPrice);
-        this.f2.f2_17_pre_sum.textContent = formatDecimalCurrency(f2State.f2_17_pre_sum);
-        this.f2.b24_gst.textContent = formatDecimalCurrency(f2State.gst);
-        this.f2.grand_total.textContent = formatDecimalCurrency(f2State.grandTotal);
-        this.f2.b25_netprofit.textContent = formatDecimalCurrency(f2State.netProfit);
+        if (this.f2.b22_sumprice) this.f2.b22_sumprice.textContent = formatDecimalCurrency(f2State.sumPrice);
+        if (this.f2.f2_17_pre_sum) this.f2.f2_17_pre_sum.textContent = formatDecimalCurrency(f2State.f2_17_pre_sum);
+        if (this.f2.b24_gst) this.f2.b24_gst.textContent = formatDecimalCurrency(f2State.gst);
+        if (this.f2.grand_total) this.f2.grand_total.textContent = formatDecimalCurrency(f2State.grandTotal);
+        if (this.f2.b25_netprofit) this.f2.b25_netprofit.textContent = formatDecimalCurrency(f2State.netProfit);
 
         // --- Render Inputs ---
         // [REMOVED] (v6295) Wifi input is no longer rendered
         // if (document.activeElement !== this.f2.b10_wifiQty) this.f2.b10_wifiQty.value = formatValue(f2State.wifiQty);
-        if (document.activeElement !== this.f2.b13_deliveryQty) this.f2.b13_deliveryQty.value = formatValue(f2State.deliveryQty);
-        if (document.activeElement !== this.f2.b14_installQty) this.f2.b14_installQty.value = formatValue(f2State.installQty);
-        if (document.activeElement !== this.f2.b15_removalQty) this.f2.b15_removalQty.value = formatValue(f2State.removalQty);
-        if (document.activeElement !== this.f2.b17_mulTimes) this.f2.b17_mulTimes.value = formatValue(f2State.mulTimes);
-        if (document.activeElement !== this.f2.b18_discount) this.f2.b18_discount.value = formatValue(f2State.discount);
+        if (this.f2.b13_deliveryQty && document.activeElement !== this.f2.b13_deliveryQty) this.f2.b13_deliveryQty.value = formatValue(f2State.deliveryQty);
+        if (this.f2.b14_installQty && document.activeElement !== this.f2.b14_installQty) this.f2.b14_installQty.value = formatValue(f2State.installQty);
+        if (this.f2.b15_removalQty && document.activeElement !== this.f2.b15_removalQty) this.f2.b15_removalQty.value = formatValue(f2State.removalQty);
+        if (this.f2.b17_mulTimes && document.activeElement !== this.f2.b17_mulTimes) this.f2.b17_mulTimes.value = formatValue(f2State.mulTimes);
+        if (this.f2.b18_discount && document.activeElement !== this.f2.b18_discount) this.f2.b18_discount.value = formatValue(f2State.discount);
 
         // [MODIFIED] (Phase 9) `newOffer` input now defaults to `sumPrice` if null
-        if (document.activeElement !== this.f2.new_offer) {
+        if (this.f2.new_offer && document.activeElement !== this.f2.new_offer) {
             const newOfferValue = (f2State.newOffer !== null && f2State.newOffer !== undefined) ? f2State.newOffer : f2State.sumPrice;
             this.f2.new_offer.value = formatValue(newOfferValue);
         }
 
         // [NEW] v6290 Render Deposit and Balance
-        if (document.activeElement !== this.f2.deposit) {
+        if (this.f2.deposit && document.activeElement !== this.f2.deposit) {
             this.f2.deposit.value = formatValue(f2State.deposit);
         }
         // Balance is read-only, so no need to check activeElement
-        this.f2.balance.value = formatValue(f2State.balance);
+        if (this.f2.balance) this.f2.balance.value = formatValue(f2State.balance);
 
 
-        this.f2.c13_deliveryFee.classList.toggle('is-excluded', f2State.deliveryFeeExcluded);
-        this.f2.c14_installFee.classList.toggle('is-excluded', f2State.installFeeExcluded);
-        this.f2.c15_removalFee.classList.toggle('is-excluded', f2State.removalFeeExcluded);
+        if (this.f2.c13_deliveryFee) this.f2.c13_deliveryFee.classList.toggle('is-excluded', f2State.deliveryFeeExcluded);
+        if (this.f2.c14_installFee) this.f2.c14_installFee.classList.toggle('is-excluded', f2State.installFeeExcluded);
+        if (this.f2.c15_removalFee) this.f2.c15_removalFee.classList.toggle('is-excluded', f2State.removalFeeExcluded);
 
         // [NEW] (Phase 2) Toggle GST exclusion styles
         if (this.f2.label_gst) this.f2.label_gst.classList.toggle('is-excluded', f2State.gstExcluded);

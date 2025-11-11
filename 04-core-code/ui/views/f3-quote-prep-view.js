@@ -13,10 +13,42 @@ export class F3QuotePrepView {
         this.stateService = stateService; // [NEW] Store stateService
         this.userOverrodeDueDate = false; // [NEW] Mechanism 3 flag
 
+        // [NEW] (v6298-fix-5) Store bound handlers
+        this.boundHandlers = [];
+        this.focusOrder = [
+            'quoteId', 'issueDate', 'dueDate',
+            'customerName', 'customerAddress', 'customerPhone', 'customerEmail',
+            'generalNotes', 'termsConditions',
+        ];
+
         this._cacheF3Elements();
         this._initializeF3Listeners();
         console.log('F3QuotePrepView Initialized.');
     }
+
+    /**
+     * [NEW] (v6298-fix-5) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("F3QuotePrepView destroyed.");
+    }
+
 
     // [NEW] Robust helper to format a Date object to "YYYY-MM-DD" in LOCAL time.
     _formatDateToYMD(date) {
@@ -75,7 +107,8 @@ export class F3QuotePrepView {
         // [NEW] Helper to dispatch state updates on 'change' event
         const addStateUpdateListener = (inputElement, actionCreator) => {
             if (inputElement) {
-                inputElement.addEventListener('change', (event) => {
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(inputElement, 'change', (event) => {
                     this.stateService.dispatch(
                         actionCreator(event.target.value)
                     );
@@ -86,7 +119,8 @@ export class F3QuotePrepView {
         // [NEW] Helper for customer properties
         const addCustomerUpdateListener = (inputElement, key) => {
             if (inputElement) {
-                inputElement.addEventListener('change', (event) => {
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(inputElement, 'change', (event) => {
                     this.stateService.dispatch(
                         quoteActions.updateCustomerProperty(
                             key,
@@ -115,7 +149,8 @@ export class F3QuotePrepView {
 
         // --- [NEW] Mechanism 3: Listen for manual override on Due Date ---
         if (this.f3.inputs.dueDate) {
-            this.f3.inputs.dueDate.addEventListener('input', () => {
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this._addListener(this.f3.inputs.dueDate, 'input', () => {
                 this.userOverrodeDueDate = true;
             });
             // Also dispatch its value change to state
@@ -125,7 +160,8 @@ export class F3QuotePrepView {
         }
 
         // --- Date Chaining Logic (MODIFIED for Mechanism 3 & Timezone Fix) ---
-        this.f3.inputs.issueDate.addEventListener('input', (event) => {
+        // [MODIFIED] (v6298-fix-5) Use helper
+        this._addListener(this.f3.inputs.issueDate, 'input', (event) => {
             const issueDateValue = event.target.value;
             // [NEW] Dispatch issueDate change to state
             this.stateService.dispatch(
@@ -167,7 +203,8 @@ export class F3QuotePrepView {
 
         // --- Add Quote Button Listener ---
         if (this.f3.buttons.addQuote) {
-            this.f3.buttons.addQuote.addEventListener('click', () => {
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this._addListener(this.f3.buttons.addQuote, 'click', () => {
                 this.eventAggregator.publish(
                     EVENTS.USER_REQUESTED_PRINTABLE_QUOTE
                 );
@@ -176,7 +213,8 @@ export class F3QuotePrepView {
 
         // --- [NEW] GTH Button Listener ---
         if (this.f3.buttons.btnGth) {
-            this.f3.buttons.btnGth.addEventListener('click', () => {
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this._addListener(this.f3.buttons.btnGth, 'click', () => {
                 this.eventAggregator.publish(
                     EVENTS.USER_REQUESTED_GMAIL_QUOTE
                 );
@@ -184,22 +222,11 @@ export class F3QuotePrepView {
         }
 
         // --- Focus Jumping Logic ---
-        const focusOrder = [
-            'quoteId',
-            'issueDate',
-            'dueDate',
-            'customerName',
-            'customerAddress',
-            'customerPhone',
-            'customerEmail',
-            /* [REMOVED] 'finalOfferPrice', */ 'generalNotes',
-            'termsConditions',
-        ];
-
-        focusOrder.forEach((key, index) => {
+        this.focusOrder.forEach((key, index) => {
             const currentElement = this.f3.inputs[key];
             if (currentElement) {
-                currentElement.addEventListener('keydown', (event) => {
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(currentElement, 'keydown', (event) => {
                     if (
                         event.key === 'Enter' ||
                         (event.key === 'Tab' && !event.shiftKey)
@@ -215,8 +242,8 @@ export class F3QuotePrepView {
                         event.preventDefault();
                         event.stopPropagation(); // Stop the event from bubbling up
                         const nextIndex = index + 1;
-                        if (nextIndex < focusOrder.length) {
-                            const nextKey = focusOrder[nextIndex];
+                        if (nextIndex < this.focusOrder.length) {
+                            const nextKey = this.focusOrder[nextIndex];
                             this.f3.inputs[nextKey]?.focus();
                         } else {
                             this.f3.buttons.addQuote?.focus();

@@ -11,10 +11,37 @@ export class F4ActionsView {
         this.eventAggregator = eventAggregator;
         this.authService = authService; // [NEW] (v6298) Store authService
 
+        // [NEW] (v6298-fix-5) Store bound handlers
+        this.boundHandlers = [];
+
         this._cacheF4Elements();
         this._initializeF4Listeners();
         console.log('F4ActionsView Initialized.');
     }
+
+    /**
+     * [NEW] (v6298-fix-5) Helper to add and store listeners
+     */
+    _addListener(element, event, handler) {
+        if (!element) return;
+        const boundHandler = handler.bind(this);
+        this.boundHandlers.push({ element, event, handler: boundHandler });
+        element.addEventListener(event, boundHandler);
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners
+     */
+    destroy() {
+        this.boundHandlers.forEach(({ element, event, handler }) => {
+            if (element) {
+                element.removeEventListener(event, handler);
+            }
+        });
+        this.boundHandlers = [];
+        console.log("F4ActionsView destroyed.");
+    }
+
 
     _cacheF4Elements() {
         const query = (id) => this.panelElement.querySelector(id);
@@ -47,17 +74,18 @@ export class F4ActionsView {
                 if (id === 'f1-key-load') {
                     button.textContent = 'Load File';
                 }
-                button.addEventListener(
-                    'click',
-                    () => this.eventAggregator.publish(eventName)
-                );
+                // [MODIFIED] (v6298-fix-5) Use helper
+                this._addListener(button, 'click', () => {
+                    this.eventAggregator.publish(eventName);
+                });
             }
         }
 
         // [NEW] (v6298) Specific listener for Logout button
         const logoutButton = this.f4.buttons['f4-key-logout'];
         if (logoutButton) {
-            logoutButton.addEventListener('click', () => {
+            // [MODIFIED] (v6298-fix-5) Use helper
+            this._addListener(logoutButton, 'click', () => {
                 if (this.authService) {
                     this.authService.logout();
                 } else {
