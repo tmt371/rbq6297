@@ -6,7 +6,9 @@ import { UIManager } from './ui/ui-manager.js';
 import { InputHandler } from './ui/input-handler.js';
 import { paths } from './config/paths.js';
 import { EVENTS, DOM_IDS } from './config/constants.js';
-// [REMOVED]
+// [NEW] (v6298-fix) Import reset actions
+import * as uiActions from './actions/ui-actions.js';
+import * as quoteActions from './actions/quote-actions.js';
 
 class App {
     constructor() {
@@ -111,6 +113,8 @@ class App {
         // [NEW] (v6297) Get Auth Service early
         const authService = this.appContext.get('authService');
         const eventAggregator = this.appContext.get('eventAggregator');
+        // [NEW] (v6298-fix) Get State Service for reset
+        const stateService = this.appContext.get('stateService');
 
         // [NEW] (v6297) Observe auth state
         authService.observeAuthState(
@@ -123,12 +127,20 @@ class App {
                     this._initializeAppUI(eventAggregator);
                 }
             },
-            (user) => {
+            () => { // [MODIFIED] (v6298-fix) Removed 'user' param, it's null
                 // --- On User Logged Out ---
                 console.log("No user logged in. Showing login screen.");
+
+                // [NEW] (v6298-fix) Reset application state and UI
+                this._resetApplicationState(stateService);
+
                 // Show login screen, hide app
                 document.getElementById('login-container')?.classList.remove('is-hidden');
                 document.getElementById(DOM_IDS.APP)?.classList.add('is-hidden');
+
+                // [NEW] (v6298-fix) Force-hide panels that might be expanded
+                document.getElementById(DOM_IDS.FUNCTION_PANEL)?.classList.remove('is-expanded');
+                document.getElementById(DOM_IDS.LEFT_PANEL)?.classList.remove('is-expanded');
             }
         );
 
@@ -146,6 +158,24 @@ class App {
         console.log("Application running. Waiting for auth state...");
         document.body.classList.add('app-is-ready');
     }
+
+    /**
+     * [NEW] (v6298-fix) Resets the entire application state and destroys UI instances.
+     */
+    _resetApplicationState(stateService) {
+        if (!stateService) return;
+
+        // 1. Dispatch actions to reset the state to its initial value
+        stateService.dispatch(quoteActions.resetQuoteData());
+        stateService.dispatch(uiActions.resetUi());
+
+        // 2. Nullify instances to force re-initialization on next login
+        this.uiManager = null;
+        this.inputHandler = null; // Assuming InputHandler is property of App
+
+        console.log("Application state and UI instances have been reset.");
+    }
+
 
     /**
      * [NEW] (v6297) (FIX) This logic is moved from UIManager to main.js

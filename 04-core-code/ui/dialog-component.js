@@ -79,6 +79,10 @@ export class DialogComponent {
                         button.classList.add(...cellConfig.className.split(' '));
                     }
                     button.textContent = cellConfig.text;
+                    // [NEW] (v6298) Add ID if provided
+                    if (cellConfig.id) {
+                        button.id = cellConfig.id;
+                    }
 
                     button.addEventListener('click', () => {
                         let shouldHide = true;
@@ -128,7 +132,16 @@ export class DialogComponent {
                 } else if (cellConfig.type === 'text') {
                     cell.classList.add('text-cell');
                     cell.textContent = cellConfig.text;
+                    // [NEW] (v6298) Add ID if provided
+                    if (cellConfig.id) {
+                        cell.id = cellConfig.id;
+                    }
+                    // [NEW] (v6298) Support for injecting raw HTML (for search results)
+                } else if (cellConfig.type === 'html') {
+                    cell.classList.add('html-cell');
+                    cell.innerHTML = cellConfig.html || '';
                 }
+
 
                 if (cellConfig.className && cellConfig.type !== 'button') {
                     cell.classList.add(...cellConfig.className.split(' '));
