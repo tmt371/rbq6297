@@ -145,6 +145,7 @@ export const initialState = {
         quoteId: null,
         issueDate: null,
         dueDate: null,
+        ownerUid: null, // [NEW] (v6297) Add field to store the owner's UID
         status: "Configuring",
         costDiscountPercentage: 0,
         customer: {

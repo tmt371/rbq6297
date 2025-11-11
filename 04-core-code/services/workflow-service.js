@@ -24,6 +24,7 @@ export class WorkflowService {
         productFactory,
         detailConfigView,
         quoteGeneratorService,
+        authService, // [NEW] (v6297) Inject authService
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
@@ -32,6 +33,7 @@ export class WorkflowService {
         this.productFactory = productFactory;
         this.detailConfigView = detailConfigView;
         this.quoteGeneratorService = quoteGeneratorService; // [NEW] Store the injected service
+        this.authService = authService; // [NEW] (v6297) Store authService
         this.quotePreviewComponent = null; // Will be set by AppContext
 
         console.log('WorkflowService Initialized.');
@@ -160,10 +162,20 @@ export class WorkflowService {
     // [MODIFIED v6285 Phase 5] Helper function now captures ALL F1 and F3 state.
     // [MODIFIED v6292] F3 state is now read directly from quoteData state.
     // [MODIFIED v6295] Capture F1 Wifi Qty and all of F2 state.
+    // [MODIFIED] (v6297) Capture ownerUid.
     _getQuoteDataWithSnapshots() {
         const { quoteData, ui } = this.stateService.getState();
         // Create a deep copy to avoid mutating the original state
         let dataWithSnapshot = JSON.parse(JSON.stringify(quoteData));
+
+        // --- [NEW] (v6297) 0. Capture Owner UID ---
+        if (this.authService && this.authService.currentUser) {
+            dataWithSnapshot.ownerUid = this.authService.currentUser.uid;
+        } else {
+            console.error("WorkflowService: Cannot save. AuthService is missing or user is not logged in.");
+            // We still proceed, but the ownerUid will be null.
+            // Our Firestore rules will (soon) block this.
+        }
 
         // --- 1. Capture F1 Snapshot (from Phase 4) ---
         if (dataWithSnapshot.f1Snapshot) {
@@ -218,7 +230,7 @@ export class WorkflowService {
         // dataWithSnapshot.quoteId = getValue('f3-quote-id');
         // ... (all other getValue calls removed)
 
-        // --- [NEW] (v6295) Capture F2 Snapshot ---
+        // --- [NEW] (v6J95) Capture F2 Snapshot ---
         // Save the entire F2 state object
         dataWithSnapshot.f2Snapshot = JSON.parse(JSON.stringify(ui.f2));
 

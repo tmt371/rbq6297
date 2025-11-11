@@ -102,6 +102,7 @@ export class AppContext {
         const productFactory = this.get('productFactory');
         const focusService = this.get('focusService');
         const fileService = this.get('fileService');
+        const authService = this.get('authService'); // [NEW] (v6297) Get AuthService
 
         // --- [NEW] Instantiate LeftPanelTabManager (Phase 6 Refactor) ---
         const leftPanelElement = document.getElementById(DOM_IDS.LEFT_PANEL);
@@ -204,7 +205,8 @@ export class AppContext {
             calculationService,
             productFactory,
             detailConfigView,
-            quoteGeneratorService // [NEW] Inject the new service
+            quoteGeneratorService, // [NEW] Inject the new service
+            authService // [NEW] (v6297) Inject AuthService
 
         });
         // [REMOVED]
