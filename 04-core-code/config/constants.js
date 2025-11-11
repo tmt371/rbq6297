@@ -70,11 +70,17 @@ export const EVENTS = {
     USER_REQUESTED_EXPORT_CSV: 'userRequestedExportCSV',
     USER_REQUESTED_RESET: 'userRequestedReset',
     USER_REQUESTED_LOAD: 'userRequestedLoad',
-    USER_REQUESTED_LOAD_FROM_CLOUD: 'userRequestedLoadFromCloud', // [NEW]
+    USER_REQUESTED_LOAD_FROM_CLOUD: 'userRequestedLoadFromCloud', // [MODIFIED] This is now the OLD button event
     USER_CHOSE_SAVE_THEN_LOAD: 'userChoseSaveThenLoad',
     USER_CHOSE_LOAD_DIRECTLY: 'userChoseLoadDirectly',
     TRIGGER_FILE_LOAD: 'triggerFileLoad',
     FILE_LOADED: 'fileLoaded',
+
+    // --- [NEW] v6298 F4 & Auth Events ---
+    USER_REQUESTED_LOGOUT: 'userRequestedLogout',
+    USER_REQUESTED_PASSWORD_RESET: 'userRequestedPasswordReset',
+    USER_REQUESTED_SEARCH_DIALOG: 'userRequestedSearchDialog',
+    // --- End v6298 ---
 
     // --- User Actions: F1/F2 Panels ---
     F1_TAB_ACTIVATED: 'f1TabActivated',
@@ -148,6 +154,20 @@ export const DOM_IDS = {
     // --- F3 Panel Elements ---
     BTN_ADD_QUOTE: 'btn-add-quote', // [NEW]
     BTN_GTH: 'btn-gth', // [NEW]
+
+    // --- [NEW] v6298 F4 Panel Elements ---
+    F4_BTN_SEARCH_DIALOG: 'f4-key-search-dialog',
+    F4_BTN_LOGOUT: 'f4-key-logout',
+
+    // --- [NEW] v6298 Search Dialog Elements ---
+    DIALOG_SEARCH_INPUT: 'dialog-search-input',
+    DIALOG_SEARCH_BUTTON: 'dialog-search-button',
+    DIALOG_SEARCH_RESULTS: 'dialog-search-results',
+    DIALOG_SEARCH_MESSAGE: 'dialog-search-message',
+
+    // --- [NEW] v6298 Login Page Elements ---
+    FORGOT_PASSWORD_LINK: 'forgot-password-link',
+    // --- End v6298 ---
 
     // --- Dialog-specific Elements ---
     DIALOG_INPUT_1CH: 'dialog-input-1ch',

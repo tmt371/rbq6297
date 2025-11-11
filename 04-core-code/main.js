@@ -138,7 +138,7 @@ class App {
 
         // [NEW] (v6297) Initialize the login form handler *immediately* after loading partials.
         // This fixes the bug where the login button did nothing.
-        this._initializeLoginHandler(authService);
+        this._initializeLoginHandler(authService, eventAggregator); // [MODIFIED] (v6298) Pass eventAggregator
 
         // [REMOVED] (v6297) We no longer initialize the UI here.
         // It will be initialized by the auth observer callback.
@@ -150,13 +150,15 @@ class App {
     /**
      * [NEW] (v6297) (FIX) This logic is moved from UIManager to main.js
      * It runs *before* authentication to make the login form interactive.
+     * [MODIFIED] (v6298) Added forgot password logic.
      */
-    _initializeLoginHandler(authService) {
+    _initializeLoginHandler(authService, eventAggregator) {
         const loginForm = document.getElementById('login-form');
         const loginButton = document.getElementById('login-button');
         const loginEmail = document.getElementById('login-email');
         const loginPassword = document.getElementById('login-password');
         const loginErrorMessage = document.getElementById('login-error-message');
+        const forgotPasswordLink = document.getElementById(DOM_IDS.FORGOT_PASSWORD_LINK); // [NEW] (v6298)
 
         if (!loginForm || !authService) {
             console.warn("Login form or AuthService not found, login cannot be initialized.");
@@ -186,6 +188,35 @@ class App {
                 loginButton.textContent = 'Login';
             }
         });
+
+        // [NEW] (v6298) Add listener for "Forgot Password"
+        if (forgotPasswordLink) {
+            forgotPasswordLink.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const email = loginEmail.value || window.prompt('Please enter your account email to receive a password reset link:');
+
+                if (!email) {
+                    eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                        message: 'Email address is required.',
+                        type: 'error',
+                    });
+                    return;
+                }
+
+                loginErrorMessage.classList.add('is-hidden');
+                const result = await authService.sendPasswordReset(email);
+
+                if (result.success) {
+                    eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                        message: result.message,
+                        type: 'info',
+                    });
+                } else {
+                    loginErrorMessage.textContent = result.message;
+                    loginErrorMessage.classList.remove('is-hidden');
+                }
+            });
+        }
     }
 
     /**

@@ -10,14 +10,15 @@ import { paths } from '../config/paths.js'; // [NEW] Import paths for dynamic lo
  * [MODIFIED] This component now dynamically loads (lazy loads) views on demand.
  */
 export class RightPanelComponent {
-    constructor({ panelElement, eventAggregator, stateService, calculationService }) { // [MODIFIED]
-        if (!panelElement || !eventAggregator || !stateService || !calculationService) {
-            throw new Error("Panel element, event aggregator, stateService, and calculationService are required for RightPanelComponent.");
+    constructor({ panelElement, eventAggregator, stateService, calculationService, authService }) { // [MODIFIED]
+        if (!panelElement || !eventAggregator || !stateService || !calculationService || !authService) {
+            throw new Error("Panel element, event aggregator, stateService, calculationService, and authService are required for RightPanelComponent.");
         }
         this.panelElement = panelElement;
         this.eventAggregator = eventAggregator;
         this.stateService = stateService; // [NEW] Store injected service
         this.calculationService = calculationService; // [NEW] Store injected service
+        this.authService = authService; // [NEW] (v6298) Store injected service
         this.state = null;
 
         // [MODIFIED] Views are no longer pre-injected. They will be loaded on demand.
@@ -104,7 +105,8 @@ export class RightPanelComponent {
                         const { F4ActionsView } = await import('./views/f4-actions-view.js');
                         this.views[tabId] = new F4ActionsView({
                             panelElement: this.panelElement,
-                            eventAggregator: this.eventAggregator
+                            eventAggregator: this.eventAggregator,
+                            authService: this.authService // [NEW] (v6298) Pass auth service
                         });
                         break;
                     }

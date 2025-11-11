@@ -99,6 +99,26 @@
     cursor: wait;
 }
 
+/* [NEW] Styles for the "Forgot password?" link */
+.login-forgot-password {
+    text-align: center;
+    margin-top: 4px;
+    /* Reduced margin to bring it closer to the form */
+}
+
+.login-forgot-password a {
+    font-size: 0.9em;
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: text-decoration 0.2s;
+}
+
+.login-forgot-password a:hover {
+    text-decoration: underline;
+}
+
+/* End of new styles */
+
 .login-error-message {
     font-size: 0.9em;
     color: #c0392b;

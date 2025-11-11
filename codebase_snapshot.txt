@@ -6793,18 +6793,21 @@ codebase_snapshot.txt
     <link rel="stylesheet" href="./04-core-code/ui/css/dialog.css">
     <link rel="stylesheet" href="./04-core-code/ui/css/right-panel.css">
     <link rel="stylesheet" href="./04-core-code/ui/css/f3-adjustments.css">
-
     <link rel="stylesheet" href="./04-core-code/ui/css/virtual-keyboard.css">
     <link rel="stylesheet" href="./04-core-code/ui/css/results-table.css">
     <link rel="stylesheet" href="./04-core-code/ui/css/toast-notification.css">
 
     <script type="module" src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js"></script>
     <script type="module" src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js"></script>
     <link rel="icon" href="data:,">
 </head>
 
 <body>
-    <div id="app" class="app-container">
+    <div id="login-container" class="login-container is-hidden">
+    </div>
+
+    <div id="app" class="app-container is-hidden">
         <div class="results-panel">
             <table class="results-table" id="results-table">
                 <tbody></tbody>
@@ -6818,12 +6821,10 @@ codebase_snapshot.txt
                 <div class="panel-toggle" id="panel-toggle" title="Toggle Keyboard">
                     <svg class="toggle-arrow arrow-down" xmlns="http://www.w3.org/2000/svg" fill="none"
                         viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-
                         <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                     </svg>
                     <svg class="toggle-arrow arrow-up" xmlns="http://www.w3.org/2000/svg" fill="none"
                         viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-
                         <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
                     </svg>
                 </div>
@@ -6831,7 +6832,6 @@ codebase_snapshot.txt
                 <button id="key-m-set">M-SET</button>
 
                 <div class="top-summary-container" id="top-summary-container">
-
                     <span class="label">SUM</span>
                     <span class="value is-current" id="total-sum-value"></span>
                 </div>
@@ -6841,7 +6841,6 @@ codebase_snapshot.txt
             <div class="virtual-keyboard" id="numeric-keyboard">
                 <button id="key-7">7</button>
                 <button id="key-8">8</button>
-
                 <button id="key-9">9</button>
                 <button id="key-w">W</button>
                 <button id="key-type">Type</button>
@@ -6849,7 +6848,6 @@ codebase_snapshot.txt
                 <button id="key-4">4</button>
                 <button id="key-5">5</button>
                 <button id="key-6">6</button>
-
                 <button id="key-h">H</button>
                 <button id="key-price">$</button>
 
@@ -6857,8 +6855,6 @@ codebase_snapshot.txt
                 <button id="key-2">2</button>
                 <button id="key-3">3</button>
                 <button id="key-enter">&#x23CE;</button>
-
-
                 <button id="key-ins-grid">Ins</button>
 
                 <button id="key-0">0</button>
@@ -6881,7 +6877,6 @@ codebase_snapshot.txt
             <div class="dialog-content-grid">
                 <button class="dialog-button">Save then Load</button>
                 <button class="dialog-button">Load Directly</button>
-
                 <button class="dialog-button secondary">Cancel</button>
             </div>
         </div>
@@ -6916,6 +6911,8 @@ codebase_snapshot.txt
 /* [REMOVED] @import url('./04-core-code/ui/css/virtual-keyboard.css'); */
 /* [REMOVED] @import url('./04-core-code/ui/css/results-table.css'); */
 /* [REMOVED] @import url('./04-core-code/ui/css/toast-notification.css'); */
+/* [NEW] Import the new login component CSS */
+@import url('./04-core-code/ui/css/login-component.css');
 
 /* --- Global Variables --- */
 :root {
@@ -6944,6 +6941,12 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: #f0f2f5;
     overflow: hidden;
+}
+
+/* --- [NEW] Hidden Class --- */
+/* A generic utility class to hide elements */
+.is-hidden {
+    display: none !important;
 }
 
 /* --- App Container Layout --- */
@@ -7495,14 +7498,14 @@ export default {
 /**
  * @description
  * AppContext ?¯æ­¤?‰ç”¨ç¨‹å??„ã€Œä?è³´æ³¨?¥å®¹?¨ã€?DI Container)??
- * å®ƒç??·è²¬?¯ã€Œå»ºç«‹ã€ä¸¦è¨»å??Œæ??‰æ???(Services) ??UI ?ƒä»¶ (Components)?ã€?
+ * å®ƒç??·è²¬?¯ã€Œå»ºç«‹ã€ä¸¦è¨»å??€?‰æ???(Services) ??UI ?ƒä»¶ (Components)??
  * 1. å»ºç? Services (ä¾‹å? StateService, CalculationService)??
  * 2. å»ºç? UI Components (ä¾‹å? QuickQuoteView, RightPanelComponent)??
- * 3. å°‡é€™ä?å¯¦ä? (instances) ä¿å??¨ä??‹ä¸­å¤®ç™»è¨˜è? (this.instances) ä¸­ã€?
+ * 3. å°‡é€™ä?å¯¦ä? (instances) ä¿å??¨ä??‹ä¸­å¤®ç™»è¨˜è¡¨ (this.instances) ä¸­ã€?
  *
  * ?™ç¨®æ¨¡å??„å¥½??(ä¾è³´æ³¨å…¥):
- * - ?Œè§£?¦ã€ï??ƒä»¶ä¸é?è¦çŸ¥?“ã€Œå?ä½•ã€å»ºç«‹ã€Œå??ç?ä¾è³´??
- * ä¾‹å?ï¼Œ`AppController` ä¸é?è¦?`new WorkflowService()`ï¼Œå??ªé?è¦å? AppContext?Œè?æ±‚ã€ä???`workflowService` å¯¦ä???
+ * - ?Œè§£?¦ã€ï??ƒä»¶ä¸é?è¦çŸ¥?“ã€Œå?ä½•ã€å»ºç«‹ã€Œå…¶å®ƒä?è³´ã€ã€?
+ * ä¾‹å?ï¼Œ`AppController` ä¸é?è¦?`new WorkflowService()`ï¼Œåª?€è¦å? AppContext?Œè?æ±‚ã€å·²?‰ç? `workflowService` å¯¦ä???
  * - ?Œå¯æ¸¬è©¦?§ã€ï??¨é€²è??®å?æ¸¬è©¦?‚ï??‘å€‘å¯ä»¥è??“åœ°?Œæ¨¡?¬ã€?mock) ä¸¦æ›¿??AppContext ä¸­ç??Ÿå¯¦?å???
  * - ?Œé?ä¸­ç®¡?†ã€ï??€?‰ç‰©ä»¶ç?å»ºç??è¼¯?½é?ä¸­åœ¨æ­¤è?ï¼Œæ??¼ç®¡?†å?ç¶­è­·??
  *
@@ -7526,8 +7529,8 @@ export class AppContext {
     }
 
     /**
-     * å¾žå®¹?¨ä¸­?–å?ä¸€?‹å¯¦ä¾‹ã€?
-     * @param {string} name - è¦ç²?–ç?å¯¦ä??ç¨±??
+     * å¾žå®¹?¨ä¸­?“å?ä¸€?‹å¯¦ä¾‹ã€?
+     * @param {string} name - è¦æ??–ç?å¯¦ä??ç¨±??
      * @returns {object} - è¨»å??„å¯¦ä¾‹ã€?
      */
     get(name) {
@@ -7544,6 +7547,10 @@ export class AppContext {
         const eventAggregator = new EventAggregator();
         this.register('eventAggregator', eventAggregator);
 
+        // [NEW] (v6297) Initialize Auth Service first
+        const authService = new AuthService(eventAggregator);
+        this.register('authService', authService);
+
         const configManager = new ConfigManager(eventAggregator);
         this.register('configManager', configManager);
 
@@ -7556,9 +7563,7 @@ export class AppContext {
         }
 
         const stateService = new StateService({
-
             initialState: initialStateWithData,
-
             eventAggregator,
             productFactory,
             configManager
@@ -7567,7 +7572,6 @@ export class AppContext {
 
         const calculationService = new CalculationService({
             stateService,
-
             productFactory,
             configManager
         });
@@ -7593,6 +7597,7 @@ export class AppContext {
         const productFactory = this.get('productFactory');
         const focusService = this.get('focusService');
         const fileService = this.get('fileService');
+        const authService = this.get('authService'); // [NEW] (v6297) Get AuthService
 
         // --- [NEW] Instantiate LeftPanelTabManager (Phase 6 Refactor) ---
         const leftPanelElement = document.getElementById(DOM_IDS.LEFT_PANEL);
@@ -7695,7 +7700,8 @@ export class AppContext {
             calculationService,
             productFactory,
             detailConfigView,
-            quoteGeneratorService // [NEW] Inject the new service
+            quoteGeneratorService, // [NEW] Inject the new service
+            authService // [NEW] (v6297) Inject AuthService
 
         });
         // [REMOVED]
@@ -7747,6 +7753,7 @@ import { FocusService } from './services/focus-service.js';
 import { FileService } from './services/file-service.js';
 import { WorkflowService } from './services/workflow-service.js';
 import { QuoteGeneratorService } from './services/quote-generator-service.js'; // [NEW]
+import { AuthService } from './services/auth-service.js'; // [NEW] (v6297)
 import { RightPanelComponent } from './ui/right-panel-component.js';
 import { QuickQuoteView } from './ui/views/quick-quote-view.js';
 import { DetailConfigView } from './ui/views/detail-config-view.js';
@@ -7770,7 +7777,7 @@ import { DOM_IDS } from './config/constants.js'; // [MODIFIED]
 import { K1TabInputHandler } from './ui/tabs/k1-tab/k1-tab-input-handler.js';
 import { K1TabComponent } from './ui/tabs/k1-tab/k1-tab-component.js';
 import { K2TabInputHandler } from './ui/tabs/k2-tab/k2-tab-input-handler.js'; // [NEW]
-import { K2TabComponent } from './ui/tabs/k2-tab/k2-tab-component.js'; // [NEW] (v6294)
+import { K2TabComponent } from './ui/tabs/k2-tab/k2-tab-component.js'; // [NEW] (v6g294)
 import { K3TabInputHandler } from './ui/tabs/k3-tab/k3-tab-input-handler.js';
 import { K3TabComponent } from './ui/tabs/k3-tab/k3-tab-component.js';
 import { K4TabInputHandler } from './ui/tabs/k4-tab/k4-tab-input-handler.js';
@@ -8230,7 +8237,6 @@ import { EVENTS, DOM_IDS } from './config/constants.js';
 
 class App {
     constructor() {
-
         this.appContext = new AppContext();
         const migrationService = new MigrationService();
 
@@ -8253,7 +8259,6 @@ class App {
                 if (injectionMethod === 'innerHTML') {
                     targetElement.innerHTML = html;
                 } else {
-
                     targetElement.insertAdjacentHTML('beforeend', html);
                 }
             } catch (error) {
@@ -8274,6 +8279,13 @@ class App {
                 console.error(`Failed to load CSS from ${url}:`, error);
             }
         };
+
+        // --- [NEW] (v6297) Load Login Component ---
+        const loginContainer = document.getElementById('login-container');
+        if (loginContainer) {
+            await loadPartial(paths.partials.loginComponent, loginContainer, 'innerHTML');
+            // CSS is already loaded via style.css @import
+        }
 
         // --- Load Main Panel Skeletons ---
         await loadPartial(paths.partials.leftPanel, document.body);
@@ -8306,7 +8318,6 @@ class App {
         }
 
         // --- [NEW] Load K4 Tab Bundle ---
-
         const k4ContentContainer = document.getElementById('k4-content');
         if (k4ContentContainer) {
             await loadPartial(paths.tabs.k4.html, k4ContentContainer, 'innerHTML');
@@ -8322,36 +8333,114 @@ class App {
     }
 
     async run() {
-
         console.log("Application starting...");
 
+        // [NEW] (v6297) Get Auth Service early
+        const authService = this.appContext.get('authService');
+        const eventAggregator = this.appContext.get('eventAggregator');
+
+        // [NEW] (v6297) Observe auth state
+        authService.observeAuthState(
+            (user) => {
+                // --- On User Logged In ---
+                console.log(`User ${user.email} logged in. Initializing main app...`);
+                // Load and initialize the main app UI ONLY after login.
+                // [FIX] Check if UIManager already exists to prevent re-initialization on hot-reload
+                if (!this.uiManager) {
+                    this._initializeAppUI(eventAggregator);
+                }
+            },
+            (user) => {
+                // --- On User Logged Out ---
+                console.log("No user logged in. Showing login screen.");
+                // Show login screen, hide app
+                document.getElementById('login-container')?.classList.remove('is-hidden');
+                document.getElementById(DOM_IDS.APP)?.classList.add('is-hidden');
+            }
+        );
+
         // Step 1: Load all HTML templates into the DOM.
+        // This now loads the login-component.html as well.
         await this._loadPartials();
 
-        // Step 2: [NEW] Initialize all UI components now that their DOM elements exist.
+        // [NEW] (v6297) Initialize the login form handler *immediately* after loading partials.
+        // This fixes the bug where the login button did nothing.
+        this._initializeLoginHandler(authService);
+
+        // [REMOVED] (v6297) We no longer initialize the UI here.
+        // It will be initialized by the auth observer callback.
+
+        console.log("Application running. Waiting for auth state...");
+        document.body.classList.add('app-is-ready');
+    }
+
+    /**
+     * [NEW] (v6297) (FIX) This logic is moved from UIManager to main.js
+     * It runs *before* authentication to make the login form interactive.
+     */
+    _initializeLoginHandler(authService) {
+        const loginForm = document.getElementById('login-form');
+        const loginButton = document.getElementById('login-button');
+        const loginEmail = document.getElementById('login-email');
+        const loginPassword = document.getElementById('login-password');
+        const loginErrorMessage = document.getElementById('login-error-message');
+
+        if (!loginForm || !authService) {
+            console.warn("Login form or AuthService not found, login cannot be initialized.");
+            return;
+        }
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            loginButton.disabled = true;
+            loginButton.textContent = 'Logging in...';
+            loginErrorMessage.classList.add('is-hidden');
+
+            const email = loginEmail.value;
+            const password = loginPassword.value;
+
+            const result = await authService.login(email, password);
+
+            if (result.success) {
+                // Success! The onAuthStateChanged listener will now
+                // fire and call _initializeAppUI() to show the main app.
+            } else {
+                // Show error message
+                loginErrorMessage.textContent = result.message;
+                loginErrorMessage.classList.remove('is-hidden');
+                loginButton.disabled = false;
+                loginButton.textContent = 'Login';
+            }
+        });
+    }
+
+    /**
+     * [NEW] (v6297) Encapsulated the main app UI initialization.
+     * This function is called by the AuthService observer ONLY when a user is logged in.
+     */
+    async _initializeAppUI(eventAggregator) {
+        // Step 2: Initialize all UI components now that their DOM elements exist
+        // and the user is authenticated.
         this.appContext.initializeUIComponents();
 
         // Step 3: Get all fully initialized instances from the context.
-        const eventAggregator = this.appContext.get('eventAggregator');
         const calculationService = this.appContext.get('calculationService');
         const configManager = this.appContext.get('configManager');
         const appController = this.appContext.get('appController');
         const rightPanelComponent = this.appContext.get('rightPanelComponent');
-        const leftPanelTabManager = this.appContext.get('leftPanelTabManager'); // [NEW] Get LeftPanelTabManager
-        const k1TabComponent = this.appContext.get('k1TabComponent'); // [NEW] Get K1 component
-        const k2TabComponent = this.appContext.get('k2TabComponent'); // [NEW] (v6294) Get K2 component
-        const k3TabComponent =
-            this.appContext.get('k3TabComponent'); // [NEW] Get K3 component
-        const k4TabComponent = this.appContext.get('k4TabComponent'); // [NEW] Get K4 component
-        const k5TabComponent = this.appContext.get('k5TabComponent'); // [NEW] Get K5 component
-
+        const leftPanelTabManager = this.appContext.get('leftPanelTabManager');
+        const k1TabComponent = this.appContext.get('k1TabComponent');
+        const k2TabComponent = this.appContext.get('k2TabComponent');
+        const k3TabComponent = this.appContext.get('k3TabComponent');
+        const k4TabComponent = this.appContext.get('k4TabComponent');
+        const k5TabComponent = this.appContext.get('k5TabComponent');
 
         // [REMOVED]
 
         // Step 4: Initialize the main UI manager.
         this.uiManager = new UIManager({
             appElement: document.getElementById(DOM_IDS.APP),
-
             eventAggregator,
             calculationService,
             rightPanelComponent,
@@ -8360,10 +8449,11 @@ class App {
             k2TabComponent, // [NEW] (v6294) Inject K2 component
             k3TabComponent, // [NEW] Inject K3 component
             k4TabComponent, // [NEW] Inject K4 component
-
             k5TabComponent, // [NEW] Inject K5 component
-            // [REMOVED]
+            // [REMOVED] (v6297) authService is no longer needed here
+            // authService: this.appContext.get('authService'),
         });
+
         // Step 5: Continue with the rest of the application startup.
         await configManager.initialize();
 
@@ -8377,7 +8467,6 @@ class App {
         this.inputHandler.initialize();
 
         eventAggregator.subscribe(EVENTS.APP_READY, () => {
-
             setTimeout(() => {
                 eventAggregator.publish(EVENTS.FOCUS_CELL, { rowIndex: 0, column: 'width' });
             }, 100);
@@ -8385,9 +8474,11 @@ class App {
 
         eventAggregator.publish(EVENTS.APP_READY);
 
-        console.log("Application running and interactive.");
+        // [NEW] (v6297) Show the app and hide the login screen
+        document.getElementById('login-container')?.classList.add('is-hidden');
+        document.getElementById(DOM_IDS.APP)?.classList.remove('is-hidden');
 
-        document.body.classList.add('app-is-ready');
+        console.log("Main App UI Initialized and interactive.");
     }
 }
 
@@ -9083,7 +9174,7 @@ export const f2Config = {
 --- FILE END ---
 
 --- FILE START: 04-core-code/config/firebase-config.example.js ---
-// 04-core-code/config/firebase-config.js---
+// 04-core-code/config/firebase-config.example.js---
 
 // [EXISTING] This is your saved configuration
 const firebaseConfig = {
@@ -9095,15 +9186,19 @@ const firebaseConfig = {
     appId: "1:53955635800:web:1ff29c52d663de0c8fb82d"
 };
 
-// [NEW] Add Firebase initialization logic
+// [MODIFIED] Add Firebase initialization logic
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js"; // [NEW]
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
 // Export the Firestore database service
 export const db = getFirestore(app);
+
+// [NEW] Export the Auth service
+export const auth = getAuth(app);
 
 // [MODIFIED] Export the config as well
 export { firebaseConfig };
@@ -9122,15 +9217,19 @@ const firebaseConfig = {
     appId: "1:53955635800:web:1ff29c52d663de0c8fb82d"
 };
 
-// [NEW] Add Firebase initialization logic
+// [MODIFIED] Add Firebase Auth SDK
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js"; // [NEW]
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
 // Export the Firestore database service
 export const db = getFirestore(app);
+
+// [NEW] Export the Auth service
+export const auth = getAuth(app);
 
 // [MODIFIED] Export the config as well
 export { firebaseConfig };
@@ -9284,6 +9383,7 @@ export const initialState = {
         quoteId: null,
         issueDate: null,
         dueDate: null,
+        ownerUid: null, // [NEW] (v6297) Add field to store the owner's UID
         status: "Configuring",
         costDiscountPercentage: 0,
         customer: {
@@ -9330,6 +9430,8 @@ export const paths = {
         gmailClientScript: './04-core-code/ui/partials/gmail-template-client.js',
         // [NEW] Add path for the detailed list row template
         detailedItemListRow: './04-core-code/ui/partials/detailed-item-list-row.html',
+        // [NEW] (v6297) Add path for the login component
+        loginComponent: './04-core-code/ui/partials/login-component.html',
     },
     // [NEW] Add paths for new refactored tabs
     tabs: {
@@ -9978,6 +10080,106 @@ export function uiReducer(state, action) {
 
         default:
             return state;
+    }
+}
+--- FILE END ---
+
+--- FILE START: 04-core-code/services/auth-service.js ---
+// File: 04-core-code/services/auth-service.js
+// [NEW] This is a new service to manage Firebase Authentication.
+
+import { auth } from '../config/firebase-config.js';
+import {
+    signInWithEmailAndPassword,
+    onAuthStateChanged,
+    signOut,
+} from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js';
+
+/**
+ * @fileoverview Service for managing user authentication,
+ * including login, logout, and observing auth state changes.
+ */
+export class AuthService {
+    constructor(eventAggregator) {
+        this.eventAggregator = eventAggregator;
+        this.currentUser = null;
+        console.log("AuthService Initialized.");
+    }
+
+    /**
+     * Attempts to sign in the user with email and password.
+     * @param {string} email
+     * @param {string} password
+     * @returns {Promise<{success: boolean, message: string}>}
+     */
+    async login(email, password) {
+        if (!email || !password) {
+            return { success: false, message: 'Email and password are required.' };
+        }
+        try {
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            this.currentUser = userCredential.user;
+            console.log('Login successful:', this.currentUser.uid);
+            return { success: true, message: 'Login successful!' };
+        } catch (error) {
+            console.error('Login failed:', error.code, error.message);
+            const friendlyMessage = this._mapErrorToMessage(error.code);
+            return { success: false, message: friendlyMessage };
+        }
+    }
+
+    /**
+     * Signs out the current user.
+     */
+    async logout() {
+        try {
+            await signOut(auth);
+            this.currentUser = null;
+            console.log('Logout successful.');
+        } catch (error) {
+            console.error('Logout failed:', error);
+        }
+    }
+
+    /**
+     * Attaches a listener to Firebase Auth state changes.
+     * This is the primary way the app knows if a user is logged in or out.
+     * @param {function} onUserLoggedIn - Callback when a user is found (passes user object).
+     * @param {function} onUserLoggedOut - Callback when no user is found.
+     */
+    observeAuthState(onUserLoggedIn, onUserLoggedOut) {
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // User is signed in
+                this.currentUser = user;
+                onUserLoggedIn(user);
+            } else {
+                // User is signed out
+                this.currentUser = null;
+                onUserLoggedOut();
+            }
+        });
+    }
+
+    /**
+     * Converts Firebase error codes into user-friendly messages.
+     * @param {string} errorCode
+     * @returns {string}
+     * @private
+     */
+    _mapErrorToMessage(errorCode) {
+        switch (errorCode) {
+            case 'auth/invalid-email':
+                return 'Invalid email format.';
+            case 'auth/user-not-found':
+            case 'auth/wrong-password':
+            case 'auth/invalid-credential':
+                return 'Invalid email or password.';
+            case 'auth/too-many-requests':
+                return 'Access temporarily disabled due to too many failed attempts. Please reset your password or try again later.';
+            default:
+                return 'An unknown error occurred during login.';
+        }
     }
 }
 --- FILE END ---
@@ -11727,6 +11929,7 @@ export class WorkflowService {
         productFactory,
         detailConfigView,
         quoteGeneratorService,
+        authService, // [NEW] (v6297) Inject authService
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
@@ -11735,6 +11938,7 @@ export class WorkflowService {
         this.productFactory = productFactory;
         this.detailConfigView = detailConfigView;
         this.quoteGeneratorService = quoteGeneratorService; // [NEW] Store the injected service
+        this.authService = authService; // [NEW] (v6S97) Store authService
         this.quotePreviewComponent = null; // Will be set by AppContext
 
         console.log('WorkflowService Initialized.');
@@ -11863,10 +12067,21 @@ export class WorkflowService {
     // [MODIFIED v6285 Phase 5] Helper function now captures ALL F1 and F3 state.
     // [MODIFIED v6292] F3 state is now read directly from quoteData state.
     // [MODIFIED v6295] Capture F1 Wifi Qty and all of F2 state.
+    // [MODIFIED] (v6297) Capture ownerUid.
     _getQuoteDataWithSnapshots() {
         const { quoteData, ui } = this.stateService.getState();
         // Create a deep copy to avoid mutating the original state
         let dataWithSnapshot = JSON.parse(JSON.stringify(quoteData));
+
+        // --- [NEW] (v6297) 0. Capture Owner UID ---
+        // [FIX] Check for authService AND authService.currentUser
+        if (this.authService && this.authService.currentUser) {
+            dataWithSnapshot.ownerUid = this.authService.currentUser.uid;
+        } else {
+            console.error("WorkflowService: Cannot save. AuthService is missing or user is not logged in.");
+            // We still proceed, but the ownerUid will be null.
+            // Our Firestore rules (which we will update later) will block this.
+        }
 
         // --- 1. Capture F1 Snapshot (from Phase 4) ---
         if (dataWithSnapshot.f1Snapshot) {
@@ -13373,9 +13588,11 @@ import { DialogComponent } from './dialog-component.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
 // [NEW] Import LeftPanelTabManager
 import { LeftPanelTabManager } from './left-panel-tab-manager.js';
+// [REMOVED] (v6297) AuthService import is no longer needed here
+// import { AuthService } from '../services/auth-service.js';
 
 export class UIManager {
-    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k4TabComponent, k5TabComponent }) { // [MODIFIED]
+    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k4TabComponent, k5TabComponent }) { // [MODIFIED] authService removed
         this.appElement = appElement;
         this.eventAggregator = eventAggregator;
         this.calculationService = calculationService;
@@ -13386,6 +13603,7 @@ export class UIManager {
         this.k3TabComponent = k3TabComponent; // [NEW] Store instance
         this.k4TabComponent = k4TabComponent; // [NEW] Store instance
         this.k5TabComponent = k5TabComponent; // [NEW] Store instance
+        // [REMOVED] (v6297) this.authService = authService;
 
         this.numericKeyboardPanel = document.getElementById(DOM_IDS.NUMERIC_KEYBOARD_PANEL);
 
@@ -13429,9 +13647,12 @@ export class UIManager {
 
         this.dialogComponent = new DialogComponent({
             overlayElement: document.getElementById(DOM_IDS.CONFIRMATION_DIALOG_OVERLAY),
-
             eventAggregator: this.eventAggregator
         });
+
+        // [REMOVED] (v6297) Login elements are no longer cached here
+        // this.loginContainer = document.getElementById('login-container');
+        // ... (all login element caching removed)
 
         this.initialize();
     }
@@ -13443,19 +13664,25 @@ export class UIManager {
         this.eventAggregator.subscribe(EVENTS.FOCUS_ELEMENT, ({ elementId }) => {
             const element = document.getElementById(elementId);
             if (element) {
-
                 setTimeout(() => {
                     element.focus();
                     if (typeof element.select === 'function') {
                         element.select();
-
                     }
                 }, 50); // A small delay to ensure the element is rendered and focusable.
             }
         });
 
+        // [REMOVED] (v6297) Call to _initializeLoginHandler removed
+        // this._initializeLoginHandler();
+
         this._initializeResizeObserver();
     }
+
+    /**
+     * [REMOVED] (v6297) Login handler logic is now in main.js
+     */
+    // _initializeLoginHandler() { ... }
 
     _initializeResizeObserver() {
         const resizeObserver = new ResizeObserver(() => {
@@ -13495,6 +13722,8 @@ export class UIManager {
     }
 
     render(state) {
+        // [MODIFIED] (v6297) This render function is now ONLY called when the user is authenticated.
+        // The logic to hide/show the main app vs login screen is in main.js.
 
         const isDetailView = state.ui.currentView === 'DETAIL_CONFIG';
         this.appElement.classList.toggle('detail-view-active', isDetailView);
@@ -13530,7 +13759,6 @@ export class UIManager {
         }
         if (this.k5TabComponent) {
             this.k5TabComponent.render(state.ui, state.quoteData); // Renders K5
-
         }
 
         this.rightPanelComponent.render(state);
@@ -13583,7 +13811,6 @@ export class UIManager {
             const selectedIndex = multiSelectSelectedIndexes[0];
             const itemsLength = items.length;
             // Also disable if it's the last data row or the final empty row
-
             if (selectedIndex >= itemsLength - 2) {
                 clearDisabled = true;
             }
@@ -13596,7 +13823,6 @@ export class UIManager {
         const { rowIndex, column } = state.ui.activeCell;
         const activeCellElement = document.querySelector(`tr[data-row-index="${rowIndex}"] td[data-column="${column}"]`);
         if (activeCellElement) {
-
             activeCellElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }
@@ -14222,6 +14448,121 @@ export class UIManager {
 
 .f3-container .action-button:hover {
     background-color: #2563eb;
+}
+--- FILE END ---
+
+--- FILE START: 04-core-code/ui/css/login-component.css ---
+/* File: 04-core-code/ui/css/login-component.css */
+/* [NEW] Styles for the v6297 Login Component */
+
+.login-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background-color: #f0f2f5;
+    /* Matches the body background */
+}
+
+.login-box {
+    background-color: #ffffff;
+    padding: 32px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px;
+    box-sizing: border-box;
+    margin: 20px;
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.login-header h2 {
+    margin: 0 0 8px 0;
+    color: #1a237e;
+    /* Primary color */
+    font-size: 1.5em;
+}
+
+.login-header p {
+    margin: 0;
+    color: #555;
+    font-size: 1em;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.input-group label {
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 6px;
+}
+
+.input-group input {
+    padding: 12px;
+    font-size: 1em;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(26, 35, 126, 0.2);
+}
+
+.login-actions {
+    margin-top: 8px;
+}
+
+.login-button {
+    width: 100%;
+    padding: 12px;
+    font-size: 1em;
+    font-weight: bold;
+    color: white;
+    background-color: var(--primary-color);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.login-button:hover {
+    background-color: #283593;
+}
+
+.login-button:disabled {
+    background-color: #9fa8da;
+    cursor: wait;
+}
+
+.login-error-message {
+    font-size: 0.9em;
+    color: #c0392b;
+    /* Error red */
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 16px;
+    text-align: center;
 }
 --- FILE END ---
 
@@ -15828,6 +16169,29 @@ document.addEventListener('DOMContentLoaded', function () {
         stroke-width="1.5" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
     </svg>
+</div>
+--- FILE END ---
+
+--- FILE START: 04-core-code/ui/partials/login-component.html ---
+<div class="login-box">
+    <div class="login-header">
+        <h2>Quote System Login</h2>
+        <p>Please sign in to continue</p>
+    </div>
+    <form id="login-form" class="login-form">
+        <div class="input-group">
+            <label for="login-email">Email</label>
+            <input type="email" id="login-email" name="email" required>
+        </div>
+        <div class="input-group">
+            <label for="login-password">Password</label>
+            <input type="password" id="login-password" name="password" required>
+        </div>
+        <div class="login-actions">
+            <button type="submit" id="login-button" class="login-button">Login</button>
+        </div>
+    </form>
+    <div id="login-error-message" class="login-error-message is-hidden"></div>
 </div>
 --- FILE END ---
 

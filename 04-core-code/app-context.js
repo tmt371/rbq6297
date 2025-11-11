@@ -3,20 +3,20 @@
 /**
  * @description
  * AppContext 是此應用程式的「依賴注入容器」(DI Container)。
- * 它的職責是「建立」並註冊所有服務 (Services) 和 UI 元件 (Components)。
+ * 它的職責是「建立」並註冊所有服務 (Services) 與 UI 元件 (Components)。
  * 1. 建立 Services (例如 StateService, CalculationService)。
  * 2. 建立 UI Components (例如 QuickQuoteView, RightPanelComponent)。
  * 3. 將這些實例 (instances) 保存在一個中央登記表 (this.instances) 中。
  *
  * 這種模式的好處 (依賴注入):
- * - 「解耦」：元件不需要知道「如何」建立「其它依賴」。
+ * - 「解耦」：元件不需要知道「如何」建立「其他依賴」。
  * 例如，`AppController` 不需要 `new WorkflowService()`，只需要向 AppContext「請求」已有的 `workflowService` 實例。
  * - 「可測試性」：在進行單元測試時，我們可以輕易地「模擬」(mock) 並替換 AppContext 中的真實服務。
- * - 「集中管理」：所有物件的建立邏輯都集中在此處，易於管理和維護。
+ * - 「集中管理」：所有物件的建立邏輯都集中在此處，便於管理與維護。
  *
  * Example:
- * `main.js` (組裝廠) 會請求 AppContext 建立所有零件 (Services, Components)，
- * 然後將這些零件 (例如 `quickQuoteView`, `appController`) 交給 `UIManager` (總指揮) 去組裝並渲染。
+ * `main.js` (組裝廠) 向 AppContext 請求建立所有零件 (Services, Components)；
+ * 然後將這些零件 (例如 `quickQuoteView`, `appController`) 交給 `UIManager` (總指揮) 進行組裝與渲染。
  * */
 export class AppContext {
     constructor() {
@@ -34,8 +34,8 @@ export class AppContext {
     }
 
     /**
-     * 從容器中抓取一個實例。
-     * @param {string} name - 要抓取的實例名稱。
+     * 從容器中提取一個實例。
+     * @param {string} name - 要提取的實例名稱。
      * @returns {object} - 註冊的實例。
      */
     get(name) {
@@ -157,11 +157,13 @@ export class AppContext {
         // Removed f1View-f4View dependencies.
         // Injected services (stateService, calculationService) so the component
         // can dynamically instantiate views itself.
+        // [MODIFIED] (v6298) Injected authService
         const rightPanelComponent = new RightPanelComponent({
             panelElement: rightPanelElement,
             eventAggregator,
             stateService,
-            calculationService
+            calculationService,
+            authService // [NEW] (v6298) Pass auth service for F4
             // f1View, // [REMOVED]
             // f2View, // [REMOVED]
             // f3View, // [REMOVED]

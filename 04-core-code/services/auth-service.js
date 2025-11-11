@@ -6,6 +6,7 @@ import {
     signInWithEmailAndPassword,
     onAuthStateChanged,
     signOut,
+    sendPasswordResetEmail, // [NEW] Import the password reset function
 } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js';
 
 /**
@@ -53,6 +54,27 @@ export class AuthService {
             console.error('Logout failed:', error);
         }
     }
+
+    /**
+     * [NEW] Sends a password reset email to the provided email address.
+     * @param {string} email
+     * @returns {Promise<{success: boolean, message: string}>}
+     */
+    async sendPasswordReset(email) {
+        if (!email) {
+            return { success: false, message: 'Email is required to send a reset link.' };
+        }
+        try {
+            await sendPasswordResetEmail(auth, email);
+            console.log('Password reset email sent to:', email);
+            return { success: true, message: `Password reset link sent to ${email}. Please check your inbox.` };
+        } catch (error) {
+            console.error('Password reset failed:', error.code, error.message);
+            const friendlyMessage = this._mapErrorToMessage(error.code);
+            return { success: false, message: friendlyMessage };
+        }
+    }
+
 
     /**
      * Attaches a listener to Firebase Auth state changes.

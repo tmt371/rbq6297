@@ -32,7 +32,7 @@ export class AppController {
         this._subscribeGlobalEvents();
         this._subscribeF1Events();
         this._subscribeF3Events();
-        this._subscribeF4Events(); // [NEW] Add F4 subscription group
+        this._subscribeF4Events(); // [MODIFIED] Add F4 subscription group
 
         // This is the core of the reactive state update.
         // Any service that updates the state via StateService will trigger this,
@@ -233,10 +233,15 @@ export class AppController {
         this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_LOAD, () =>
             this.workflowService.handleUserRequestedLoad()
         );
-        // [NEW] (Bug Fix) Add the missing subscription for the cloud load event
+        // [NEW] (Bug Fix) Add the missing subscription for the old cloud load event (which will now fail)
         this.eventAggregator.subscribe(
             EVENTS.USER_REQUESTED_LOAD_FROM_CLOUD,
             () => this.workflowService.handleLoadFromCloud()
+        );
+        // [NEW] (v6298) Add subscription for the new search dialog event
+        this.eventAggregator.subscribe(
+            EVENTS.USER_REQUESTED_SEARCH_DIALOG,
+            () => this.workflowService.handleSearchDialogRequest()
         );
         this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_RESET, () =>
             this.workflowService.handleReset()
