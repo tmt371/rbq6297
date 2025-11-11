@@ -141,6 +141,23 @@ class App {
                 // [NEW] (v6298-fix) Force-hide panels that might be expanded
                 document.getElementById(DOM_IDS.FUNCTION_PANEL)?.classList.remove('is-expanded');
                 document.getElementById(DOM_IDS.LEFT_PANEL)?.classList.remove('is-expanded');
+
+                // [NEW] (v6298-fix-2) Manually reset the login form's DOM state
+                const loginButton = document.getElementById('login-button');
+                const loginPassword = document.getElementById('login-password');
+                const loginErrorMessage = document.getElementById('login-error-message');
+
+                if (loginButton) {
+                    loginButton.disabled = false;
+                    loginButton.textContent = 'Login';
+                }
+                if (loginPassword) {
+                    loginPassword.value = ''; // Clear password field
+                }
+                if (loginErrorMessage) {
+                    loginErrorMessage.classList.add('is-hidden');
+                    loginErrorMessage.textContent = '';
+                }
             }
         );
 
@@ -165,13 +182,14 @@ class App {
     _resetApplicationState(stateService) {
         if (!stateService) return;
 
-        // 1. Dispatch actions to reset the state to its initial value
-        stateService.dispatch(quoteActions.resetQuoteData());
-        stateService.dispatch(uiActions.resetUi());
-
-        // 2. Nullify instances to force re-initialization on next login
+        // 1. Nullify instances to force re-initialization on next login
+        // [MODIFIED] (v6298-fix-2) This MUST happen first to prevent the race condition.
         this.uiManager = null;
         this.inputHandler = null; // Assuming InputHandler is property of App
+
+        // 2. Dispatch actions to reset the state to its initial value
+        stateService.dispatch(quoteActions.resetQuoteData());
+        stateService.dispatch(uiActions.resetUi());
 
         console.log("Application state and UI instances have been reset.");
     }
@@ -291,8 +309,13 @@ class App {
         // Step 5: Continue with the rest of the application startup.
         await configManager.initialize();
 
+        // [MODIFIED] (v6298-fix-2) Add safety check
         eventAggregator.subscribe(EVENTS.STATE_CHANGED, (state) => {
-            this.uiManager.render(state);
+            // Only render if the uiManager instance still exists.
+            // This check will fail during logout, preventing the crash.
+            if (this.uiManager) {
+                this.uiManager.render(state);
+            }
         });
 
         appController.publishInitialState();
