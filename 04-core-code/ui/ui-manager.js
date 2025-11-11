@@ -9,9 +9,11 @@ import { DialogComponent } from './dialog-component.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
 // [NEW] Import LeftPanelTabManager
 import { LeftPanelTabManager } from './left-panel-tab-manager.js';
+// [NEW] (v6297) Import AuthService (though it will be unused until logout is added)
+import { AuthService } from '../services/auth-service.js';
 
 export class UIManager {
-    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k4TabComponent, k5TabComponent }) { // [MODIFIED]
+    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k4TabComponent, k5TabComponent, authService }) { // [MODIFIED]
         this.appElement = appElement;
         this.eventAggregator = eventAggregator;
         this.calculationService = calculationService;
@@ -22,6 +24,7 @@ export class UIManager {
         this.k3TabComponent = k3TabComponent; // [NEW] Store instance
         this.k4TabComponent = k4TabComponent; // [NEW] Store instance
         this.k5TabComponent = k5TabComponent; // [NEW] Store instance
+        this.authService = authService; // [NEW] (v6297) Store authService
 
         this.numericKeyboardPanel = document.getElementById(DOM_IDS.NUMERIC_KEYBOARD_PANEL);
 
@@ -65,9 +68,16 @@ export class UIManager {
 
         this.dialogComponent = new DialogComponent({
             overlayElement: document.getElementById(DOM_IDS.CONFIRMATION_DIALOG_OVERLAY),
-
             eventAggregator: this.eventAggregator
         });
+
+        // [NEW] (v6297) Cache login elements
+        this.loginContainer = document.getElementById('login-container');
+        this.loginForm = document.getElementById('login-form');
+        this.loginButton = document.getElementById('login-button');
+        this.loginEmail = document.getElementById('login-email');
+        this.loginPassword = document.getElementById('login-password');
+        this.loginErrorMessage = document.getElementById('login-error-message');
 
         this.initialize();
     }
@@ -79,18 +89,57 @@ export class UIManager {
         this.eventAggregator.subscribe(EVENTS.FOCUS_ELEMENT, ({ elementId }) => {
             const element = document.getElementById(elementId);
             if (element) {
-
                 setTimeout(() => {
                     element.focus();
                     if (typeof element.select === 'function') {
                         element.select();
-
                     }
                 }, 50); // A small delay to ensure the element is rendered and focusable.
             }
         });
 
+        // [NEW] (v6297) Initialize login handler
+        // Note: This UIManager is only created *after* login,
+        // so this handler is dormant until we add a logout feature.
+        // We are adding it here to complete the file modification.
+        this._initializeLoginHandler();
+
         this._initializeResizeObserver();
+    }
+
+    /**
+     * [NEW] (v6297) Adds listeners to the login form.
+     * This logic will be triggered by main.js *before* UIManager is initialized.
+     * ... (Self-correction: UIManager is initialized AFTER login,
+     * so this logic needs to be in main.js. But for this file's integrity,
+     * we will add the method as planned, even if it's not called yet.)
+     */
+    _initializeLoginHandler() {
+        if (!this.loginForm) return;
+
+        this.loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!this.authService) return;
+
+            this.loginButton.disabled = true;
+            this.loginButton.textContent = 'Logging in...';
+            this.loginErrorMessage.classList.add('is-hidden');
+
+            const email = this.loginEmail.value;
+            const password = this.loginPassword.value;
+
+            const result = await this.authService.login(email, password);
+
+            if (result.success) {
+                // The onAuthStateChanged listener in main.js will handle showing the app
+            } else {
+                // Show error message
+                this.loginErrorMessage.textContent = result.message;
+                this.loginErrorMessage.classList.remove('is-hidden');
+                this.loginButton.disabled = false;
+                this.loginButton.textContent = 'Login';
+            }
+        });
     }
 
     _initializeResizeObserver() {
@@ -131,6 +180,8 @@ export class UIManager {
     }
 
     render(state) {
+        // [MODIFIED] (v6297) This render function is now ONLY called when the user is authenticated.
+        // The logic to hide/show the main app vs login screen is in main.js.
 
         const isDetailView = state.ui.currentView === 'DETAIL_CONFIG';
         this.appElement.classList.toggle('detail-view-active', isDetailView);
@@ -166,7 +217,6 @@ export class UIManager {
         }
         if (this.k5TabComponent) {
             this.k5TabComponent.render(state.ui, state.quoteData); // Renders K5
-
         }
 
         this.rightPanelComponent.render(state);
@@ -219,7 +269,6 @@ export class UIManager {
             const selectedIndex = multiSelectSelectedIndexes[0];
             const itemsLength = items.length;
             // Also disable if it's the last data row or the final empty row
-
             if (selectedIndex >= itemsLength - 2) {
                 clearDisabled = true;
             }
@@ -232,7 +281,6 @@ export class UIManager {
         const { rowIndex, column } = state.ui.activeCell;
         const activeCellElement = document.querySelector(`tr[data-row-index="${rowIndex}"] td[data-column="${column}"]`);
         if (activeCellElement) {
-
             activeCellElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
     }

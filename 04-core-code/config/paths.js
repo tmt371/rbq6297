@@ -14,6 +14,8 @@ export const paths = {
         gmailClientScript: './04-core-code/ui/partials/gmail-template-client.js',
         // [NEW] Add path for the detailed list row template
         detailedItemListRow: './04-core-code/ui/partials/detailed-item-list-row.html',
+        // [NEW] (v6297) Add path for the login component
+        loginComponent: './04-core-code/ui/partials/login-component.html',
     },
     // [NEW] Add paths for new refactored tabs
     tabs: {

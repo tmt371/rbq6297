@@ -7,6 +7,8 @@
 /* [REMOVED] @import url('./04-core-code/ui/css/virtual-keyboard.css'); */
 /* [REMOVED] @import url('./04-core-code/ui/css/results-table.css'); */
 /* [REMOVED] @import url('./04-core-code/ui/css/toast-notification.css'); */
+/* [NEW] Import the new login component CSS */
+@import url('./04-core-code/ui/css/login-component.css');
 
 /* --- Global Variables --- */
 :root {
@@ -35,6 +37,12 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: #f0f2f5;
     overflow: hidden;
+}
+
+/* --- [NEW] Hidden Class --- */
+/* A generic utility class to hide elements */
+.is-hidden {
+    display: none !important;
 }
 
 /* --- App Container Layout --- */

@@ -3,14 +3,14 @@
 /**
  * @description
  * AppContext 是此應用程式的「依賴注入容器」(DI Container)。
- * 它的職責是「建立」並註冊「所有服務 (Services) 和 UI 元件 (Components)」。
+ * 它的職責是「建立」並註冊所有服務 (Services) 和 UI 元件 (Components)。
  * 1. 建立 Services (例如 StateService, CalculationService)。
  * 2. 建立 UI Components (例如 QuickQuoteView, RightPanelComponent)。
- * 3. 將這些實例 (instances) 保存在一個中央登記處 (this.instances) 中。
+ * 3. 將這些實例 (instances) 保存在一個中央登記表 (this.instances) 中。
  *
  * 這種模式的好處 (依賴注入):
- * - 「解耦」：元件不需要知道「如何」建立「它」的依賴。
- * 例如，`AppController` 不需要 `new WorkflowService()`，它只需要向 AppContext「請求」一個 `workflowService` 實例。
+ * - 「解耦」：元件不需要知道「如何」建立「其它依賴」。
+ * 例如，`AppController` 不需要 `new WorkflowService()`，只需要向 AppContext「請求」已有的 `workflowService` 實例。
  * - 「可測試性」：在進行單元測試時，我們可以輕易地「模擬」(mock) 並替換 AppContext 中的真實服務。
  * - 「集中管理」：所有物件的建立邏輯都集中在此處，易於管理和維護。
  *
@@ -34,8 +34,8 @@ export class AppContext {
     }
 
     /**
-     * 從容器中取得一個實例。
-     * @param {string} name - 要獲取的實例名稱。
+     * 從容器中抓取一個實例。
+     * @param {string} name - 要抓取的實例名稱。
      * @returns {object} - 註冊的實例。
      */
     get(name) {
@@ -52,6 +52,10 @@ export class AppContext {
         const eventAggregator = new EventAggregator();
         this.register('eventAggregator', eventAggregator);
 
+        // [NEW] (v6297) Initialize Auth Service first
+        const authService = new AuthService(eventAggregator);
+        this.register('authService', authService);
+
         const configManager = new ConfigManager(eventAggregator);
         this.register('configManager', configManager);
 
@@ -64,9 +68,7 @@ export class AppContext {
         }
 
         const stateService = new StateService({
-
             initialState: initialStateWithData,
-
             eventAggregator,
             productFactory,
             configManager
@@ -75,7 +77,6 @@ export class AppContext {
 
         const calculationService = new CalculationService({
             stateService,
-
             productFactory,
             configManager
         });
@@ -255,6 +256,7 @@ import { FocusService } from './services/focus-service.js';
 import { FileService } from './services/file-service.js';
 import { WorkflowService } from './services/workflow-service.js';
 import { QuoteGeneratorService } from './services/quote-generator-service.js'; // [NEW]
+import { AuthService } from './services/auth-service.js'; // [NEW] (v6297)
 import { RightPanelComponent } from './ui/right-panel-component.js';
 import { QuickQuoteView } from './ui/views/quick-quote-view.js';
 import { DetailConfigView } from './ui/views/detail-config-view.js';
