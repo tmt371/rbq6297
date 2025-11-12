@@ -7,9 +7,9 @@ echo "STEP 1: Injecting Firebase API Key..."
 # 1. 複製範例檔
 cp 04-core-code/config/firebase-config.example.js 04-core-code/config/firebase-config.js
 
-# 2. 執行金鑰替換 (已修正為正確的中文字串)
-# 我們必須使用 " " 和 \$ 來確保 Vercel 能正確讀取環境變數
-sed -i "s/\[在此貼上您的 Google API 金鑰\]/\$FIREBASE_API_KEY/g" 04-core-code/config/firebase-config.js
+# 2. 執行金鑰替換 (已移除 \$)
+# Vercel 的 shell 會自動將 $FIREBASE_API_KEY 擴展為其值
+sed -i "s/\[在此貼上您的 Google API 金鑰\]/$FIREBASE_API_KEY/g" 04-core-code/config/firebase-config.js
 
 echo "STEP 2: Creating 'public' output directory..."
 # 3. 建立 Vercel 需要的 public 資料夾
