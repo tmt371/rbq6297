@@ -240,14 +240,21 @@ export class WorkflowService {
     }
 
     // [MODIFIED v6285 Phase 5] Logic migrated from quick-quote-view.js and updated.
+    // [MODIFIED] (v6298-fix-6) Added try...catch for robust cloud save.
     async handleSaveToFile() {
         const dataToSave = this._getQuoteDataWithSnapshots();
 
-        // --- [NEW] Firebase Save ---
-        // Save to cloud first. We'll show the notification from the local save.
-        // We use `await` here to ensure it finishes before we risk the user closing the tab,
-        // but we don't show its specific message yet.
-        await saveQuoteToCloud(dataToSave);
+        // --- [NEW] (v6298-fix-6) Robust Firebase Save ---
+        // We wrap the cloud save in a try...catch block.
+        // If it fails (e.g., Ad Blocker, no permissions, no internet),
+        // we log the error but *do not* stop the function.
+        // This ensures the local save will *always* be attempted.
+        try {
+            await saveQuoteToCloud(dataToSave);
+        } catch (error) {
+            // saveQuoteToCloud already logs its own friendly error
+            console.error("WorkflowService: Cloud save failed, but proceeding to local save.", error);
+        }
         // --- [END NEW] ---
 
         const result = this.fileService.saveToJson(dataToSave);
