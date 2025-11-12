@@ -80,6 +80,8 @@ export const EVENTS = {
     USER_REQUESTED_LOGOUT: 'userRequestedLogout',
     USER_REQUESTED_PASSWORD_RESET: 'userRequestedPasswordReset',
     USER_REQUESTED_SEARCH_DIALOG: 'userRequestedSearchDialog',
+    // [NEW] (v6298-F4-Search) New event for the advanced dialog
+    SHOW_SEARCH_DIALOG: 'showSearchDialog',
     // --- End v6298 ---
 
     // --- User Actions: F1/F2 Panels ---
@@ -160,10 +162,27 @@ export const DOM_IDS = {
     F4_BTN_LOGOUT: 'f4-key-logout',
 
     // --- [NEW] v6298 Search Dialog Elements ---
-    DIALOG_SEARCH_INPUT: 'dialog-search-input',
-    DIALOG_SEARCH_BUTTON: 'dialog-search-button',
-    DIALOG_SEARCH_RESULTS: 'dialog-search-results',
-    DIALOG_SEARCH_MESSAGE: 'dialog-search-message',
+    // [REMOVED] Old simple dialog IDs
+    // DIALOG_SEARCH_INPUT: 'dialog-search-input',
+    // DIALOG_SEARCH_BUTTON: 'dialog-search-button',
+    // DIALOG_SEARCH_RESULTS: 'dialog-search-results',
+    // DIALOG_SEARCH_MESSAGE: 'dialog-search-message',
+    // [NEW] (v6298-F4-Search) Advanced Search Dialog IDs
+    SEARCH_DIALOG_CONTAINER: 'search-dialog-container',
+    SEARCH_DIALOG_CLOSE_BTN: 'search-dialog-close-btn',
+    SEARCH_FILTER_NAME: 'search-filter-name',
+    SEARCH_FILTER_PHONE: 'search-filter-phone',
+    SEARCH_FILTER_EMAIL: 'search-filter-email',
+    SEARCH_FILTER_POSTCODE: 'search-filter-postcode',
+    SEARCH_FILTER_YEAR: 'search-filter-year',
+    SEARCH_FILTER_MONTH: 'search-filter-month',
+    SEARCH_FILTER_HAS_MOTOR: 'search-filter-has-motor',
+    SEARCH_RESULTS_LIST: 'search-results-list',
+    SEARCH_RESULTS_MESSAGE: 'search-results-message',
+    SEARCH_PREVIEW_CONTENT: 'search-preview-content',
+    SEARCH_STATUS_BAR: 'search-status-bar',
+    SEARCH_DIALOG_SEARCH_BTN: 'search-dialog-search-btn',
+    SEARCH_DIALOG_LOAD_BTN: 'search-dialog-load-btn',
 
     // --- [NEW] v6298 Login Page Elements ---
     FORGOT_PASSWORD_LINK: 'forgot-password-link',

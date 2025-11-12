@@ -1,0 +1,280 @@
+/* File: 04-core-code/ui/css/search-dialog.css */
+/* [NEW] (v6298-F4-Search) Styles for the new advanced search dialog */
+
+/* --- Container & Overlay --- */
+.search-dialog-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9998;
+    /* Below standard dialogs but above app */
+    opacity: 1;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.search-dialog-container.is-hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* --- Main Dialog Box --- */
+.search-dialog-box {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 900px;
+    height: 80vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* Ensures rounded corners are respected */
+}
+
+/* --- Header --- */
+.search-dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--panel-border-color);
+    background-color: var(--keyboard-bg-color);
+}
+
+.search-dialog-header h3 {
+    margin: 0;
+    font-size: 1.2em;
+    color: var(--primary-color);
+}
+
+.search-dialog-close-btn {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #888;
+    background: none;
+    border: none;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+}
+
+.search-dialog-close-btn:hover {
+    color: #333;
+}
+
+/* --- Main Content Area --- */
+.search-dialog-content {
+    display: flex;
+    flex-grow: 1;
+    min-height: 0;
+    /* Important for flex child overflow */
+}
+
+/* --- 1. Filter Panel (Left) --- */
+.search-filters-panel {
+    flex: 0 0 250px;
+    /* Fixed width for filters */
+    padding: 20px;
+    border-right: 1px solid var(--panel-border-color);
+    overflow-y: auto;
+    background-color: #fcfcfc;
+}
+
+.search-filter-group {
+    margin-bottom: 16px;
+}
+
+.search-filter-group label {
+    display: block;
+    font-size: 0.8em;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 6px;
+}
+
+.search-filter-group input,
+.search-filter-group select {
+    width: 100%;
+    padding: 8px;
+    font-size: 0.9em;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+/* Specific layout for Year/Month */
+.filter-date-row {
+    display: flex;
+    gap: 10px;
+}
+
+/* --- 2. Results Panel (Middle) --- */
+.search-results-panel {
+    flex: 1 1 300px;
+    /* Flexible width */
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--panel-border-color);
+}
+
+.search-results-list {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px;
+}
+
+.search-result-item {
+    padding: 10px 12px;
+    border: 1px solid transparent;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.1s;
+}
+
+.search-result-item:hover {
+    background-color: #f5f5f5;
+}
+
+.search-result-item.is-selected {
+    background-color: var(--highlight-color);
+    border-color: var(--primary-color);
+    font-weight: bold;
+}
+
+.search-result-item strong {
+    display: block;
+    font-size: 0.9em;
+    color: var(--primary-color);
+}
+
+.search-result-item small {
+    font-size: 0.8em;
+    color: #555;
+}
+
+.search-results-message {
+    padding: 20px;
+    text-align: center;
+    color: #777;
+    font-style: italic;
+}
+
+/* --- 3. Preview Panel (Right) --- */
+.search-preview-panel {
+    flex: 1 1 350px;
+    /* Flexible width */
+    display: flex;
+    flex-direction: column;
+}
+
+.search-preview-content {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 20px;
+    font-size: 0.9em;
+    line-height: 1.5;
+    background-color: #fdfdfd;
+}
+
+.search-preview-content .preview-label {
+    font-weight: bold;
+    color: #333;
+    margin-top: 10px;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 2px;
+}
+
+.search-preview-content .preview-value {
+    color: #555;
+    white-space: pre-wrap;
+    /* Preserve line breaks in address/notes */
+}
+
+.search-preview-content .preview-value-quoteid {
+    font-family: monospace;
+    font-size: 1.1em;
+    color: var(--primary-color);
+}
+
+
+/* --- Footer / Action Bar --- */
+.search-dialog-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--panel-border-color);
+    background-color: var(--keyboard-bg-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.search-action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.search-dialog-btn {
+    padding: 8px 16px;
+    font-size: 0.9em;
+    font-weight: 500;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+}
+
+.search-dialog-btn.btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.search-dialog-btn.btn-primary:disabled {
+    background-color: #9fa8da;
+    border-color: #9fa8da;
+    cursor: not-allowed;
+}
+
+.search-dialog-btn.btn-secondary {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+/* --- Responsive for mobile --- */
+@media (max-width: 768px) {
+    .search-dialog-box {
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        border-radius: 0;
+    }
+
+    .search-dialog-content {
+        flex-direction: column;
+    }
+
+    .search-filters-panel {
+        flex: 0 0 auto;
+        /* No fixed width */
+        border-right: none;
+        border-bottom: 1px solid var(--panel-border-color);
+        max-height: 40vh;
+        /* Limit filter height */
+    }
+
+    .search-results-panel {
+        flex: 1 1 200px;
+        /* Take up remaining space */
+        border-right: none;
+    }
+
+    .search-preview-panel {
+        flex: 1 1 200px;
+        /* Take up remaining space */
+        border-top: 1px solid var(--panel-border-color);
+    }
+}

@@ -16,6 +16,8 @@ export const paths = {
         detailedItemListRow: './04-core-code/ui/partials/detailed-item-list-row.html',
         // [NEW] (v6297) Add path for the login component
         loginComponent: './04-core-code/ui/partials/login-component.html',
+        // [NEW] (v6298-F4-Search) Add path for the new search dialog
+        searchDialog: './04-core-code/ui/partials/search-dialog.html',
     },
     // [NEW] Add paths for new refactored tabs
     tabs: {

@@ -30,6 +30,8 @@ class App {
         this.k3TabInputHandler = null;
         this.k4TabInputHandler = null;
         this.k5TabInputHandler = null;
+        // [NEW] (v6298-F4-Search) Store search dialog component
+        this.searchDialogComponent = null;
     }
 
     async _loadPartials() {
@@ -115,6 +117,13 @@ class App {
         if (k5ContentContainer) {
             await loadPartial(paths.tabs.k5.html, k5ContentContainer, 'innerHTML');
             loadCss(paths.tabs.k5.css);
+        }
+
+        // --- [NEW] (v6298-F4-Search) Load Search Dialog ---
+        const searchDialogContainer = document.getElementById(DOM_IDS.SEARCH_DIALOG_CONTAINER);
+        if (searchDialogContainer) {
+            await loadPartial(paths.partials.searchDialog, searchDialogContainer, 'innerHTML');
+            // CSS is already loaded via style.css @import
         }
     }
 
@@ -222,6 +231,11 @@ class App {
         if (this.k5TabInputHandler) {
             this.k5TabInputHandler.destroy();
             this.k5TabInputHandler = null;
+        }
+        // [NEW] (v6298-F4-Search) Destroy search dialog
+        if (this.searchDialogComponent) {
+            this.searchDialogComponent.destroy();
+            this.searchDialogComponent = null;
         }
         // [END v6298-fix-4]
 
@@ -350,6 +364,8 @@ class App {
         this.k4TabInputHandler = this.appContext.get('k4TabInputHandler');
         const k5TabComponent = this.appContext.get('k5TabComponent');
         this.k5TabInputHandler = this.appContext.get('k5TabInputHandler');
+        // [NEW] (v6298-F4-Search) Get the search dialog component
+        this.searchDialogComponent = this.appContext.get('searchDialogComponent');
 
         // [REMOVED]
 
@@ -365,6 +381,8 @@ class App {
             k3TabComponent, // [NEW] Inject K3 component
             k4TabComponent, // [NEW] Inject K4 component
             k5TabComponent, // [NEW] Inject K5 component
+            // [NEW] (v6298-F4-Search) Inject search dialog component
+            searchDialogComponent: this.searchDialogComponent,
             // [REMOVED] (v6297) authService is no longer needed here
             // authService: this.appContext.get('authService'),
         });

@@ -4,14 +4,15 @@
  * @fileoverview Utility functions for parsing and stringifying CSV data.
  */
 
-// [FIX] 導入基礎 initialState 模組，以修復 csvToData_OldFormat 的 ReferenceError
+// [FIX] 導入基礎 initialState 模板，以修復 csvToData_OldFormat 的 ReferenceError
 import { initialState } from '../config/initial-state.js';
 
 // [MODIFIED v6285 Phase 5] Define the exact keys and order for all snapshot data
 // [MODIFIED v6295] Add 'wifi_qty' to the snapshot keys
+// [MODIFIED v6298-F4-Search] Add 'customer.postcode' to the snapshot keys
 const f3SnapshotKeys = [
     'quoteId', 'issueDate', 'dueDate',
-    'customer.name', 'customer.address', 'customer.phone', 'customer.email'
+    'customer.name', 'customer.address', 'customer.phone', 'customer.email', 'customer.postcode'
 ];
 const f1SnapshotKeys = [
     'winder_qty', 'motor_qty', 'charger_qty', 'cord_qty',
@@ -67,6 +68,7 @@ export function dataToCsv(quoteData) {
         getNestedValue(quoteData, 'customer.address'),
         getNestedValue(quoteData, 'customer.phone'),
         getNestedValue(quoteData, 'customer.email'),
+        getNestedValue(quoteData, 'customer.postcode'), // [NEW] (v6298-F4-Search)
         // F1 Values
         ...f1SnapshotKeys.map(key => {
             const value = f1Snapshot[key];
@@ -78,11 +80,10 @@ export function dataToCsv(quoteData) {
             return (value !== null && value !== undefined) ? value : '';
         })
     ].map(value => {
-        // [MODIFIED] 強制 CSV 儲存邏輯
+        // [MODIFIED] 強制 CSV 處理邏輯
         let strValue = (value === null || value === undefined) ? '' : String(value);
-        strValue = strValue.replace(/"/g, '""'); // 1. 轉義欄位內部的引號
+        strValue = strValue.replace(/"/g, '""'); // 1. 轉義內部的雙引號
         strValue = strValue.replace(/\n/g, ' '); // 2. 替換換行符
-
         // 3. [FIX] 如果包含逗號、空格或引號，則使用引號包裹
         if (strValue.includes(',') || strValue.includes(' ') || strValue.includes('"')) {
             return `"${strValue}"`;
@@ -119,7 +120,7 @@ export function dataToCsv(quoteData) {
             ];
 
             return rowData.map(value => {
-                // [MODIFIED] 強制 CSV 儲存邏輯 (同樣應用於此處)
+                // [MODIFIED] 強制 CSV 處理邏輯 (同樣應用於此)
                 let strValue = (value === null || value === undefined) ? '' : String(value);
                 strValue = strValue.replace(/"/g, '""');
                 strValue = strValue.replace(/\n/g, ' ');
@@ -154,7 +155,7 @@ function _parseCsvLine(line) {
     const values = [];
 
     // [FIX] 修正 Regex：
-    // 1. 移除第一個群組 (?:^|,) 後方多餘的 |，這會導致匹配錯亂
+    // 1. 移除第一個群組 (?:^|,) 後方多餘的 |，這會導致匹配錯誤
     // 2. 將第二個群組改為捕獲群組 ((...))，確保 match[1] 始終是我們想要的欄位內容
     const regex = /(?:^|,)((?:"(?:[^"]|"")*"|[^,]*))/g;
     let match;
@@ -220,7 +221,7 @@ export function csvToData(csvString) {
 
             // [FIX] (v6295-fix) Determine data type based on which key array it's in
             if (f1SnapshotKeys.includes(header) || f2SnapshotKeys.includes(header)) {
-                // 這是 F1 或 F2 key，嘗試轉為數字或布林值
+                // 這是 F1 或 F2 key，嘗試轉數字或布林
                 const numValue = parseFloat(value);
                 if (!isNaN(numValue)) {
                     finalValue = numValue;
@@ -273,7 +274,7 @@ export function csvToData(csvString) {
             // [FIX] 使用新的 CSV 解析器
             const values = _parseCsvLine(trimmedLine);
 
-            // [FIX] 移除雙引號 (輔助函數已內嵌至 _parseCsvLine)
+            // [FIX] 移除 " (輔助函數已內嵌至 _parseCsvLine)
             const item = {
                 itemId: `item-${Date.now()}-${items.length}`,
                 width: parseInt(values[1], 10) || null,

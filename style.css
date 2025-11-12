@@ -9,6 +9,8 @@
 /* [REMOVED] @import url('./04-core-code/ui/css/toast-notification.css'); */
 /* [NEW] Import the new login component CSS */
 @import url('./04-core-code/ui/css/login-component.css');
+/* [NEW] (v6298-F4-Search) Import the new search dialog CSS */
+@import url('./04-core-code/ui/css/search-dialog.css');
 
 /* --- Global Variables --- */
 :root {

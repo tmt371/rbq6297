@@ -142,6 +142,11 @@ export const initialState = {
             lfModifiedRowIndexes: []
         },
 
+        // [NEW] (v6298-F4-Search) Add metadata container for searchable fields
+        metadata: {
+            hasMotor: false
+        },
+
         quoteId: null,
         issueDate: null,
         dueDate: null,
@@ -152,7 +157,8 @@ export const initialState = {
             name: "",
             address: "",
             phone: "",
-            email: ""
+            email: "",
+            postcode: "" // [NEW] (v6298-F4-Search) Add postcode
         },
         // [MODIFIED] F1 Panel Status Snapshot (v6285 Phase 4) */
         f1Snapshot: {

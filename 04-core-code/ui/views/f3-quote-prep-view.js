@@ -18,6 +18,7 @@ export class F3QuotePrepView {
         this.focusOrder = [
             'quoteId', 'issueDate', 'dueDate',
             'customerName', 'customerAddress', 'customerPhone', 'customerEmail',
+            'customerPostcode', // [NEW] (v6298-F4-Search) Add postcode
             'generalNotes', 'termsConditions',
         ];
 
@@ -90,6 +91,7 @@ export class F3QuotePrepView {
                 customerAddress: query('#f3-customer-address'),
                 customerPhone: query('#f3-customer-phone'),
                 customerEmail: query('#f3-customer-email'),
+                customerPostcode: query('#f3-customer-postcode'), // [NEW] (v6298-F4-Search)
                 // [REMOVED] finalOfferPrice: query('#f3-final-offer-price'),
                 generalNotes: query('#f3-general-notes'),
                 termsConditions: query('#f3-terms-conditions'),
@@ -115,7 +117,6 @@ export class F3QuotePrepView {
                 });
             }
         };
-
         // [NEW] Helper for customer properties
         const addCustomerUpdateListener = (inputElement, key) => {
             if (inputElement) {
@@ -146,6 +147,7 @@ export class F3QuotePrepView {
         addCustomerUpdateListener(this.f3.inputs.customerAddress, 'address');
         addCustomerUpdateListener(this.f3.inputs.customerPhone, 'phone');
         addCustomerUpdateListener(this.f3.inputs.customerEmail, 'email');
+        addCustomerUpdateListener(this.f3.inputs.customerPostcode, 'postcode'); // [NEW] (v6298-F4-Search)
 
         // --- [NEW] Mechanism 3: Listen for manual override on Due Date ---
         if (this.f3.inputs.dueDate) {
@@ -168,8 +170,9 @@ export class F3QuotePrepView {
                 quoteActions.updateQuoteProperty('issueDate', issueDateValue)
             );
 
-            // [MODIFIED] If user manually changed due date, stop live-updating.
-            if (this.userOverrodeDueDate) return;
+            // [MODIFIED] (v6298-F3-Fix-2) Force reset of override flag when issueDate is changed.
+            // This re-enables the chaining logic.
+            this.userOverrodeDueDate = false;
 
             // [MODIFIED] Only proceed if we have a valid issue date.
             if (issueDateValue) {
@@ -331,25 +334,35 @@ export class F3QuotePrepView {
             const dayOfWeek = dueDateObj.getDay(); // 0 = Sun, 6 = Sat
             if (dayOfWeek === 6) {
                 // Saturday
-                dueDateObj.setDate(dueDateObj.getDate() + 2);
+                dueDateObj.setDate(dueDate.getDate() + 2);
             } else if (dayOfWeek === 0) {
                 // Sunday
-                dueDateObj.setDate(dueDateObj.getDate() + 1);
+                dueDateObj.setDate(dueDate.getDate() + 1);
             }
 
-            dueDateStr = this._formatDateToYMD(dueDateObj);
+            const dueDateString = this._formatDateToYMD(dueDateObj);
             this.userOverrodeDueDate = false; // We just auto-generated it
             // [NEW] Dispatch this new value back to state
             this.stateService.dispatch(
-                quoteActions.updateQuoteProperty('dueDate', dueDateStr)
+                quoteActions.updateQuoteProperty('dueDate', dueDateString)
             );
             needsStateUpdate = true;
+            // [NEW] (v6298-F3-Fix-1) We just defined dueDateString, so set dueDateStr to it
+            dueDateStr = dueDateString;
         } else {
             // A due date was loaded from the state, format it and assume it was an override
             dueDateStr = this._formatDateToYMD(
                 this._parseDateFromYMD(dueDateStr)
             );
-            this.userOverrodeDueDate = true;
+            // [REMOVED] (v6298-F3-Fix-1) This was the source of the ReferenceError.
+            // The flag is now correctly set only when the user *types* in the box.
+            // this.userOverrodeDueDate = true; 
+
+            // [REMOVED] (v6298-F3-Fix-1) This dispatch was the source of the ReferenceError
+            // and was also causing a recursive render loop.
+            // this.stateService.dispatch(
+            //     quoteActions.updateQuoteProperty('dueDate', dueDateString)
+            // );
         }
 
         // --- 2. Sync all inputs with state (NO MORE DOUBLE FORMATTING) ---
@@ -361,6 +374,7 @@ export class F3QuotePrepView {
         updateInput(this.f3.inputs.customerAddress, customer.address);
         updateInput(this.f3.inputs.customerPhone, customer.phone);
         updateInput(this.f3.inputs.customerEmail, customer.email);
+        updateInput(this.f3.inputs.customerPostcode, customer.postcode); // [NEW] (v6298-F4-Search)
 
         // [NEW] Sync textareas from state
         updateInput(this.f3.inputs.generalNotes, quoteData.generalNotes);

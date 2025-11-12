@@ -11,9 +11,12 @@ import { EVENTS, DOM_IDS } from '../config/constants.js';
 import { LeftPanelTabManager } from './left-panel-tab-manager.js';
 // [REMOVED] (v6297) AuthService import is no longer needed here
 // import { AuthService } from '../services/auth-service.js';
+// [NEW] (v6298-F4-Search) Import SearchDialogComponent
+import { SearchDialogComponent } from './search-dialog-component.js';
+
 
 export class UIManager {
-    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k4TabComponent, k5TabComponent }) { // [MODIFIED] authService removed
+    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k4TabComponent, k5TabComponent, searchDialogComponent }) { // [MODIFIED] authService removed, searchDialogComponent added
         this.appElement = appElement;
         this.eventAggregator = eventAggregator;
         this.calculationService = calculationService;
@@ -24,6 +27,8 @@ export class UIManager {
         this.k3TabComponent = k3TabComponent; // [NEW] Store instance
         this.k4TabComponent = k4TabComponent; // [NEW] Store instance
         this.k5TabComponent = k5TabComponent; // [NEW] Store instance
+        // [NEW] (v6298-F4-Search) Store search dialog component
+        this.searchDialogComponent = searchDialogComponent;
         // [REMOVED] (v6297) this.authService = authService;
 
         this.numericKeyboardPanel = document.getElementById(DOM_IDS.NUMERIC_KEYBOARD_PANEL);
@@ -128,6 +133,11 @@ export class UIManager {
         if (this.dialogComponent) {
             this.dialogComponent.destroy();
             this.dialogComponent = null;
+        }
+        // [NEW] (v6298-F4-Search) Destroy search dialog
+        if (this.searchDialogComponent) {
+            this.searchDialogComponent.destroy();
+            this.searchDialogComponent = null;
         }
         // [END v6298-fix]
 
