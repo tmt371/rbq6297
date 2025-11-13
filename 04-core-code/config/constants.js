@@ -86,6 +86,7 @@ export const EVENTS = {
     // --- [NEW] 階段 3：S1/S2 通訊事件 ---
     USER_REQUESTED_EXECUTE_SEARCH: 'userRequestedExecuteSearch',
     SEARCH_RESULTS_SUCCESSFUL: 'searchResultsSuccessful',
+    USER_REQUESTED_CLOSE_SEARCH_DIALOG: 'userRequestedCloseSearchDialog', // [NEW] 階段 3 S2View 請求
     // --- End v6298 ---
 
     // --- User Actions: F1/F2 Panels ---

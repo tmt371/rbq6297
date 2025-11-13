@@ -18,15 +18,15 @@ export class SearchTabS2View {
         this.stateService = stateService;
 
         // 1. 快取 S2 的 DOM 元素
+        // 由於 DOM 元素在 show() 之前可能不存在，我們將在 initialize() 中快取
         this.elements = {
-            resultsList: document.getElementById(DOM_IDS.SEARCH_RESULTS_LIST),
-            resultsMessage: document.getElementById(DOM_IDS.SEARCH_RESULTS_MESSAGE),
-            previewContent: document.getElementById(DOM_IDS.SEARCH_PREVIEW_CONTENT),
-            loadBtn: document.getElementById(DOM_IDS.SEARCH_DIALOG_LOAD_BTN),
-            statusBar: document.getElementById(DOM_IDS.SEARCH_STATUS_BAR), // S2 也需要更新狀態
+            resultsList: null,
+            resultsMessage: null,
+            previewContent: null,
+            loadBtn: null,
+            statusBar: null,
         };
 
-        // [NEW] (v6298-fix-5) Store bound handlers
         this.boundHandlers = [];
         this.subscriptions = [];
 
@@ -37,7 +37,7 @@ export class SearchTabS2View {
     }
 
     /**
-     * [NEW] (v6298-fix-5) Helper to add and store listeners
+     * Helper to add and store event listeners for easy removal.
      */
     _addListener(element, event, handler) {
         if (!element) return;
@@ -47,7 +47,7 @@ export class SearchTabS2View {
     }
 
     /**
-     * [NEW] (v6298-fix-5) Helper to subscribe and store references
+     * Helper to subscribe to the event aggregator and store the reference.
      */
     _subscribe(eventName, handler) {
         const boundHandler = handler.bind(this);
@@ -56,7 +56,7 @@ export class SearchTabS2View {
     }
 
     /**
-     * [NEW] (v6298-fix-5) Destroys all event listeners
+     * Destroys all event listeners and subscriptions.
      */
     destroy() {
         this.boundHandlers.forEach(({ element, event, handler }) => {
@@ -71,13 +71,34 @@ export class SearchTabS2View {
         });
         this.subscriptions = [];
 
-        console.log("SearchTabS2View destroyed.");
+        // [FIX] 重置 elements 快取
+        this.elements = {
+            resultsList: null, resultsMessage: null, previewContent: null,
+            loadBtn: null, statusBar: null
+        };
+        // console.log("SearchTabS2View destroyed."); // 減少 console 噪音
+    }
+
+    _cacheElements() {
+        // 快取 DOM，僅在尚未快取時執行
+        if (this.elements.resultsList) return;
+
+        this.elements = {
+            resultsList: document.getElementById(DOM_IDS.SEARCH_RESULTS_LIST),
+            resultsMessage: document.getElementById(DOM_IDS.SEARCH_RESULTS_MESSAGE),
+            previewContent: document.getElementById(DOM_IDS.SEARCH_PREVIEW_CONTENT),
+            loadBtn: document.getElementById(DOM_IDS.SEARCH_DIALOG_LOAD_BTN),
+            statusBar: document.getElementById(DOM_IDS.SEARCH_STATUS_BAR),
+        };
     }
 
     /**
      * 2. 綁定事件監聽器
      */
     initialize() {
+        // [NEW] 確保 DOM 元素已被快取
+        this._cacheElements();
+
         // 監聽來自管理員的 "搜尋成功" 事件
         this._subscribe(EVENTS.SEARCH_RESULTS_SUCCESSFUL, this._renderResultsList);
 
@@ -213,10 +234,9 @@ export class SearchTabS2View {
             message: `Successfully loaded quote ${this.selectedQuoteData.quoteId}`,
         });
 
-        // 6. [MODIFIED] S2View 不應該知道如何關閉對話方塊。
-        // 我們改為發布一個事件，請求管理員關閉。
-        // [FIX] 階段 3 尚未定義此事件，暫時註解，待管理員重構時一併加入
-        // this.eventAggregator.publish(EVENTS.USER_REQUESTED_CLOSE_SEARCH_DIALOG);
+        // 6. S2View 不應該知道如何關閉對話方塊。
+        // 我們發布一個事件，請求管理員關閉。
+        this.eventAggregator.publish(EVENTS.USER_REQUESTED_CLOSE_SEARCH_DIALOG);
     }
 
     // --- UI 輔助方法 (移轉過來) ---

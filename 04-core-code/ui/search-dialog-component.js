@@ -8,8 +8,6 @@ import { searchQuotesAdvanced } from '../services/online-storage-service.js';
 import * as uiActions from '../actions/ui-actions.js';
 import * as quoteActions from '../actions/quote-actions.js';
 // [REMOVED] 階段 4：不再需要 import S1/S2，它們由 app-context 注入
-// import { SearchTabS1View } from './views/search-tab-s1-view.js';
-// import { SearchTabS2View } from './views/search-tab-s2-view.js';
 
 export class SearchDialogComponent {
     constructor({ containerElement, eventAggregator, stateService, authService, s1View, s2View }) { // [MODIFIED] 階段 4：接收 s1View, s2View
@@ -80,7 +78,7 @@ export class SearchDialogComponent {
     _subscribe(eventName, handler) {
         const boundHandler = handler.bind(this);
         this.subscriptions.push({ eventName, handler: boundHandler });
-        this.eventAggregator.subscribe(eventName, boundHandler); // [FIX] 修正綁定
+        this.eventAggregator.subscribe(eventName, boundHandler);
     }
 
     /**
@@ -102,12 +100,12 @@ export class SearchDialogComponent {
     }
 
     /**
-     * [MODIFIED] 階段 3：
-     * S1/S2 View 尚未注入 (將在階段 4 處理)。
+     * [MODIFIED] 階段 4：
      * 此 initialize 現在只綁定管理員自身的事件。
      */
     initialize() {
         // --- Subscribe to global events ---
+        // (關鍵修復) 綁定 SHOW_SEARCH_DIALOG 事件
         this._subscribe(EVENTS.SHOW_SEARCH_DIALOG, this.show);
 
         // --- [NEW] 階段 3：監聽來自 S1View 的搜尋請求 ---
@@ -148,7 +146,7 @@ export class SearchDialogComponent {
             this.elements.tabContents.s2.classList.toggle('active', tabId === 'search-tab-s2');
         }
 
-        // [NEW] 階段 3：(可選) S1 focus 邏輯
+        // [NEW] 階段 4：(可選) S1 focus 邏輯
         if (tabId === 'search-tab-s1' && typeof this.s1View?.activate === 'function') {
             this.s1View.activate();
         }
@@ -168,13 +166,9 @@ export class SearchDialogComponent {
         this.container.classList.remove('is-hidden');
         this.stateService.dispatch(uiActions.setModalActive(true)); // [NEW] Lock background app
 
-        // [MODIFIED] 階段 3：Focus 邏輯現在交給 S1View
+        // [MODIFIED] 階段 4：Focus 邏輯現在交給 S1View
         if (typeof this.s1View?.activate === 'function') {
             this.s1View.activate();
-        } else {
-            // Fallback if s1View is not injected yet (during 階段 3 testing)
-            const s1_name_filter = document.getElementById(DOM_IDS.SEARCH_FILTER_NAME);
-            setTimeout(() => s1_name_filter?.focus(), 50);
         }
     }
 
@@ -228,16 +222,12 @@ export class SearchDialogComponent {
         // 2. 執行搜尋
         this._updateStatusBar('Searching...');
         // [REMOVED] 階段 3：searchBtn 已移至 S1View
-        // this.elements.searchBtn.disabled = true; 
 
         // [REMOVED] 階段 3：S2 的 UI 更新已移至 S2View
-        // this.elements.resultsList.innerHTML = '';
-        // this._showPreviewMessage('Loading...');
 
         const result = await searchQuotesAdvanced(uid, filters);
 
         // [REMOVED] 階段 3：searchBtn 已移至 S1View
-        // this.elements.searchBtn.disabled = false;
         this._updateStatusBar(result.message);
 
         // 3. 處理結果
@@ -264,12 +254,6 @@ export class SearchDialogComponent {
 
 
     // --- [REMOVED] 階段 3：S2 的所有邏輯已移至 S2View ---
-    // _renderResultsList(quotes) { ... }
-    // _onResultItemClick(event) { ... }
-    // _renderPreview(quote) { ... }
-    // _onLoadClick() { ... }
-    // _showMessage(element, message) { ... }
-    // _showPreviewMessage(message) { ... }
 
     // --- [RETAINED] 階段 3：管理員保留對狀態欄的控制 ---
     _updateStatusBar(message) {

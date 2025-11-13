@@ -17,17 +17,18 @@ export class SearchTabS1View {
         // [NEW] (v6298-fix-5) Store bound handlers
         this.boundHandlers = [];
 
-        [cite_start]// 1. 快取所有 S1 的 DOM 元素 [cite: 2006]
+        // 1. 快取所有 S1 的 DOM 元素
+        // 由於 DOM 元素在 show() 之前可能不存在，我們將在 initialize() 中快取
         this.elements = {
-            searchBtn: document.getElementById(DOM_IDS.SEARCH_DIALOG_SEARCH_BTN),
+            searchBtn: null,
             filters: {
-                name: document.getElementById(DOM_IDS.SEARCH_FILTER_NAME),
-                phone: document.getElementById(DOM_IDS.SEARCH_FILTER_PHONE),
-                email: document.getElementById(DOM_IDS.SEARCH_FILTER_EMAIL),
-                postcode: document.getElementById(DOM_IDS.SEARCH_FILTER_POSTCODE),
-                year: document.getElementById(DOM_IDS.SEARCH_FILTER_YEAR),
-                month: document.getElementById(DOM_IDS.SEARCH_FILTER_MONTH),
-                hasMotor: document.getElementById(DOM_IDS.SEARCH_FILTER_HAS_MOTOR),
+                name: null,
+                phone: null,
+                email: null,
+                postcode: null,
+                year: null,
+                month: null,
+                hasMotor: null,
             }
         };
 
@@ -54,13 +55,42 @@ export class SearchTabS1View {
             }
         });
         this.boundHandlers = [];
-        console.log("SearchTabS1View destroyed.");
+        // [FIX] 重置 elements 快取，以便下次 initialize
+        this.elements = {
+            searchBtn: null,
+            filters: {
+                name: null, phone: null, email: null, postcode: null,
+                year: null, month: null, hasMotor: null
+            }
+        };
+        // console.log("SearchTabS1View destroyed."); // 減少 console 噪音
+    }
+
+    _cacheElements() {
+        // 快取 DOM，僅在尚未快取時執行
+        if (this.elements.searchBtn) return;
+
+        this.elements = {
+            searchBtn: document.getElementById(DOM_IDS.SEARCH_DIALOG_SEARCH_BTN),
+            filters: {
+                name: document.getElementById(DOM_IDS.SEARCH_FILTER_NAME),
+                phone: document.getElementById(DOM_IDS.SEARCH_FILTER_PHONE),
+                email: document.getElementById(DOM_IDS.SEARCH_FILTER_EMAIL),
+                postcode: document.getElementById(DOM_IDS.SEARCH_FILTER_POSTCODE),
+                year: document.getElementById(DOM_IDS.SEARCH_FILTER_YEAR),
+                month: document.getElementById(DOM_IDS.SEARCH_FILTER_MONTH),
+                hasMotor: document.getElementById(DOM_IDS.SEARCH_FILTER_HAS_MOTOR),
+            }
+        };
     }
 
     /**
-     * [cite_start]2. 綁定事件監聽器 [cite: 2007]
+     * 2. 綁定事件監聽器
      */
     initialize() {
+        // [NEW] 確保 DOM 元素已被快取
+        this._cacheElements();
+
         // 綁定 "Search" 按鈕
         this._addListener(this.elements.searchBtn, 'click', this._onSearchClick);
 
@@ -76,7 +106,7 @@ export class SearchTabS1View {
     }
 
     /**
-     * [cite_start]3. 蒐集篩選條件並發布事件 [cite: 2008]
+     * 3. 蒐集篩選條件並發布事件
      */
     _onSearchClick() {
         // 蒐集所有篩選器的值
@@ -102,9 +132,11 @@ export class SearchTabS1View {
     }
 
     /**
-     * [cite_start]4. [cite: 2009] (可選) 在頁籤切換到 S1 時，自動 focus
+     * 4. (可選) 在頁籤切換到 S1 時，自動 focus
      */
     activate() {
+        // [NEW] 確保 DOM 元素已被快取
+        this._cacheElements();
         setTimeout(() => {
             this.elements.filters.name?.focus();
         }, 50); // 延遲以確保元素可見
