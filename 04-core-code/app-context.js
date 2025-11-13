@@ -1,3 +1,4 @@
+/* FILE: 04-core-code/app-context.js */
 // 04-core-code/app-context.js
 
 /**
@@ -10,13 +11,13 @@
  *
  * 這種模式的好處 (依賴注入):
  * - 「解耦」：元件不需要知道「如何」建立「其他依賴」。
- * 例如，`AppController` 不需要 `new WorkflowService()`，它只需要向 AppContext「請求」已經存在的 `workflowService` 實例。
+ * 例如，`AppController` 不需要 `new WorkflowService()`，只需要向 AppContext「請求」已經存在的 `workflowService` 實例。
  * - 「可測試性」：在進行單元測試時，我們可以輕易地「模擬」(mock) 並替換 AppContext 中的真實服務。
- * - 「集中管理」：所有物件的建立邏輯都集中在此，便於管理與維護。
+ * - 「集中管理」：所有物件的建立邏輯都集中在此，便於管理和維護。
  *
  * Example:
- * `main.js` (組裝廠) 向 AppContext 請求建立所有零件 (Services, Components)；
- * 然後將這些零件 (例如 `quickQuoteView`, `appController`) 交給 `UIManager` (總指揮) 去組裝與渲染。
+ * `main.js` (組裝廠) 向 AppContext 請求建立好的所有零件 (Services, Components)，
+ * 然後將這些零件 (例如 `quickQuoteView`, `appController`) 交給 `UIManager` (總指揮) 去組裝和渲染畫面。
  * */
 export class AppContext {
     constructor() {
@@ -34,8 +35,8 @@ export class AppContext {
     }
 
     /**
-     * 從容器中獲取一個實例。
-     * @param {string} name - 要獲取的實例名稱。
+     * 從容器中取得一個實例。
+     * @param {string} name - 要取得的實例名稱。
      * @returns {object} - 註冊的實例。
      */
     get(name) {
@@ -82,7 +83,6 @@ export class AppContext {
         });
         this.register('calculationService',
             calculationService);
-
         const fileService = new FileService({ productFactory });
         this.register('fileService', fileService);
 
@@ -236,12 +236,23 @@ export class AppContext {
         this.register('appController', appController);
 
         // --- [NEW] (v6298-F4-Search) Instantiate the Search Dialog Component ---
+        // --- [NEW] 階段 4：實例化 S1/S2 子視圖 ---
+        const s1View = new SearchTabS1View({ eventAggregator });
+        this.register('s1View', s1View);
+
+        const s2View = new SearchTabS2View({ eventAggregator, stateService });
+        this.register('s2View', s2View);
+
+        // --- [MODIFIED] 階段 4：將 S1/S2 子視圖注入管理員 ---
         const searchDialogComponent = new SearchDialogComponent({
             containerElement: document.getElementById(DOM_IDS.SEARCH_DIALOG_CONTAINER),
             eventAggregator,
             // [MODIFIED] (v6298-F4-Search) Inject required services
             stateService,
             authService,
+            // [NEW] 階段 4 注入
+            s1View: s1View,
+            s2View: s2View
         });
         this.register('searchDialogComponent', searchDialogComponent);
         // --- [END NEW] ---
@@ -293,6 +304,10 @@ import { LeftPanelTabManager } from './ui/left-panel-tab-manager.js'; // [MODIFI
 import { DOM_IDS } from './config/constants.js'; // [MODIFIED]
 // [NEW] (v6298-F4-Search) Import the new search dialog component
 import { SearchDialogComponent } from './ui/search-dialog-component.js';
+// [NEW] 階段 4：Import S1/S2 子視圖
+import { SearchTabS1View } from './ui/views/search-tab-s1-view.js';
+import { SearchTabS2View } from './ui/views/search-tab-s2-view.js';
+
 
 // [NEW IMPORTS]
 import { K1TabInputHandler } from './ui/tabs/k1-tab/k1-tab-input-handler.js';

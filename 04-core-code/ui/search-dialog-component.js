@@ -1,18 +1,24 @@
 /* FILE: 04-core-code/ui/search-dialog-component.js */
 // [MODIFIED] (v6298-F4-Search) This component manages the advanced search UI.
-// [MODIFIED] (階段 3) Refactored to act as a manager.
-// S1 (Filter) and S2 (Results) logic has been removed and delegated to sub-views.
+// [MODIFIED] (階段 4) Integrated S1/S2 sub-views and fixed initialization bug.
 
 import { EVENTS, DOM_IDS } from '../config/constants.js';
 // [NEW] (v6298-F4-Search) Import new advanced search function and state actions
 import { searchQuotesAdvanced } from '../services/online-storage-service.js';
 import * as uiActions from '../actions/ui-actions.js';
 import * as quoteActions from '../actions/quote-actions.js';
+// [REMOVED] 階段 4：不再需要 import S1/S2，它們由 app-context 注入
+// import { SearchTabS1View } from './views/search-tab-s1-view.js';
+// import { SearchTabS2View } from './views/search-tab-s2-view.js';
 
 export class SearchDialogComponent {
-    constructor({ containerElement, eventAggregator, stateService, authService }) {
+    constructor({ containerElement, eventAggregator, stateService, authService, s1View, s2View }) { // [MODIFIED] 階段 4：接收 s1View, s2View
         if (!containerElement || !eventAggregator || !stateService || !authService) {
             throw new Error("SearchDialogComponent requires container, eventAggregator, stateService, and authService.");
+        }
+        // [MODIFIED] 階段 4：s1View 和 s2View 也是必要的
+        if (!s1View || !s2View) {
+            throw new Error("SearchDialogComponent requires s1View and s2View.");
         }
 
         this.container = containerElement;
@@ -20,6 +26,10 @@ export class SearchDialogComponent {
         // [NEW] Store injected services
         this.stateService = stateService;
         this.authService = authService;
+
+        // [NEW] 階段 4：儲存子視圖實例
+        this.s1View = s1View;
+        this.s2View = s2View;
 
         this.box = this.container.querySelector('.search-dialog-box');
 
@@ -49,8 +59,8 @@ export class SearchDialogComponent {
         this.subscriptions = [];
         this.boundListeners = new Map();
 
-        // [REMOVED] 階段 3：S1/S2 View 尚未注入，不在這裡呼叫 initialize
-        // this.initialize(); 
+        // [MODIFIED] 階段 4：(關鍵修復) 在 constructor 中呼叫 initialize()
+        this.initialize();
         console.log("SearchDialogComponent Refactored as Manager.");
     }
 
