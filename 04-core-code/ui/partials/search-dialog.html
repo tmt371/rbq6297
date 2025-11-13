@@ -4,56 +4,65 @@
         <button id="search-dialog-close-btn" class="search-dialog-close-btn" title="Close">&times;</button>
     </div>
 
-    <div class="search-dialog-content">
+    <div class="tab-container search-tab-nav">
+        <button id="search-tab-s1" class="tab-button active" data-tab-target="#s1-content">S1 Filters</button>
+        <button id="search-tab-s2" class="tab-button" data-tab-target="#s2-content">S2 Results</button>
+    </div>
 
-        <div class="search-filters-panel">
-            <div class="search-filter-group">
-                <label for="search-filter-name">Customer Name (Starts with...)</label>
-                <input type="text" id="search-filter-name" class="search-filter-input">
-            </div>
-            <div class="search-filter-group">
-                <label for="search-filter-phone">Phone</label>
-                <input type="tel" id="search-filter-phone" class="search-filter-input">
-            </div>
-            <div class="search-filter-group">
-                <label for="search-filter-email">Email</label>
-                <input type="email" id="search-filter-email" class="search-filter-input">
-            </div>
-            <div class="search-filter-group">
-                <label for="search-filter-postcode">Postcode</label>
-                <input type="text" id="search-filter-postcode" class="search-filter-input">
-            </div>
-            <div class="search-filter-group">
-                <label>Issue Date (YYYY / MM)</label>
-                <div class="filter-date-row">
-                    <input type="number" id="search-filter-year" class="search-filter-input" placeholder="YYYY"
-                        min="2020" max="2099">
-                    <input type="number" id="search-filter-month" class="search-filter-input" placeholder="MM" min="1"
-                        max="12">
+    <div class="tab-content-container search-dialog-content">
+
+        <div id="s1-content" class="tab-content active">
+            <div class="search-filters-panel">
+                <div class="search-filter-group">
+                    <label for="search-filter-name">Customer Name (Starts with...)</label>
+                    <input type="text" id="search-filter-name" class="search-filter-input">
                 </div>
-            </div>
-            <div class="search-filter-group">
-                <label for="search-filter-has-motor">Product (Motor)</label>
-                <select id="search-filter-has-motor" class="search-filter-input">
-                    <option value="">Any</option>
-                    <option value="true">Has Motor</option>
-                    <option value="false">No Motor</option>
-                </select>
+                <div class="search-filter-group">
+                    <label for="search-filter-phone">Phone</label>
+                    <input type="tel" id="search-filter-phone" class="search-filter-input">
+                </div>
+                <div class="search-filter-group">
+                    <label for="search-filter-email">Email</label>
+                    <input type="email" id="search-filter-email" class="search-filter-input">
+                </div>
+                <div class="search-filter-group">
+                    <label for="search-filter-postcode">Postcode</label>
+                    <input type="text" id="search-filter-postcode" class="search-filter-input">
+                </div>
+                <div class="search-filter-group">
+                    <label>Issue Date (YYYY / MM)</label>
+                    <div class="filter-date-row">
+                        <input type="number" id="search-filter-year" class="search-filter-input" placeholder="YYYY"
+                            min="2020" max="2099">
+                        <input type="number" id="search-filter-month" class="search-filter-input" placeholder="MM"
+                            min="1" max="12">
+                    </div>
+                </div>
+                <div class="search-filter-group">
+                    <label for="search-filter-has-motor">Product (Motor)</label>
+                    <select id="search-filter-has-motor" class="search-filter-input">
+                        <option value="">Any</option>
+                        <option value="true">Has Motor</option>
+                        <option value="false">No Motor</option>
+                    </select>
+                </div>
             </div>
         </div>
 
-        <div class="search-results-panel">
-            <div id="search-results-list" class="search-results-list">
-                <div id="search-results-message" class="search-results-message">
-                    Please enter search criteria and press "Search".
+        <div id="s2-content" class="tab-content">
+            <div class="search-results-panel">
+                <div id="search-results-list" class="search-results-list">
+                    <div id="search-results-message" class="search-results-message">
+                        Please enter search criteria and press "Search".
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="search-preview-panel">
-            <div id="search-preview-content" class="search-preview-content">
-                <div class="search-results-message">
-                    Select a quote from the results list to see a preview.
+            <div class="search-preview-panel">
+                <div id="search-preview-content" class="search-preview-content">
+                    <div class="search-results-message">
+                        Select a quote from the results list to see a preview.
+                    </div>
                 </div>
             </div>
         </div>

@@ -1,5 +1,5 @@
-/* File: 04-core-code/ui/css/search-dialog.css */
-/* [NEW] (v6298-F4-Search) Styles for the new advanced search dialog */
+/* FILE: 04-core-code/ui/css/search-dialog.css */
+/* [MODIFIED] (v6298-F4-Search) Styles for the new advanced search dialog */
 
 /* --- Container & Overlay --- */
 .search-dialog-container {
@@ -68,13 +68,59 @@
     color: #333;
 }
 
-/* --- Main Content Area --- */
+/* --- [NEW] 階段 1：標準頁籤導航列 (同 left/right panel) --- */
+.search-tab-nav {
+    display: flex;
+    flex-shrink: 0;
+    background-color: #d1d5db;
+    /* [MODIFIED] 階段 1：預設隱藏 (桌機版) */
+    display: none;
+}
+
+.search-tab-nav .tab-button {
+    height: 30px;
+    flex-grow: 1;
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: bold;
+    color: #4b5563;
+    transition: background-color 0.2s, color 0.2s;
+    border-radius: 6px 6px 0 0;
+    border-bottom: 3px solid transparent;
+}
+
+.search-tab-nav .tab-button:hover {
+    background-color: #e5e7eb;
+}
+
+.search-tab-nav .tab-button.active {
+    background-color: #f3f4f6;
+    border-color: var(--tab-active-color);
+    color: var(--tab-active-color);
+}
+
+/* --- [MODIFIED] 階段 1：原 .search-dialog-content (flex 容器) --- */
 .search-dialog-content {
+    /* [MODIFIED] 階段 1：桌機版維持三欄 flex 佈局 */
     display: flex;
     flex-grow: 1;
     min-height: 0;
     /* Important for flex child overflow */
 }
+
+/* --- [NEW] 階段 1：頁籤內容包裹器 (.tab-content) --- */
+.search-dialog-content .tab-content {
+    /* [MODIFIED] 階段 1：桌機版使用 display: contents 讓包裹器 "失效" */
+    display: contents;
+}
+
+.search-dialog-content .tab-content.active {
+    /* [MODIFIED] 階段 1：桌機版 .active 狀態也必須是 "失效" */
+    display: contents;
+}
+
 
 /* --- 1. Filter Panel (Left) --- */
 .search-filters-panel {
@@ -154,6 +200,8 @@
 }
 
 .search-result-item small {
+    display: block;
+    /* [NEW] 確保 small 標籤也換行 */
     font-size: 0.8em;
     color: #555;
 }
@@ -244,7 +292,7 @@
     color: #333;
 }
 
-/* --- Responsive for mobile --- */
+/* --- [NEW] 階段 1：手機版響應式佈局 (768px) --- */
 @media (max-width: 768px) {
     .search-dialog-box {
         width: 100%;
@@ -253,28 +301,106 @@
         border-radius: 0;
     }
 
+    /* 1. 顯示頁籤導航列 */
+    .search-tab-nav {
+        display: flex;
+    }
+
+    /* 2. 恢復 .search-dialog-content 的標準 flex-column 佈局 */
     .search-dialog-content {
+        flex-direction: column;
+        display: flex;
+        /* 確保 flex 生效 */
+    }
+
+    /* 3. 將頁籤內容切換回 display: block/none */
+    .search-dialog-content .tab-content {
+        display: none;
+        width: 100%;
+        height: 100%;
+        overflow-y: auto;
+        box-sizing: border-box;
+    }
+
+    .search-dialog-content .tab-content.active {
+        display: block;
+    }
+
+    /* --- S1 篩選器面板 (手機版) --- */
+    /* 4. S1 內部改為 "兩兩一排" 佈局 */
+    #s1-content {
+        background-color: #fcfcfc;
+    }
+
+    #s1-content .search-filters-panel {
+        /* 移除桌機版的固定寬度、邊框和 padding */
+        flex: 1 1 auto;
+        border-right: none;
+        padding: 15px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 15px;
+        /* row-gap, column-gap */
+        overflow-y: auto;
+        /* 允許 S1 滾動 */
+    }
+
+    #s1-content .search-filter-group {
+        /* 每個群組佔 50% 寬度，減去 gap */
+        flex: 1 1 calc(50% - 8px);
+        min-width: 150px;
+        /* 避免過度壓縮 */
+        margin-bottom: 0;
+        /* 移除 margin，改用 gap */
+    }
+
+    /* 讓 YYYY/MM 群組保持在同一行 */
+    #s1-content .search-filter-group:has(.filter-date-row) {
+        flex-basis: 100%;
+        /* 佔滿整行 */
+    }
+
+    #s1-content .filter-date-row {
+        gap: 15px;
+    }
+
+    /* --- S2 結果/預覽面板 (手機版) --- */
+    /* 5. 將 #s2-content.active 設為 flex-column */
+    .search-dialog-content #s2-content.active {
+        display: flex;
         flex-direction: column;
     }
 
-    .search-filters-panel {
-        flex: 0 0 auto;
-        /* No fixed width */
+    /* 移除桌機版的固定寬度、邊框 */
+    #s2-content .search-results-panel,
+    #s2-content .search-preview-panel {
+        flex-basis: auto;
         border-right: none;
+    }
+
+    /* (5.1) S2 結果列表 (上半部) */
+    #s2-content .search-results-panel {
+        flex-grow: 1;
+        /* 佔用可用空間 */
+        flex-shrink: 1;
+        /* 允許壓縮 */
+        min-height: 200px;
+        /* 至少 200px 高 */
         border-bottom: 1px solid var(--panel-border-color);
-        max-height: 40vh;
-        /* Limit filter height */
     }
 
-    .search-results-panel {
-        flex: 1 1 200px;
-        /* Take up remaining space */
-        border-right: none;
+    /* (5.2) S2 預覽窗格 (下半部) */
+    #s2-content .search-preview-panel {
+        flex-grow: 1;
+        /* 佔用可用空間 */
+        flex-shrink: 1;
+        /* 允許壓縮 */
+        min-height: 200px;
+        /* 至少 200px 高 */
+        background-color: #fdfdfd;
     }
 
-    .search-preview-panel {
-        flex: 1 1 200px;
-        /* Take up remaining space */
-        border-top: 1px solid var(--panel-border-color);
+    #s2-content .search-preview-content {
+        padding: 15px;
     }
 }
