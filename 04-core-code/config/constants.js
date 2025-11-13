@@ -1,3 +1,4 @@
+/* FILE: 04-core-code/config/constants.js */
 // File: 04-core-code/config/constants.js
 
 /**
@@ -82,6 +83,9 @@ export const EVENTS = {
     USER_REQUESTED_SEARCH_DIALOG: 'userRequestedSearchDialog',
     // [NEW] (v6298-F4-Search) New event for the advanced dialog
     SHOW_SEARCH_DIALOG: 'showSearchDialog',
+    // --- [NEW] 階段 3：S1/S2 通訊事件 ---
+    USER_REQUESTED_EXECUTE_SEARCH: 'userRequestedExecuteSearch',
+    SEARCH_RESULTS_SUCCESSFUL: 'searchResultsSuccessful',
     // --- End v6298 ---
 
     // --- User Actions: F1/F2 Panels ---

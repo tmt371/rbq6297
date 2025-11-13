@@ -1,6 +1,7 @@
 /* FILE: 04-core-code/ui/search-dialog-component.js */
-// [MODIFIED] (v6298-F4-Search) This new component manages the advanced search UI.
-// [MODIFIED] (階段 2) Added tab switching logic.
+// [MODIFIED] (v6298-F4-Search) This component manages the advanced search UI.
+// [MODIFIED] (階段 3) Refactored to act as a manager.
+// S1 (Filter) and S2 (Results) logic has been removed and delegated to sub-views.
 
 import { EVENTS, DOM_IDS } from '../config/constants.js';
 // [NEW] (v6298-F4-Search) Import new advanced search function and state actions
@@ -21,30 +22,17 @@ export class SearchDialogComponent {
         this.authService = authService;
 
         this.box = this.container.querySelector('.search-dialog-box');
-        this.selectedQuoteData = null; // Store data of the selected quote for loading
 
-        // Cache all UI elements
+        // [REMOVED] 階段 3：S2 邏輯已移至 S2View
+        // this.selectedQuoteData = null; 
+
+        // [MODIFIED] 階段 3：快取 DOM 元素 (大幅簡化)
+        // 只快取管理員自身需要的元素
         this.elements = {
             closeBtn: this.container.querySelector(`#${DOM_IDS.SEARCH_DIALOG_CLOSE_BTN}`),
-            searchBtn: this.container.querySelector(`#${DOM_IDS.SEARCH_DIALOG_SEARCH_BTN}`),
-            loadBtn: this.container.querySelector(`#${DOM_IDS.SEARCH_DIALOG_LOAD_BTN}`),
-            // [NEW] Cache filter inputs
-            filters: {
-                name: this.container.querySelector(`#${DOM_IDS.SEARCH_FILTER_NAME}`),
-                phone: this.container.querySelector(`#${DOM_IDS.SEARCH_FILTER_PHONE}`),
-                email: this.container.querySelector(`#${DOM_IDS.SEARCH_FILTER_EMAIL}`),
-                postcode: this.container.querySelector(`#${DOM_IDS.SEARCH_FILTER_POSTCODE}`),
-                year: this.container.querySelector(`#${DOM_IDS.SEARCH_FILTER_YEAR}`),
-                month: this.container.querySelector(`#${DOM_IDS.SEARCH_FILTER_MONTH}`),
-                hasMotor: this.container.querySelector(`#${DOM_IDS.SEARCH_FILTER_HAS_MOTOR}`),
-            },
-            // [NEW] Cache dynamic areas
-            resultsList: this.container.querySelector(`#${DOM_IDS.SEARCH_RESULTS_LIST}`),
-            resultsMessage: this.container.querySelector(`#${DOM_IDS.SEARCH_RESULTS_MESSAGE}`),
-            previewContent: this.container.querySelector(`#${DOM_IDS.SEARCH_PREVIEW_CONTENT}`),
             statusBar: this.container.querySelector(`#${DOM_IDS.SEARCH_STATUS_BAR}`),
 
-            // --- [NEW] 階段 2：快取頁籤 DOM ---
+            // --- 頁籤管理 DOM ---
             tabContainer: this.container.querySelector('.search-tab-nav'),
             tabButtons: {
                 s1: this.container.querySelector('#search-tab-s1'),
@@ -54,14 +42,16 @@ export class SearchDialogComponent {
                 s1: this.container.querySelector('#s1-content'),
                 s2: this.container.querySelector('#s2-content'),
             }
-            // --- [END] 階段 2 ---
+            // --- [REMOVED] S1 (filters) 和 S2 (resultsList, previewContent, loadBtn) 的 DOM 快取 ---
         };
 
         // Store subscriptions and listeners for destruction
         this.subscriptions = [];
         this.boundListeners = new Map();
-        this.initialize();
-        console.log("SearchDialogComponent Initialized.");
+
+        // [REMOVED] 階段 3：S1/S2 View 尚未注入，不在這裡呼叫 initialize
+        // this.initialize(); 
+        console.log("SearchDialogComponent Refactored as Manager.");
     }
 
     /**
@@ -80,7 +70,7 @@ export class SearchDialogComponent {
     _subscribe(eventName, handler) {
         const boundHandler = handler.bind(this);
         this.subscriptions.push({ eventName, handler: boundHandler });
-        this.eventAggregator.subscribe(eventName, handler.bind(this)); // [FIX] Ensure correct binding
+        this.eventAggregator.subscribe(eventName, boundHandler); // [FIX] 修正綁定
     }
 
     /**
@@ -101,35 +91,33 @@ export class SearchDialogComponent {
         console.log("SearchDialogComponent destroyed.");
     }
 
+    /**
+     * [MODIFIED] 階段 3：
+     * S1/S2 View 尚未注入 (將在階段 4 處理)。
+     * 此 initialize 現在只綁定管理員自身的事件。
+     */
     initialize() {
         // --- Subscribe to global events ---
         this._subscribe(EVENTS.SHOW_SEARCH_DIALOG, this.show);
 
+        // --- [NEW] 階段 3：監聽來自 S1View 的搜尋請求 ---
+        this._subscribe(EVENTS.USER_REQUESTED_EXECUTE_SEARCH, this._onExecuteSearch);
+
+        // [NEW] 階段 3：監聽來自 S2View 的關閉請求 (從 S2View 的 _onLoadClick 過來)
+        this._subscribe(EVENTS.USER_REQUESTED_CLOSE_SEARCH_DIALOG, this.hide);
+
         // --- Bind internal UI element events ---
         this._addListener(this.elements.closeBtn, 'click', this.hide);
         this._addListener(this.container, 'click', this._onOverlayClick);
-        this._addListener(this.elements.searchBtn, 'click', this._onSearchClick);
-        this._addListener(this.elements.loadBtn, 'click', this._onLoadClick);
 
-        // [NEW] Add listener for the results list (event delegation)
-        this._addListener(this.elements.resultsList, 'click', this._onResultItemClick);
+        // --- [REMOVED] 階段 3：S1 (searchBtn) 和 S2 (loadBtn, resultsList) 的監聽器 ---
 
-        // [NEW] Add Enter key listener to all filter inputs
-        Object.values(this.elements.filters).forEach(input => {
-            this._addListener(input, 'keydown', (e) => {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    this._onSearchClick();
-                }
-            });
-        });
-
-        // --- [NEW] 階段 2：為 S1/S2 頁籤按鈕綁定 click 事件 ---
+        // --- 頁籤切換 (階段 2 邏輯保留) ---
         this._addListener(this.elements.tabButtons.s1, 'click', () => this._switchTab('search-tab-s1'));
         this._addListener(this.elements.tabButtons.s2, 'click', () => this._switchTab('search-tab-s2'));
     }
 
-    // --- [NEW] 階段 2：頁籤切換邏輯 ---
+    // --- [RETAINED] 階段 2：頁籤切換邏輯 ---
     /**
      * 處理 S1/S2 頁籤按鈕和內容窗格之間的 active class 切換
      * @param {string} tabId - 要切換到的頁籤 ID (例如 'search-tab-s1')
@@ -150,248 +138,130 @@ export class SearchDialogComponent {
             this.elements.tabContents.s2.classList.toggle('active', tabId === 'search-tab-s2');
         }
 
-        // [NEW] 階段 3：(可選) S1 focus 邏輯 (未來實作)
-        // if (tabId === 'search-tab-s1' && typeof this.s1View?.activate === 'function') {
-        //     this.s1View.activate();
-        // }
+        // [NEW] 階段 3：(可選) S1 focus 邏輯
+        if (tabId === 'search-tab-s1' && typeof this.s1View?.activate === 'function') {
+            this.s1View.activate();
+        }
     }
 
 
     show() {
+        // [MODIFIED] 階段 4：注入 S1/S2 View 後，在這裡初始化它們
+        if (this.s1View && typeof this.s1View.initialize === 'function') {
+            this.s1View.initialize();
+        }
+        if (this.s2View && typeof this.s2View.initialize === 'function') {
+            this.s2View.initialize();
+        }
+
         this._resetSearch(); // Reset to a clean state every time it's opened
         this.container.classList.remove('is-hidden');
         this.stateService.dispatch(uiActions.setModalActive(true)); // [NEW] Lock background app
-        setTimeout(() => this.elements.filters.name.focus(), 50);
+
+        // [MODIFIED] 階段 3：Focus 邏輯現在交給 S1View
+        if (typeof this.s1View?.activate === 'function') {
+            this.s1View.activate();
+        } else {
+            // Fallback if s1View is not injected yet (during 階段 3 testing)
+            const s1_name_filter = document.getElementById(DOM_IDS.SEARCH_FILTER_NAME);
+            setTimeout(() => s1_name_filter?.focus(), 50);
+        }
     }
 
     hide() {
         this.container.classList.add('is-hidden');
         this.stateService.dispatch(uiActions.setModalActive(false)); // [NEW] Unlock background app
+
+        // [NEW] 階段 4：銷毀 S1/S2 View 的監聽器
+        if (this.s1View && typeof this.s1View.destroy === 'function') {
+            this.s1View.destroy();
+        }
+        if (this.s2View && typeof this.s2View.destroy === 'function') {
+            this.s2View.destroy();
+        }
     }
 
-    // [NEW] Resets the search dialog to its initial state
+    // [MODIFIED] 階段 3：_resetSearch 大幅簡化
     _resetSearch() {
-        // [MODIFIED] (v6298-F4-Search-Fix) Clear all 7 filter fields
-        this.elements.filters.name.value = '';
-        this.elements.filters.phone.value = '';
-        this.elements.filters.email.value = '';
-        this.elements.filters.postcode.value = '';
-        this.elements.filters.year.value = '';
-        this.elements.filters.month.value = '';
-        this.elements.filters.hasMotor.value = ''; // [MODIFIED]
+        // [REMOVED] S1 (filter) 和 S2 (results) 的重置邏輯
 
-        // Reset dynamic content
-        this.elements.resultsList.innerHTML = '';
-        this._showMessage(this.elements.resultsMessage, 'Please enter search criteria and press "Search".');
-        this._showPreviewMessage('Select a quote from the results list to see a preview.');
         this._updateStatusBar('');
-        // Disable load button
-        this.elements.loadBtn.disabled = true;
-        this.selectedQuoteData = null;
 
-        // [NEW] 階段 2：確保 S1 頁籤永遠是預設值
+        // 確保 S1 頁籤永遠是預設值
         this._switchTab('search-tab-s1');
     }
 
     _onOverlayClick(event) {
-        // Close if the click is on the dark overlay (the container)
-        // but not on its child (the dialog box).
         if (event.target === this.container) {
             this.hide();
         }
     }
 
-    // [MODIFIED] (v6298-F4-Search) Implement search logic
-    async _onSearchClick() {
+    // --- [NEW] 階段 3：_onExecuteSearch (取代 _onSearchClick) ---
+    /**
+     * 監聽 S1View 發出的 USER_REQUESTED_EXECUTE_SEARCH 事件
+     * @param {object} data - 包含 { filters } 的物件
+     */
+    async _onExecuteSearch({ filters }) {
         const uid = this.authService.currentUser?.uid;
         if (!uid) {
-            this._showMessage(this.elements.resultsMessage, 'Error: You are not logged in.');
+            this._updateStatusBar('Error: You are not logged in.');
             return;
         }
 
-        // 1. Collect all filter values
-        const filters = {
-            name: this.elements.filters.name.value.trim(),
-            phone: this.elements.filters.phone.value.trim(),
-            email: this.elements.filters.email.value.trim().toLowerCase(),
-            postcode: this.elements.filters.postcode.value.trim(),
-            year: parseInt(this.elements.filters.year.value, 10) || null,
-            month: parseInt(this.elements.filters.month.value, 10) || null,
-        };
-        // [MODIFIED] (v6298-F4-Search) Convert "true" / "false" strings to booleans
-        const motorFilter = this.elements.filters.hasMotor.value;
-        if (motorFilter === 'true') {
-            filters.hasMotor = true;
-        } else if (motorFilter === 'false') {
-            filters.hasMotor = false;
-        }
-
-        // Simple validation
+        // 簡單驗證 (雖然 S1View 也做了)
         if (Object.values(filters).every(v => !v && v !== false)) {
-            this._showMessage(this.elements.resultsMessage, 'Please enter at least one search criteria.');
+            this._updateStatusBar('Please enter at least one search criteria.');
             return;
         }
 
-        // 2. Execute Search
+        // 2. 執行搜尋
         this._updateStatusBar('Searching...');
-        this.elements.searchBtn.disabled = true;
-        this.elements.resultsList.innerHTML = '';
-        this._showPreviewMessage('Loading...');
+        // [REMOVED] 階段 3：searchBtn 已移至 S1View
+        // this.elements.searchBtn.disabled = true; 
+
+        // [REMOVED] 階段 3：S2 的 UI 更新已移至 S2View
+        // this.elements.resultsList.innerHTML = '';
+        // this._showPreviewMessage('Loading...');
 
         const result = await searchQuotesAdvanced(uid, filters);
 
-        this.elements.searchBtn.disabled = false;
+        // [REMOVED] 階段 3：searchBtn 已移至 S1View
+        // this.elements.searchBtn.disabled = false;
         this._updateStatusBar(result.message);
 
-        // 3. Handle Results
+        // 3. 處理結果
         if (result.success) {
-            if (result.data.length > 0) {
-                this._renderResultsList(result.data);
-            } else {
-                this._showMessage(this.elements.resultsMessage, 'No quotes found matching that criteria.');
-            }
+            // [MODIFIED] 階段 3：
+            // A. 將結果數據發布給 S2View
+            this.eventAggregator.publish(EVENTS.SEARCH_RESULTS_SUCCESSFUL, result.data);
+
+            // B. 自動切換到 S2 頁籤
+            this._switchTab('search-tab-s2');
+
         } else if (result.needsIndex) {
-            // Firestore Indexing Error
-            this._showMessage(this.elements.resultsMessage, 'A database index is required. Please check the console (F12) for a link to create it.');
+            // 索引錯誤
+            this._updateStatusBar('Error: Database index missing. Check console (F12).');
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                 message: 'Index required. Link logged to console.',
                 type: 'error'
             });
         } else {
-            // Other errors
-            this._showMessage(this.elements.resultsMessage, `Error: ${result.message}`);
+            // 其他錯誤
+            this._updateStatusBar(`Error: ${result.message}`);
         }
     }
 
-    // [NEW] Renders the list of search results
-    _renderResultsList(quotes) {
-        // Store the full data in memory
-        this.quotesMap = new Map(quotes.map(q => [q.quoteId, q]));
-        const html = quotes.map(quote => {
-            const customer = quote.customer || {};
-            const date = quote.issueDate || 'No Date';
-            return `
-                <div class="search-result-item" data-quote-id="${quote.quoteId}">
-                    <strong>${quote.quoteId}</strong>
-                    <small>${date} - ${customer.name || 'No Name'}</small>
-                    <small>${customer.phone || customer.email || 'No Contact'}</small>
-                </div>
-            `;
-        }).join('');
-        this.elements.resultsList.innerHTML = html;
-    }
 
-    // [NEW] Handles clicking on an item in the results list
-    _onResultItemClick(event) {
-        const itemElement = event.target.closest('.search-result-item');
-        if (!itemElement) return;
+    // --- [REMOVED] 階段 3：S2 的所有邏輯已移至 S2View ---
+    // _renderResultsList(quotes) { ... }
+    // _onResultItemClick(event) { ... }
+    // _renderPreview(quote) { ... }
+    // _onLoadClick() { ... }
+    // _showMessage(element, message) { ... }
+    // _showPreviewMessage(message) { ... }
 
-        const quoteId = itemElement.dataset.quoteId;
-        const quoteData = this.quotesMap.get(quoteId);
-
-        if (!quoteData) {
-            this._showPreviewMessage('Error: Could not find quote data to preview.');
-            return;
-        }
-
-        // 1. Highlight selected item
-        this.elements.resultsList.querySelectorAll('.search-result-item').forEach(el => {
-            el.classList.toggle('is-selected', el.dataset.quoteId === quoteId);
-        });
-
-        // 2. Store data for loading
-        this.selectedQuoteData = quoteData;
-
-        // 3. Render preview
-        this._renderPreview(quoteData);
-
-        // 4. Enable Load button
-        this.elements.loadBtn.disabled = false;
-    }
-
-    // [NEW] Renders the preview pane for a selected quote
-    _renderPreview(quote) {
-        const customer = quote.customer || {};
-        const metadata = quote.metadata || {};
-        const f2 = quote.f2Snapshot || {};
-
-        const renderField = (label, value, className = '') => {
-            if (!value && value !== 0) return '';
-            return `<div class="preview-label">${label}</div><div class="preview-value ${className}">${value}</div>`;
-        };
-
-        const html = `
-            ${renderField('Quote ID', quote.quoteId, 'preview-value-quoteid')}
-            ${renderField('Status', quote.status)}
-            ${renderField('Issue Date', quote.issueDate)}
-            ${renderField('Customer', customer.name)}
-            ${renderField('Phone', customer.phone)}
-            ${renderField('Email', customer.email)}
-            ${renderField('Postcode', customer.postcode)}
-            ${renderField('Address', customer.address)}
-            ${renderField('Has Motor', metadata.hasMotor ? 'Yes' : 'No')}
-            ${renderField('Grand Total', f2.grandTotal ? `$${f2.grandTotal.toFixed(2)}` : 'N/A')}
-            ${renderField('Balance', f2.balance ? `$${f2.balance.toFixed(2)}` : 'N/A')}
-        `;
-        this.elements.previewContent.innerHTML = html;
-    }
-
-    // [MODIFIED] (v6298-F4-Search) Implement load logic
-    _onLoadClick() {
-        if (!this.selectedQuoteData) {
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: 'Please select a quote from the list first.',
-                type: 'error'
-            });
-            return;
-        }
-
-        console.log(`Loading quote: ${this.selectedQuoteData.quoteId}`);
-
-        // --- Replicate the logic from WorkflowService._dispatchLoadActions ---
-        // 1. Set the new quote data
-        this.stateService.dispatch(quoteActions.setQuoteData(this.selectedQuoteData));
-
-        // 2. Reset the UI state to match the new data
-        this.stateService.dispatch(uiActions.resetUi());
-
-        // 3. Restore F1 Snapshot
-        if (this.selectedQuoteData.f1Snapshot) {
-            this.stateService.dispatch(
-                uiActions.restoreF1Snapshot(this.selectedQuoteData.f1Snapshot)
-            );
-        }
-
-        // 4. Restore F2 Snapshot
-        if (this.selectedQuoteData.f2Snapshot) {
-            this.stateService.dispatch(
-                uiActions.restoreF2Snapshot(this.selectedQuoteData.f2Snapshot)
-            );
-        }
-
-        // 5. Mark sum as outdated and notify user
-        this.stateService.dispatch(uiActions.setSumOutdated(true));
-        this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-            message: `Successfully loaded quote ${this.selectedQuoteData.quoteId}`,
-        });
-
-        // 6. Close the dialog
-        this.hide();
-    }
-
-    // --- [NEW] UI Helper Methods ---
-    _showMessage(element, message) {
-        if (element) {
-            element.innerHTML = `<div class="search-results-message">${message}</div>`;
-        }
-    }
-
-    _showPreviewMessage(message) {
-        if (this.elements.previewContent) {
-            this.elements.previewContent.innerHTML = `<div class="search-results-message">${message}</div>`;
-        }
-    }
-
+    // --- [RETAINED] 階段 3：管理員保留對狀態欄的控制 ---
     _updateStatusBar(message) {
         if (this.elements.statusBar) {
             this.elements.statusBar.textContent = message;
