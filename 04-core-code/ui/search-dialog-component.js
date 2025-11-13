@@ -1,5 +1,6 @@
-// File: 04-core-code/ui/search-dialog-component.js
-// [NEW] (v6298-F4-Search) This new component manages the advanced search UI.
+/* FILE: 04-core-code/ui/search-dialog-component.js */
+// [MODIFIED] (v6298-F4-Search) This new component manages the advanced search UI.
+// [MODIFIED] (階段 2) Added tab switching logic.
 
 import { EVENTS, DOM_IDS } from '../config/constants.js';
 // [NEW] (v6298-F4-Search) Import new advanced search function and state actions
@@ -42,12 +43,23 @@ export class SearchDialogComponent {
             resultsMessage: this.container.querySelector(`#${DOM_IDS.SEARCH_RESULTS_MESSAGE}`),
             previewContent: this.container.querySelector(`#${DOM_IDS.SEARCH_PREVIEW_CONTENT}`),
             statusBar: this.container.querySelector(`#${DOM_IDS.SEARCH_STATUS_BAR}`),
+
+            // --- [NEW] 階段 2：快取頁籤 DOM ---
+            tabContainer: this.container.querySelector('.search-tab-nav'),
+            tabButtons: {
+                s1: this.container.querySelector('#search-tab-s1'),
+                s2: this.container.querySelector('#search-tab-s2'),
+            },
+            tabContents: {
+                s1: this.container.querySelector('#s1-content'),
+                s2: this.container.querySelector('#s2-content'),
+            }
+            // --- [END] 階段 2 ---
         };
 
         // Store subscriptions and listeners for destruction
         this.subscriptions = [];
         this.boundListeners = new Map();
-
         this.initialize();
         console.log("SearchDialogComponent Initialized.");
     }
@@ -68,7 +80,7 @@ export class SearchDialogComponent {
     _subscribe(eventName, handler) {
         const boundHandler = handler.bind(this);
         this.subscriptions.push({ eventName, handler: boundHandler });
-        this.eventAggregator.subscribe(eventName, boundHandler);
+        this.eventAggregator.subscribe(eventName, handler.bind(this)); // [FIX] Ensure correct binding
     }
 
     /**
@@ -111,7 +123,39 @@ export class SearchDialogComponent {
                 }
             });
         });
+
+        // --- [NEW] 階段 2：為 S1/S2 頁籤按鈕綁定 click 事件 ---
+        this._addListener(this.elements.tabButtons.s1, 'click', () => this._switchTab('search-tab-s1'));
+        this._addListener(this.elements.tabButtons.s2, 'click', () => this._switchTab('search-tab-s2'));
     }
+
+    // --- [NEW] 階段 2：頁籤切換邏輯 ---
+    /**
+     * 處理 S1/S2 頁籤按鈕和內容窗格之間的 active class 切換
+     * @param {string} tabId - 要切換到的頁籤 ID (例如 'search-tab-s1')
+     */
+    _switchTab(tabId) {
+        // 處理按鈕
+        Object.values(this.elements.tabButtons).forEach(button => {
+            if (button) {
+                button.classList.toggle('active', button.id === tabId);
+            }
+        });
+
+        // 處理內容窗格
+        if (this.elements.tabContents.s1) {
+            this.elements.tabContents.s1.classList.toggle('active', tabId === 'search-tab-s1');
+        }
+        if (this.elements.tabContents.s2) {
+            this.elements.tabContents.s2.classList.toggle('active', tabId === 'search-tab-s2');
+        }
+
+        // [NEW] 階段 3：(可選) S1 focus 邏輯 (未來實作)
+        // if (tabId === 'search-tab-s1' && typeof this.s1View?.activate === 'function') {
+        //     this.s1View.activate();
+        // }
+    }
+
 
     show() {
         this._resetSearch(); // Reset to a clean state every time it's opened
@@ -144,6 +188,9 @@ export class SearchDialogComponent {
         // Disable load button
         this.elements.loadBtn.disabled = true;
         this.selectedQuoteData = null;
+
+        // [NEW] 階段 2：確保 S1 頁籤永遠是預設值
+        this._switchTab('search-tab-s1');
     }
 
     _onOverlayClick(event) {
@@ -220,7 +267,6 @@ export class SearchDialogComponent {
     _renderResultsList(quotes) {
         // Store the full data in memory
         this.quotesMap = new Map(quotes.map(q => [q.quoteId, q]));
-
         const html = quotes.map(quote => {
             const customer = quote.customer || {};
             const date = quote.issueDate || 'No Date';
