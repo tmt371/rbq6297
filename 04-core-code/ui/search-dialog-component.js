@@ -197,6 +197,11 @@ export class SearchDialogComponent {
     _resetSearch() {
         // [REMOVED] Tweak 1: 移除 _updateStatusBar
 
+        // [NEW] Tweak 1: (ReDo 邏輯) 清空 S1 篩選器
+        if (this.s1View && typeof this.s1View.clearFilters === 'function') {
+            this.s1View.clearFilters();
+        }
+
         // 確保 S1 頁籤永遠是預設值
         this._switchTab('search-tab-s1');
     }
@@ -209,8 +214,11 @@ export class SearchDialogComponent {
 
     // --- [NEW] Tweak 2: ReDo 按鈕邏輯 ---
     _onReDoClick() {
-        // 切換回 S1
-        this._switchTab('search-tab-s1');
+        // [MODIFIED] Tweak 1: 在切換前呼叫 _resetSearch 來清空欄位
+        this._resetSearch();
+
+        // 切換回 S1 (已在 _resetSearch 中完成)
+        // this._switchTab('search-tab-s1');
 
         // S1View 已經被注入，呼叫它的 activate 方法來 focus
         if (typeof this.s1View?.activate === 'function') {
@@ -245,22 +253,22 @@ export class SearchDialogComponent {
         }
 
         // 2. 執行搜尋
-        // [MODIFIED] Tweak 1: 改為土司
-        this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-            message: 'Searching...',
-            type: 'info'
-        });
+        // [REMOVED] Tweak 4: 移除 "Searching..." 土司
+        // this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+        //     message: 'Searching...',
+        //     type: 'info'
+        // });
 
         const result = await searchQuotesAdvanced(uid, filters);
 
-        // [MODIFIED] Tweak 1: 移除 statusBar 更新
-        // this._updateStatusBar(result.message);
+        // [REMOVED] Tweak 1: 移除 statusBar 更新
 
         // 3. 處理結果
         if (result.success) {
-            // [NEW] Tweak 1: 發布土司訊息
+            // [MODIFIED] Tweak 4: 根據是否有資料顯示不同訊息
+            const message = result.data.length > 0 ? `Found ${result.data.length} quotes.` : 'Not found.';
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: result.message, // "Found X quotes." or "No quotes found..."
+                message: message,
                 type: 'info'
             });
 

@@ -1,5 +1,6 @@
 /* FILE: 04-core-code/ui/views/search-tab-s1-view.js */
-// [NEW] 階段 3：S1 (篩選器) 子視圖
+// [MODIFIED] (Tweak 1) Added clearFilters().
+// [MODIFIED] (Tweak 2/3) Implemented focus navigation.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 
@@ -31,6 +32,11 @@ export class SearchTabS1View {
                 hasMotor: null,
             }
         };
+
+        // [NEW] Tweak 2: 焦點順序
+        this.focusOrder = [
+            'name', 'phone', 'email', 'postcode', 'year', 'month', 'hasMotor', 'searchBtn'
+        ];
 
         console.log("SearchTabS1View Initialized.");
     }
@@ -85,7 +91,7 @@ export class SearchTabS1View {
     }
 
     /**
-     * 2. 綁定事件監聽器
+     * [MODIFIED] Tweak 2 & 3: 綁定焦點導航
      */
     initialize() {
         // [NEW] 確保 DOM 元素已被快取
@@ -94,14 +100,55 @@ export class SearchTabS1View {
         // 綁定 "Search" 按鈕
         this._addListener(this.elements.searchBtn, 'click', this._onSearchClick);
 
-        // 為所有篩選器綁定 Enter 鍵
-        Object.values(this.elements.filters).forEach(input => {
-            this._addListener(input, 'keydown', (e) => {
-                if (e.key === 'Enter') {
+        // [MODIFIED] Tweak 2 & 3: 為 focusOrder 中的所有元素綁定 Enter/Tab 導航
+        this.focusOrder.forEach((key, index) => {
+            // 取得 DOM 元素 (可能是 filter input 或 searchBtn)
+            const element = this.elements.filters[key] || this.elements[key];
+            if (!element) return;
+
+            this._addListener(element, 'keydown', (e) => {
+                if (e.key === 'Enter' || (e.key === 'Tab' && !e.shiftKey)) {
                     e.preventDefault();
-                    this._onSearchClick();
+
+                    // Tweak 3: 如果在 Search 按鈕上按 Enter，觸發點擊
+                    if (key === 'searchBtn' && e.key === 'Enter') {
+                        this._onSearchClick();
+                        return;
+                    }
+
+                    // Tweak 2: 跳轉到下一個
+                    const nextIndex = (index + 1) % this.focusOrder.length;
+                    const nextKey = this.focusOrder[nextIndex];
+                    const nextElement = this.elements.filters[nextKey] || this.elements[nextKey];
+
+                    if (nextElement) {
+                        nextElement.focus();
+                        // Tweak 2: 全選下一個欄位的內容
+                        if (typeof nextElement.select === 'function') {
+                            nextElement.select();
+                        }
+                    }
                 }
             });
+
+            // Tweak 2: 點擊時也全選
+            this._addListener(element, 'focus', (e) => {
+                if (typeof e.target.select === 'function') {
+                    e.target.select();
+                }
+            });
+        });
+    }
+
+    // [NEW] Tweak 1: 清空所有篩選器
+    clearFilters() {
+        if (!this.elements.filters.name) {
+            this._cacheElements(); // 確保元素已快取
+        }
+        Object.values(this.elements.filters).forEach(input => {
+            if (input) {
+                input.value = '';
+            }
         });
     }
 
@@ -139,6 +186,7 @@ export class SearchTabS1View {
         this._cacheElements();
         setTimeout(() => {
             this.elements.filters.name?.focus();
+            this.elements.filters.name?.select(); // Tweak 2: 啟用時也全選
         }, 50); // 延遲以確保元素可見
     }
 }
