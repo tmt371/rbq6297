@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/ui/views/search-tab-s2-view.js */
-// [NEW] 階段 3：S2 (結果) 子視圖
+// [MODIFIED] (Tweak 1) Removed unused _updateStatusBar helper.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -24,7 +24,8 @@ export class SearchTabS2View {
             resultsMessage: null,
             previewContent: null,
             loadBtn: null,
-            statusBar: null,
+            // [REMOVED] Tweak 1: S2View 不再需要 statusBar
+            // statusBar: null, 
         };
 
         this.boundHandlers = [];
@@ -88,7 +89,8 @@ export class SearchTabS2View {
             resultsMessage: document.getElementById(DOM_IDS.SEARCH_RESULTS_MESSAGE),
             previewContent: document.getElementById(DOM_IDS.SEARCH_PREVIEW_CONTENT),
             loadBtn: document.getElementById(DOM_IDS.SEARCH_DIALOG_LOAD_BTN),
-            statusBar: document.getElementById(DOM_IDS.SEARCH_STATUS_BAR),
+            // [REMOVED] Tweak 1: S2View 不再快取 statusBar
+            // statusBar: document.getElementById(DOM_IDS.SEARCH_STATUS_BAR),
         };
     }
 
@@ -252,9 +254,12 @@ export class SearchTabS2View {
         }
     }
 
+    // [REMOVED] Tweak 1: 移除 S2View 中的 _updateStatusBar
+    /*
     _updateStatusBar(message) {
         if (this.elements.statusBar) {
             this.elements.statusBar.textContent = message;
         }
     }
+    */
 }

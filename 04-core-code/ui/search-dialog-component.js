@@ -1,6 +1,7 @@
 /* FILE: 04-core-code/ui/search-dialog-component.js */
 // [MODIFIED] (v6298-F4-Search) This component manages the advanced search UI.
-// [MODIFIED] (階段 4) Integrated S1/S2 sub-views and fixed initialization bug.
+// [MODIFIED] (Tweak 1) Removed statusBar updates, replaced with Toast notifications.
+// [MODIFIED] (Tweak 2) Added ReDo button logic.
 
 import { EVENTS, DOM_IDS } from '../config/constants.js';
 // [NEW] (v6298-F4-Search) Import new advanced search function and state actions
@@ -38,7 +39,11 @@ export class SearchDialogComponent {
         // 只快取管理員自身需要的元素
         this.elements = {
             closeBtn: this.container.querySelector(`#${DOM_IDS.SEARCH_DIALOG_CLOSE_BTN}`),
-            statusBar: this.container.querySelector(`#${DOM_IDS.SEARCH_STATUS_BAR}`),
+            // [REMOVED] Tweak 1: 不再快取 statusBar
+            // statusBar: this.container.querySelector(`#${DOM_IDS.SEARCH_STATUS_BAR}`),
+
+            // [NEW] Tweak 2: 快取 ReDo 按鈕
+            redoBtn: this.container.querySelector('#search-dialog-redo-btn'),
 
             // --- 頁籤管理 DOM ---
             tabContainer: this.container.querySelector('.search-tab-nav'),
@@ -118,6 +123,9 @@ export class SearchDialogComponent {
         this._addListener(this.elements.closeBtn, 'click', this.hide);
         this._addListener(this.container, 'click', this._onOverlayClick);
 
+        // --- [NEW] Tweak 2: 綁定 ReDo 按鈕事件 ---
+        this._addListener(this.elements.redoBtn, 'click', this._onReDoClick);
+
         // --- [REMOVED] 階段 3：S1 (searchBtn) 和 S2 (loadBtn, resultsList) 的監聽器 ---
 
         // --- 頁籤切換 (階段 2 邏輯保留) ---
@@ -187,9 +195,7 @@ export class SearchDialogComponent {
 
     // [MODIFIED] 階段 3：_resetSearch 大幅簡化
     _resetSearch() {
-        // [REMOVED] S1 (filter) 和 S2 (results) 的重置邏輯
-
-        this._updateStatusBar('');
+        // [REMOVED] Tweak 1: 移除 _updateStatusBar
 
         // 確保 S1 頁籤永遠是預設值
         this._switchTab('search-tab-s1');
@@ -201,6 +207,17 @@ export class SearchDialogComponent {
         }
     }
 
+    // --- [NEW] Tweak 2: ReDo 按鈕邏輯 ---
+    _onReDoClick() {
+        // 切換回 S1
+        this._switchTab('search-tab-s1');
+
+        // S1View 已經被注入，呼叫它的 activate 方法來 focus
+        if (typeof this.s1View?.activate === 'function') {
+            this.s1View.activate();
+        }
+    }
+
     // --- [NEW] 階段 3：_onExecuteSearch (取代 _onSearchClick) ---
     /**
      * 監聽 S1View 發出的 USER_REQUESTED_EXECUTE_SEARCH 事件
@@ -209,29 +226,44 @@ export class SearchDialogComponent {
     async _onExecuteSearch({ filters }) {
         const uid = this.authService.currentUser?.uid;
         if (!uid) {
-            this._updateStatusBar('Error: You are not logged in.');
+            // [MODIFIED] Tweak 1: 改為土司
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Error: You are not logged in.',
+                type: 'error'
+            });
             return;
         }
 
         // 簡單驗證 (雖然 S1View 也做了)
         if (Object.values(filters).every(v => !v && v !== false)) {
-            this._updateStatusBar('Please enter at least one search criteria.');
+            // [MODIFIED] Tweak 1: 改為土司
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Please enter at least one search criteria.',
+                type: 'error'
+            });
             return;
         }
 
         // 2. 執行搜尋
-        this._updateStatusBar('Searching...');
-        // [REMOVED] 階段 3：searchBtn 已移至 S1View
-
-        // [REMOVED] 階段 3：S2 的 UI 更新已移至 S2View
+        // [MODIFIED] Tweak 1: 改為土司
+        this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+            message: 'Searching...',
+            type: 'info'
+        });
 
         const result = await searchQuotesAdvanced(uid, filters);
 
-        // [REMOVED] 階段 3：searchBtn 已移至 S1View
-        this._updateStatusBar(result.message);
+        // [MODIFIED] Tweak 1: 移除 statusBar 更新
+        // this._updateStatusBar(result.message);
 
         // 3. 處理結果
         if (result.success) {
+            // [NEW] Tweak 1: 發布土司訊息
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: result.message, // "Found X quotes." or "No quotes found..."
+                type: 'info'
+            });
+
             // [MODIFIED] 階段 3：
             // A. 將結果數據發布給 S2View
             this.eventAggregator.publish(EVENTS.SEARCH_RESULTS_SUCCESSFUL, result.data);
@@ -241,24 +273,23 @@ export class SearchDialogComponent {
 
         } else if (result.needsIndex) {
             // 索引錯誤
-            this._updateStatusBar('Error: Database index missing. Check console (F12).');
+            // [MODIFIED] Tweak 1: 改為土司
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                 message: 'Index required. Link logged to console.',
                 type: 'error'
             });
         } else {
             // 其他錯誤
-            this._updateStatusBar(`Error: ${result.message}`);
+            // [MODIFIED] Tweak 1: 改為土司
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: `Error: ${result.message}`,
+                type: 'error'
+            });
         }
     }
 
 
     // --- [REMOVED] 階段 3：S2 的所有邏輯已移至 S2View ---
 
-    // --- [RETAINED] 階段 3：管理員保留對狀態欄的控制 ---
-    _updateStatusBar(message) {
-        if (this.elements.statusBar) {
-            this.elements.statusBar.textContent = message;
-        }
-    }
+    // --- [REMOVED] Tweak 1：_updateStatusBar 已不再需要 ---
 }

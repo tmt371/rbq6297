@@ -275,6 +275,16 @@
     cursor: pointer;
 }
 
+/* [NEW] Tweak 2: Style for the new ReDo icon button */
+#search-dialog-redo-btn {
+    font-size: 1.4em;
+    /* Make icon larger */
+    font-weight: bold;
+    padding: 4px 10px;
+    /* Adjust padding for icon shape */
+    line-height: 1;
+}
+
 .search-dialog-btn.btn-primary {
     background-color: var(--primary-color);
     color: white;
