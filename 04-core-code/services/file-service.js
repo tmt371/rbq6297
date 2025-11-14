@@ -1,4 +1,5 @@
-// /04-core-code/services/file-service.js
+/* FILE: 04-core-code/services/file-service.js */
+// [MODIFIED] (Tweak 1) _generateFileName now uses quoteId timestamp if available.
 
 import { dataToCsv, csvToData } from '../utils/csv-parser.js';
 import { initialState } from '../config/initial-state.js';
@@ -26,19 +27,30 @@ export class FileService {
     }
 
     _generateFileName(quoteData, extension) {
-        const now = new Date();
-        const yyyy = now.getFullYear();
-        const mm = String(now.getMonth() + 1).padStart(2, '0');
-        const dd = String(now.getDate()).padStart(2, '0');
-        const hh = String(now.getHours()).padStart(2, '0');
-        const min = String(now.getMinutes()).padStart(2, '0');
-        const timestamp = `${yyyy}${mm}${dd}${hh}${min}`;
+        let timestamp;
 
-        // [MODIFIED] 實作新的檔名邏輯
+        // [NEW] Tweak 1: 檢查是否存在有效的 quoteId
+        const quoteId = quoteData?.quoteId;
+        // 檢查 quoteId 是否存在，且是否以 "RB" 開頭並跟著數字 (基本格式驗證)
+        if (quoteId && quoteId.startsWith('RB') && !isNaN(parseInt(quoteId.substring(2, 16)))) {
+            // 從 "RB202511122247" 提取 "202511122247"
+            timestamp = quoteId.substring(2, 16);
+        } else {
+            // (Fallback) 如果是新報價單，使用當下時間
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            timestamp = `${yyyy}${mm}${dd}${hh}${min}`;
+        }
+
+        // [MODIFIED] å¯¦ä??°ç?æª”å?? è¼¯
         const customerName = quoteData?.customer?.name || 'customer';
         const customerPhone = quoteData?.customer?.phone || '';
 
-        // 簡化並清理：移除不安全字元並替換空白
+        // ç°¡å?ä¸¦æ??†ï?ç§»é™¤ä¸ å??¨å??ƒä¸¦?¿æ?ç©ºç™½
         const safeName = customerName.replace(/[\s/\\?%*:|"<>]/g, '_') || 'customer';
         const safePhone = customerPhone.replace(/[\s/\\?%*:|"<>]/g, '_');
 
@@ -46,7 +58,7 @@ export class FileService {
         if (safePhone) {
             parts.push(safePhone);
         }
-        parts.push(timestamp);
+        parts.push(timestamp); // [MODIFIED] 使用我們決定的 timestamp
 
         return `${parts.join('-')}.${extension}`;
     }
@@ -54,7 +66,7 @@ export class FileService {
     saveToJson(quoteData) {
         try {
             const jsonString = JSON.stringify(quoteData, null, 2);
-            // [MODIFIED] 傳遞 quoteData 以產生新檔名
+            // [MODIFIED] ?³é? quoteData ä»¥ç”¢?Ÿæ–°æª”å?
             const fileName = this._generateFileName(quoteData, 'json');
             this._triggerDownload(jsonString, fileName, 'application/json');
             return { success: true, message: 'Quote file is being downloaded...' };
@@ -67,7 +79,7 @@ export class FileService {
     exportToCsv(quoteData) {
         try {
             const csvString = dataToCsv(quoteData);
-            // [MODIFIED] 傳遞 quoteData 以產生新檔名
+            // [MODIFIED] ?³é? quoteData ä»¥ç”¢?Ÿæ–°æª”å?
             const fileName = this._generateFileName(quoteData, 'csv');
             this._triggerDownload(csvString, fileName, 'text/csv;charset=utf-8;');
             return { success: true, message: 'CSV file is being downloaded...' };
@@ -108,7 +120,7 @@ export class FileService {
                 if (f3Data) {
                     Object.assign(newQuoteData, f3Data); // Assign f3Data (quoteId, issueDate, customer...)
                 }
-                // [FIX] (v6295-fix) 補上遺漏的 f2Snapshot 還原邏輯
+                // [FIX] (v6295-fix) è£œä??ºæ???f2Snapshot ?„å?? è¼¯
                 if (f2Snapshot) {
                     Object.assign(newQuoteData.f2Snapshot, f2Snapshot);
                 }
