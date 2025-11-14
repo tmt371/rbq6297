@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/services/file-service.js */
-// [MODIFIED] (Tweak 1) _generateFileName now uses quoteId timestamp if available.
+// [MODIFIED] (Tweak 1) _generateFileName now uses quoteId's full suffix.
 
 import { dataToCsv, csvToData } from '../utils/csv-parser.js';
 import { initialState } from '../config/initial-state.js';
@@ -29,12 +29,13 @@ export class FileService {
     _generateFileName(quoteData, extension) {
         let timestamp;
 
-        // [NEW] Tweak 1: 檢查是否存在有效的 quoteId
+        // [MODIFIED] Tweak 1: 檢查是否存在有效的 quoteId
         const quoteId = quoteData?.quoteId;
-        // 檢查 quoteId 是否存在，且是否以 "RB" 開頭並跟著數字 (基本格式驗證)
-        if (quoteId && quoteId.startsWith('RB') && !isNaN(parseInt(quoteId.substring(2, 16)))) {
-            // 從 "RB202511122247" 提取 "202511122247"
-            timestamp = quoteId.substring(2, 16);
+        // 檢查 quoteId 是否存在，且是否以 "RB" 開頭
+        if (quoteId && quoteId.startsWith('RB')) {
+            // [FIX] Tweak 1: 擷取 "RB" 之後的 *所有* 字元
+            // 這將正確擷取 "202511122247" 或 "202511122247-v2"
+            timestamp = quoteId.substring(2);
         } else {
             // (Fallback) 如果是新報價單，使用當下時間
             const now = new Date();

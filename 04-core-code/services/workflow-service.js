@@ -1,5 +1,4 @@
 /* FILE: 04-core-code/services/workflow-service.js */
-// [MODIFIED] (Tweak A) Added handleSaveAsNewVersion logic.
 // [MODIFIED] (Tweak C) _getQuoteDataWithSnapshots now updates creationDate.
 
 import { initialState } from '../config/initial-state.js';
@@ -304,7 +303,7 @@ export class WorkflowService {
             // Replace the old suffix with the new one
             newQuoteId = currentId.replace(versionRegex, `-v${newVersion}`);
         } else {
-            // If it has no version, add "-v2"
+            // If it has no version, add "-v2" (Start with v2, as v1 is the original)
             newQuoteId = `${currentId}-v2`;
         }
 
