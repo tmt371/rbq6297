@@ -1,4 +1,5 @@
-// File: 04-core-code/ui/views/f2-summary-view.js
+/* FILE: 04-core-code/ui/views/f2-summary-view.js */
+// [MODIFIED] (Tweak 1) Implemented forced ceiling rounding for f2-balance.
 
 import { EVENTS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -231,7 +232,8 @@ export class F2SummaryView {
             this.f2.deposit.value = formatValue(f2State.deposit);
         }
         // Balance is read-only, so no need to check activeElement
-        if (this.f2.balance) this.f2.balance.value = formatValue(f2State.balance);
+        // [MODIFIED] Tweak 1: 使用 toFixed(2) 確保顯示兩位小數
+        if (this.f2.balance) this.f2.balance.value = (f2State.balance !== null && f2State.balance !== undefined) ? f2State.balance.toFixed(2) : '';
 
 
         if (this.f2.c13_deliveryFee) this.f2.c13_deliveryFee.classList.toggle('is-excluded', f2State.deliveryFeeExcluded);
@@ -364,7 +366,13 @@ export class F2SummaryView {
         }
 
         // Rule 4: Balance = grandTotal - deposit
-        const finalBalance = currentGrandTotal - finalDeposit;
+        const rawBalance = currentGrandTotal - finalDeposit;
+
+        // [NEW] Tweak 1: Force ceiling rounding to 2 decimal places
+        // 1. Multiply by 100 to get cents (e.g., 600.1331 -> 60013.31)
+        // 2. Use Math.ceil() to force round up (e.g., 60013.31 -> 60014)
+        // 3. Divide by 100 to get dollars (e.g., 60014 -> 600.14)
+        const finalBalance = Math.ceil(rawBalance * 100) / 100;
 
         this.stateService.dispatch(uiActions.setF2Value('deposit', finalDeposit));
         this.stateService.dispatch(uiActions.setF2Value('balance', finalBalance));
