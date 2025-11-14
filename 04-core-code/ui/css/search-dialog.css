@@ -285,16 +285,45 @@
     line-height: 1;
 }
 
+/* [MODIFIED] Tweak 1: SH 按鈕改為淡綠色 */
 .search-dialog-btn.btn-primary {
-    background-color: var(--primary-color);
-    color: white;
-    border-color: var(--primary-color);
+    background-color: #dcfce7;
+    /* Light green (from f1-grid) */
+    color: #1f2937;
+    /* Dark text for readability */
+    border-color: #a7f3d0;
+    /* Green border (from right-panel) */
+    transition: background-color 0.2s, border-color 0.2s, outline 0.1s ease-in-out;
 }
+
+/* [NEW] Tweak 2: SH 按鈕的 Hover 狀態 */
+.search-dialog-btn.btn-primary:hover {
+    background-color: #bbf7d0;
+    /* Slightly darker green */
+    border-color: #86efac;
+}
+
+/* [NEW] Tweak 2: SH 按鈕的 Focus 狀態 */
+.search-dialog-btn.btn-primary:focus {
+    background-color: #dcfce7;
+    /* 保持淡綠色 */
+    color: #1f2937;
+    /* 保持深色文字 */
+    border-color: #a7f3d0;
+    /* 保持綠色邊框 */
+
+    /* 深藍色外框 */
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
 
 .search-dialog-btn.btn-primary:disabled {
     background-color: #9fa8da;
     border-color: #9fa8da;
     cursor: not-allowed;
+    color: white;
+    /* 確保 disabled 狀態的文字顏色正確 */
 }
 
 .search-dialog-btn.btn-secondary {
