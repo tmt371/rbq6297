@@ -1,4 +1,5 @@
-// File: 04-core-code/app-controller.js
+/* FILE: 04-core-code/app-controller.js */
+// [MODIFIED] (Tweak A) Added subscription for Save as New Version.
 
 import { EVENTS, STORAGE_KEYS } from './config/constants.js';
 import * as uiActions from './actions/ui-actions.js';
@@ -250,6 +251,10 @@ export class AppController {
     _subscribeF4Events() {
         this._subscribe(EVENTS.USER_REQUESTED_SAVE, () =>
             this.workflowService.handleSaveToFile()
+        );
+        // [NEW] Tweak A: Add subscription for the "Save as New Version" event
+        this._subscribe(EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION, () =>
+            this.workflowService.handleSaveAsNewVersion()
         );
         this._subscribe(EVENTS.USER_REQUESTED_EXPORT_CSV, () =>
             this.workflowService.handleExportCSV()

@@ -68,6 +68,7 @@ export const EVENTS = {
 
     // --- User Actions: File Operations ---
     USER_REQUESTED_SAVE: 'userRequestedSave',
+    USER_REQUESTED_SAVE_AS_NEW_VERSION: 'userRequestedSaveAsNewVersion', // [NEW] Tweak A
     USER_REQUESTED_EXPORT_CSV: 'userRequestedExportCSV',
     USER_REQUESTED_RESET: 'userRequestedReset',
     USER_REQUESTED_LOAD: 'userRequestedLoad',

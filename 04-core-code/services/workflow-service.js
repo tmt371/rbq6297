@@ -1,4 +1,6 @@
-// File: 04-core-code/services/workflow-service.js
+/* FILE: 04-core-code/services/workflow-service.js */
+// [MODIFIED] (Tweak A) Added handleSaveAsNewVersion logic.
+// [MODIFIED] (Tweak C) _getQuoteDataWithSnapshots now updates creationDate.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
@@ -164,6 +166,7 @@ export class WorkflowService {
     // [MODIFIED v6292] F3 state is now read directly from quoteData state.
     // [MODIFIED v6295] Capture F1 Wifi Qty and all of F2 state.
     // [MODIFIED] (v6297) Capture ownerUid.
+    // [MODIFIED] (Tweak C) Capture creationDate.
     _getQuoteDataWithSnapshots() {
         const { quoteData, ui } = this.stateService.getState();
         // Create a deep copy to avoid mutating the original state
@@ -247,11 +250,16 @@ export class WorkflowService {
         // Save the entire F2 state object
         dataWithSnapshot.f2Snapshot = JSON.parse(JSON.stringify(ui.f2));
 
+        // --- 5. [NEW] (Tweak C) Add/Update creationDate ---
+        // This ensures every save action (overwrite or new version) updates the timestamp.
+        dataWithSnapshot.creationDate = new Date().toISOString();
+
         return dataWithSnapshot;
     }
 
     // [MODIFIED v6285 Phase 5] Logic migrated from quick-quote-view.js and updated.
     // [MODIFIED] (v6298-fix-6) Added try...catch for robust cloud save.
+    // [MODIFIED] (Tweak C) Now updates creationDate via _getQuoteDataWithSnapshots.
     async handleSaveToFile() {
         const dataToSave = this._getQuoteDataWithSnapshots();
 
@@ -273,6 +281,58 @@ export class WorkflowService {
         this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
             message: result.message,
             type: notificationType,
+        });
+    }
+
+    // [NEW] (Tweak A) Logic for "Save as New Version"
+    async handleSaveAsNewVersion() {
+        // 1. Get the current data, with all snapshots and a NEW creationDate
+        const dataToSave = this._getQuoteDataWithSnapshots();
+
+        // 2. Generate the new versioned quoteId
+        const currentId = dataToSave.quoteId || `RB${new Date().toISOString().replace(/[-:.]/g, '').substring(0, 14)}`;
+
+        // Regex to find a version suffix like "-v2"
+        const versionRegex = /-v(\d+)$/;
+        const match = currentId.match(versionRegex);
+
+        let newQuoteId;
+        if (match) {
+            // If it has a version (e.g., "-v2"), increment it
+            const currentVersion = parseInt(match[1], 10);
+            const newVersion = currentVersion + 1;
+            // Replace the old suffix with the new one
+            newQuoteId = currentId.replace(versionRegex, `-v${newVersion}`);
+        } else {
+            // If it has no version, add "-v2"
+            newQuoteId = `${currentId}-v2`;
+        }
+
+        // 3. Update the data object with the new ID
+        dataToSave.quoteId = newQuoteId;
+
+        // 4. Save to both cloud (new document) and local (new file)
+        let cloudSaveSuccess = false;
+        try {
+            await saveQuoteToCloud(dataToSave);
+            cloudSaveSuccess = true;
+        } catch (error) {
+            console.error("WorkflowService: Cloud save (new version) failed, but proceeding to local save.", error);
+        }
+
+        const localSaveResult = this.fileService.saveToJson(dataToSave);
+
+        // 5. Dispatch to update the app's state to this new version
+        this.stateService.dispatch(quoteActions.setQuoteData(dataToSave));
+
+        // 6. Notify user
+        const message = cloudSaveSuccess
+            ? `New version saved as: ${newQuoteId}`
+            : `New version saved locally. Cloud save failed.`;
+
+        this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+            message: message,
+            type: localSaveResult.success ? 'info' : 'error',
         });
     }
 

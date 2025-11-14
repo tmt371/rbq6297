@@ -1,4 +1,4 @@
-/* File: 04-core-code/ui/css/right-panel.css */
+/* FILE: 04-core-code/ui/css/right-panel.css */
 
 @import url('./f1-grid.css');
 @import url('./f2-summary-table.css');
@@ -173,6 +173,13 @@
 #f1-key-save {
     background-color: #dcfce7;
     border-color: #a7f3d0;
+}
+
+/* [NEW] Tweak A: Style for the new "Save as New Version" button */
+#f4-key-save-as-new {
+    background-color: #ffedd5;
+    /* Same as Load File */
+    border-color: #fed7aa;
 }
 
 #f1-key-export {
