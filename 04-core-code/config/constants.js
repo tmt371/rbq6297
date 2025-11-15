@@ -1,7 +1,6 @@
 /* FILE: 04-core-code/config/constants.js */
 // [MODIFIED] (階段 1) Added USER_REQUESTED_GENERATE_WORK_ORDER.
-
-import { EVENTS, DOM_IDS } from '../config/constants.js';
+// [FIX] Removed self-importing line that caused SyntaxError.
 
 /**
  * @fileoverview Centralized constants for the application.
@@ -18,8 +17,7 @@ export const EVENTS = {
 
     // --- UI Notifications & Dialogs ---
     SHOW_NOTIFICATION: 'showNotification',
-    SHOW_LOAD_CONFIRMATI
-ON_DIALOG: 'showLoadConfirmationDialog',
+    SHOW_LOAD_CONFIRMATION_DIALOG: 'showLoadConfirmationDialog',
     SHOW_CONFIRMATION_DIALOG: 'showConfirmationDialog',
     FOCUS_ELEMENT: 'focusElement',
 
@@ -32,14 +30,12 @@ ON_DIALOG: 'showLoadConfirmationDialog',
     NUMERIC_KEY_PRESSED: 'numericKeyPressed',
     USER_REQUESTED_INSERT_ROW: 'userRequestedInsertRow',
     USER_REQUESTED_DELETE_ROW: 'userRequestedDeleteRow',
-    USER_REQUESTED_CLEAR_ROW:
-        'userRequestedClearRow',
+    USER_REQUESTED_CLEAR_ROW: 'userRequestedClearRow',
     USER_MOVED_ACTIVE_CELL: 'userMovedActiveCell',
     USER_REQUESTED_CYCLE_TYPE: 'userRequestedCycleType',
     USER_REQUESTED_CALCULATE_AND_SUM: 'userRequestedCalculateAndSum',
     USER_TOGGLED_MULTI_SELECT_MODE: 'userToggledMultiSelectMode',
     USER_REQUESTED_MULTI_TYPE_SET: 'userRequestedMultiTypeSet',
-
     TYPE_CELL_LONG_PRESSED: 'typeCellLongPressed',
     TYPE_BUTTON_LONG_PRESSED: 'typeButtonLongPressed',
 
@@ -57,7 +53,6 @@ ON_DIALOG: 'showLoadConfirmationDialog',
     // [REMOVED] (Phase 3 Cleanup) Obsolete K2 mode events
     // USER_REQUESTED_LF_EDIT_MODE: 'userRequestedLFEditMode',
     USER_REQUESTED_LF_DELETE_MODE: 'userRequestedLFDeleteMode',
-
     // USER_REQUESTED_SSET_MODE: 'userRequestedSSetMode',
     USER_TOGGLED_K3_EDIT_MODE: 'userToggledK3EditMode',
     USER_REQUESTED_BATCH_CYCLE: 'userRequestedBatchCycle',
@@ -79,7 +74,6 @@ ON_DIALOG: 'showLoadConfirmationDialog',
     USER_REQUESTED_RESET: 'userRequestedReset',
     USER_REQUESTED_LOAD: 'userRequestedLoad',
     USER_REQUESTED_LOAD_FROM_CLOUD: 'userRequestedLoadFromCloud', // [MODIFIED] This is now the OLD button event
-
     USER_CHOSE_SAVE_THEN_LOAD: 'userChoseSaveThenLoad',
     USER_CHOSE_LOAD_DIRECTLY: 'userChoseLoadDirectly',
     TRIGGER_FILE_LOAD: 'triggerFileLoad',
@@ -107,7 +101,6 @@ ON_DIALOG: 'showLoadConfirmationDialog',
     F2_TAB_ACTIVATED: 'f2TabActivated',
     F2_VALUE_CHANGED: 'f2ValueChanged',
     F2_INPUT_ENTER_PRESSED: 'f2InputEnterPressed',
-
     TOGGLE_FEE_EXCLUSION: 'toggleFeeExclusion',
 
     // --- Cell/Row Interactions ---
@@ -131,7 +124,6 @@ export const DOM_IDS = {
     // --- Numeric Keyboard & Top Controls ---
     NUMERIC_KEYBOARD: 'numeric-keyboard',
     PANEL_TOGGLE: 'panel-toggle',
-
     KEY_M_SET: 'key-m-set',
     TOTAL_SUM_VALUE: 'total-sum-value',
     KEY_INS_GRID: 'key-ins-grid',
@@ -154,7 +146,6 @@ export const DOM_IDS = {
     F1_PRICE_REMOTE_1CH: 'f1-price-remote-1ch',
     F1_QTY_REMOTE_16CH: 'f1-qty-remote-16ch',
     F1_PRICE_REMOTE_16CH: 'f1-price-remote-16ch',
-
     F1_QTY_CHARGER: 'f1-qty-charger',
     F1_PRICE_CHARGER: 'f1-price-charger',
     F1_QTY_3M_CORD: 'f1-qty-3m-cord',
@@ -177,7 +168,6 @@ export const DOM_IDS = {
 
     // --- [NEW] v6298 F4 Panel Elements ---
     F4_BTN_SEARCH_DIALOG: 'f4-key-search-dialog',
-
     F4_BTN_LOGOUT: 'f4-key-logout',
 
     // --- [NEW] v6298 Search Dialog Elements ---
@@ -198,7 +188,6 @@ export const DOM_IDS = {
     SEARCH_FILTER_HAS_MOTOR: 'search-filter-has-motor',
     SEARCH_RESULTS_LIST: 'search-results-list',
     SEARCH_RESULTS_MESSAGE: 'search-results-message',
-
     SEARCH_PREVIEW_CONTENT: 'search-preview-content',
     SEARCH_STATUS_BAR: 'search-status-bar',
     SEARCH_DIALOG_SEARCH_BTN: 'search-dialog-search-btn',
