@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/ui/views/f4-actions-view.js */
-// [MODIFIED] (Tweak A) Added new "Save as New Version" button.
+// [MODIFIED] (階段 1) Added new "Generate Work Order" button.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 
@@ -49,7 +49,8 @@ export class F4ActionsView {
         this.f4 = {
             buttons: {
                 'f1-key-save': query('#f1-key-save'),
-                'f4-key-save-as-new': query('#f4-key-save-as-new'), // [NEW] Tweak A
+                'f4-key-save-as-new': query('#f4-key-save-as-new'),
+                'f4-key-generate-work-order': query('#f4-key-generate-work-order'), // [NEW] 階段 1
                 'f1-key-export': query('#f1-key-export'),
                 'f1-key-load': query('#f1-key-load'),
                 'f4-key-load-cloud': query(`#${DOM_IDS.F4_BTN_SEARCH_DIALOG}`), // [MODIFIED] Old ID no longer exists, new ID used
@@ -63,7 +64,8 @@ export class F4ActionsView {
         // [MODIFIED] Add new event for cloud load, search dialog, and logout
         const buttonEventMap = {
             'f1-key-save': EVENTS.USER_REQUESTED_SAVE,
-            'f4-key-save-as-new': EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION, // [NEW] Tweak A
+            'f4-key-save-as-new': EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION,
+            'f4-key-generate-work-order': EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, // [NEW] 階段 1
             'f1-key-export': EVENTS.USER_REQUESTED_EXPORT_CSV,
             'f1-key-load': EVENTS.USER_REQUESTED_LOAD,
             'f4-key-load-cloud': EVENTS.USER_REQUESTED_SEARCH_DIALOG, // [MODIFIED] (v6298) This button now triggers the search dialog

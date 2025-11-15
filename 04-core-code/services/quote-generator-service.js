@@ -1,4 +1,5 @@
-// File: 04-core-code/services/quote-generator-service.js
+/* FILE: 04-core-code/services/quote-generator-service.js */
+// [MODIFIED] (階段 1) Added logic to load work-order-template.html and stub for generateWorkOrderHtml.
 
 import { paths } from '../config/paths.js';
 /**
@@ -20,10 +21,12 @@ export class QuoteGeneratorService {
         this.gmailClientScript = '';
         // [NEW] Add property for the detailed list row
         this.detailedItemListRow = '';
+        // [NEW] 階段 1: Add property for the work order template
+        this.workOrderTemplate = '';
 
         // [MODIFIED] The script now includes a robust CSS inlining mechanism.
         this.actionBarHtml = `
-    <div id="action-bar">
+     <div id="action-bar">
         <button id="copy-html-btn">Copy HTML</button>
         <button id="print-btn">Print / Save PDF</button>
     </div>`;
@@ -55,7 +58,9 @@ export class QuoteGeneratorService {
                 // [NEW] Fetch the GTH client script content as text
                 this.gmailClientScript,
                 // [NEW] Fetch the detailed list row template
-                this.detailedItemListRow
+                this.detailedItemListRow,
+                // [NEW] 階段 1: Fetch the new work order template
+                this.workOrderTemplate
             ] = await Promise.all([
                 fetch(paths.partials.quoteTemplate).then(res => res.text()),
                 fetch(paths.partials.detailedItemList).then(res => res.text()),
@@ -69,8 +74,10 @@ export class QuoteGeneratorService {
                 fetch(paths.partials.gmailClientScript).then(res => res.text()),
                 // [NEW] Fetch the detailed list row
                 fetch(paths.partials.detailedItemListRow).then(res => res.text()),
+                // [NEW] 階段 1: Fetch the work order template
+                fetch(paths.partials.workOrderTemplate).then(res => res.text()),
             ]);
-            console.log("QuoteGeneratorService: All (6) HTML templates and (2) client scripts pre-fetched and cached.");
+            console.log("QuoteGeneratorService: All (7) HTML templates and (2) client scripts pre-fetched and cached.");
         } catch (error) {
             console.error("QuoteGeneratorService: Failed to pre-fetch HTML templates:", error);
             // In a real-world scenario, you might want to publish an error event here.
@@ -81,14 +88,43 @@ export class QuoteGeneratorService {
     // This method ensures templates are loaded, but only fetches them once.
     async _loadTemplates() {
         // Check if templates are already loaded.
-        // [MODIFIED] Check for new templates and script as well
-        if (this.quoteTemplate && this.detailsTemplate && this.gmailTemplate && this.quoteTemplateRow && this.gmailTemplateCard && this.quoteClientScript && this.gmailClientScript && this.detailedItemListRow) {
+        // [MODIFIED] 階段 1: Check for new work order template
+        if (this.quoteTemplate && this.detailsTemplate && this.gmailTemplate && this.quoteTemplateRow && this.gmailTemplateCard && this.quoteClientScript && this.gmailClientScript && this.detailedItemListRow && this.workOrderTemplate) {
             return; // Already loaded, do nothing.
         }
 
         // If not loaded, call the original _initialize logic to fetch them.
         console.log("QuoteGeneratorService: First click detected, fetching templates...");
         await this._initialize();
+    }
+
+    // [NEW] 階段 1: 建立工單 HTML 的新函式
+    /**
+     * Generates the HTML for the Work Order (No Prices).
+     * @param {object} quoteData - The application's quote data.
+     * @param {object} ui - The application's UI state.
+     * @returns {Promise<string|null>} The populated HTML string or null if templates aren't loaded.
+     */
+    async generateWorkOrderHtml(quoteData, ui) {
+        // 1. 確保模板已載入
+        await this._loadTemplates();
+
+        if (!this.workOrderTemplate) {
+            console.error("QuoteGeneratorService: Work Order template is not loaded yet.");
+            return null;
+        }
+
+        // 2. 獲取填充資料 (階段 2 才會實作)
+        // const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData);
+
+        // 3. (階段 1 暫時) 直接回傳模板內容
+        // let finalHtml = this._populateTemplate(this.workOrderTemplate, templateData);
+        let finalHtml = this.workOrderTemplate;
+
+        // 4. (未來) 注入專屬的 JS
+        // finalHtml = finalHtml.replace('</body>', `<script>${this.workOrderClientScript}</script></body>`);
+
+        return finalHtml;
     }
 
 
@@ -105,7 +141,7 @@ export class QuoteGeneratorService {
         }
 
         // 1. Get common data
-        // [MODIFIED v6291] 步驟 5: getQuoteTemplateData 確保總是返回 ourOffer
+        // [MODIFIED v6291] æ­¥é? 5: getQuoteTemplateData ç¢ºä?ç¸½æ˜¯è¿”å? ourOffer
         const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data);
 
         // 2. [NEW v6290 Task 2] Conditionally create the GST row HTML
@@ -113,14 +149,14 @@ export class QuoteGeneratorService {
         if (!templateData.uiState.f2.gstExcluded) {
             gstRowHtml = `
                  <tr>
-                    <td class="summary-label"
+                     <td class="summary-label"
                          style="padding: 8px 0; border: 1px solid #dddddd; font-size: 13.3px; text-align: right; padding-right: 20px; color: #555555;">
                          GST</td>
                      <td class="summary-value"
                          style="padding: 8px 0; border: 1px solid #dddddd; font-size: 13.3px; text-align: right; font-weight: 500; padding-right: 10px;">
                          ${templateData.gst}</td>
                 </tr>
-            `; // [FIX v6291] 移除錯誤的 `\`
+            `; // [FIX v6291] ç§»é™¤?¯èª¤??`\`
         }
 
         // 3. Populate the GTH template
@@ -130,7 +166,7 @@ export class QuoteGeneratorService {
             total: templateData.grandTotal,
             deposit: templateData.deposit,
             balance: templateData.balance,
-            ourOffer: templateData.ourOffer, // [FIX v6291] 步驟 5: 確保 ourOffer 被傳遞
+            ourOffer: templateData.ourOffer, // [FIX v6291] æ­¥é? 5: ç¢ºä? ourOffer è¢«å‚³??
 
             // Ensure customer info is formatted
             customerInfoHtml: this._formatCustomerInfo(templateData),
@@ -167,7 +203,7 @@ export class QuoteGeneratorService {
         }
 
         // 1. Delegate all data preparation to CalculationService.
-        // [MODIFIED v6291] 步驟 5: getQuoteTemplateData 確保總是返回 ourOffer
+        // [MODIFIED v6291] æ­¥é? 5: getQuoteTemplateData ç¢ºä?ç¸½æ˜¯è¿”å? ourOffer
         const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data);
 
         // 2. [NEW v6290 Task 2] Conditionally create the GST row HTML for the *Original Table*
@@ -186,7 +222,7 @@ export class QuoteGeneratorService {
             ...templateData,
             customerInfoHtml: this._formatCustomerInfo(templateData),
             // [MODIFIED v6290 Task 1] Use the single-table generator
-            // [FIX v6291] (步驟 1, 2) 此函數現在只返回 <tr>...</tr>
+            // [FIX v6291] (æ­¥é? 1, 2) æ­¤å‡½?¸ç ¾?¨å ªè¿”å? <tr>...</tr>
             itemsTableBody: this._generatePageOneItemsTableHtml_Original(templateData),
             // [MODIFIED] Call renamed function and use new placeholder key
             rollerBlindsTableRows: this._generateItemsTableHtml_RowsOnly(templateData),
@@ -239,7 +275,7 @@ export class QuoteGeneratorService {
             if (key === 'total') return data.grandTotal;
             if (key === 'deposit') return data.deposit;
             if (key === 'balance') return data.balance;
-            // [NEW v6291] 步驟 5: 增加 ourOffer 的 fallback
+            // [NEW v6291] æ­¥é? 5: å¢žå? ourOffer ??fallback
             if (key === 'ourOffer') return data.ourOffer;
 
             return match; // Keep original placeholder if key not found
@@ -315,25 +351,25 @@ export class QuoteGeneratorService {
 
         // [MODIFIED] Remove inline helper function
         const createRowData = (number, description, qty, price, discountedPrice, isExcluded = false) => {
-            // [FIX v6291] 步驟 3: 如果 Price 被排除，Discounted Price 顯示為 0
+            // [FIX v6291] æ­¥é? 3: å¦‚æ? Price è¢«æ??¤ï?Discounted Price é¡¯ç¤º??0
             const discountedPriceValue = isExcluded ? 0 : discountedPrice;
             const isDiscounted = discountedPriceValue < price;
 
-            // [FIX v6291] (修復 PDF 步驟 1.2, 1.3, 1.4) 實現正確的顏色樣式邏輯
-            let priceStyle = 'style="color: #333;"'; // (1.3) 預設 Price 為黑色
-            // (1.3) 預設 Discounted Price 為黑色 (CSS 會使其為紅色，style 用於覆蓋)
+            // [FIX v6291] (ä¿®å¾© PDF æ­¥é? 1.2, 1.3, 1.4) å¯¦ç ¾æ­?¢º?„é??²æ¨£å¼ é?è¼?
+            let priceStyle = 'style="color: #333;"'; // (1.3) ? è¨­ Price ?ºé???
+            // (1.3) ? è¨­ Discounted Price ?ºé???(CSS ?ƒä½¿?¶ç‚ºç´…è‰²ï¼Œstyle ?¨æ–¼è¦†è?)
             let discountedPriceStyle = 'style="color: #333;"';
 
             if (isExcluded) {
-                // (1.4) Price: 灰色刪除線 Discounted: 紅色 (並顯示 0)
+                // (1.4) Price: ?°è‰²?ªé™¤ç·?Discounted: ç´…è‰² (ä¸¦é¡¯ç¤?0)
                 priceStyle = 'style="text-decoration: line-through; color: #999999;"';
                 discountedPriceStyle = 'style="color: #d32f2f;"';
             } else if (isDiscounted) {
-                // (1.2) Price: 灰色 Discounted: 紅色
+                // (1.2) Price: ?°è‰² Discounted: ç´…è‰²
                 priceStyle = 'style="color: #999999;"';
-                discountedPriceStyle = 'style="color: #d32f2f;"'; // 保持紅色 (CSS 預設)
+                discountedPriceStyle = 'style="color: #d32f2f;"'; // ä¿ æ?ç´…è‰² (CSS ? è¨­)
             }
-            // (1.3) 情況 (isExcluded = false 且 isDiscounted = false) 已在預設中處理 (兩者皆為黑色)
+            // (1.3) ?…æ? (isExcluded = false ä¸?isDiscounted = false) å·²åœ¨? è¨­ä¸­è???(?©è€…ç??ºé???
 
             // [MODIFIED] Return data object instead of string
             return {
@@ -356,11 +392,11 @@ export class QuoteGeneratorService {
             validItemCount,
             summaryData.firstRbPrice || 0,
             summaryData.disRbPrice || 0,
-            false // 確保 Roller Blinds Price 永遠不會被劃掉
+            false // ç¢ºä? Roller Blinds Price æ°¸é?ä¸ æ?è¢«å???
         ));
 
         // Row 2: Installation Accessories (Optional)
-        // [FIX v6291] 步驟 1: 修正 isExcluded 邏輯，確保 Price 永遠不會被劃掉
+        // [FIX v6291] æ­¥é? 1: ä¿®æ­£ isExcluded ? è¼¯ï¼Œç¢ºä¿?Price æ°¸é?ä¸ æ?è¢«å???
         if (summaryData.acceSum > 0) {
             rows.push(createRowData(
                 itemNumber++,
@@ -368,13 +404,13 @@ export class QuoteGeneratorService {
                 'NA',
                 summaryData.acceSum || 0,
                 summaryData.acceSum || 0,
-                false // 確保此項目 Price 永遠不會被劃掉
+                false // ç¢ºä?æ­¤é???Price æ°¸é?ä¸ æ?è¢«å???
             ));
         }
 
         // Row 3: Motorised Package (Optional)
-        // [MODIFIED v6291] 步驟 2 & 5: 註解
-        // [FIX v6291] 步驟 2: 修正 isExcluded 邏輯，確保 Price 永遠不會被劃掉
+        // [MODIFIED v6291] æ­¥é? 2 & 5: è¨»è§£
+        // [FIX v6291] æ­¥é? 2: ä¿®æ­£ isExcluded ? è¼¯ï¼Œç¢ºä¿?Price æ°¸é?ä¸ æ?è¢«å???
         if (summaryData.eAcceSum > 0) {
             rows.push(createRowData(
                 itemNumber++,
@@ -382,12 +418,12 @@ export class QuoteGeneratorService {
                 'NA',
                 summaryData.eAcceSum || 0,
                 summaryData.eAcceSum || 0,
-                false // 確保此項目 Price 永遠不會被劃掉
+                false // ç¢ºä?æ­¤é???Price æ°¸é?ä¸ æ?è¢«å???
             ));
         }
 
         // Row 4: Delivery
-        // [註] 步驟 6: 此處邏輯已正確，isExcluded 會繼承 deliveryExcluded
+        // [è¨»] æ­¥é? 6: æ­¤è?? è¼¯å·²æ­£ç¢ºï?isExcluded ?ƒç¹¼??deliveryExcluded
         const deliveryExcluded = uiState.f2.deliveryFeeExcluded;
         rows.push(createRowData(
             itemNumber++,
@@ -399,7 +435,7 @@ export class QuoteGeneratorService {
         ));
 
         // Row 5: Installation
-        // [註] 步驟 7: 此處邏輯已正確，isExcluded 會繼承 installExcluded
+        // [è¨»] æ­¥é? 7: æ­¤è?? è¼¯å·²æ­£ç¢ºï?isExcluded ?ƒç¹¼??installExcluded
         const installExcluded = uiState.f2.installFeeExcluded;
         rows.push(createRowData(
             itemNumber++,
@@ -411,7 +447,7 @@ export class QuoteGeneratorService {
         ));
 
         // Row 6: Removal
-        // [註] 步驟 8: 此處邏輯已正確，isExcluded 會繼承 removalExcluded
+        // [è¨»] æ­¥é? 8: æ­¤è?? è¼¯å·²æ­£ç¢ºï?isExcluded ?ƒç¹¼??removalExcluded
         const removalExcluded = uiState.f2.removalFeeExcluded;
         rows.push(createRowData(
             itemNumber++,
@@ -437,24 +473,24 @@ export class QuoteGeneratorService {
 
         // [MODIFIED] Remove inline helper function
         const createRowData = (number, description, qty, price, discountedPrice, isExcluded = false) => {
-            // [FIX v6291] 步驟 3: 如果 Price 被排除，Discounted Price 顯示為 0
+            // [FIX v6291] æ­¥é? 3: å¦‚æ? Price è¢«æ??¤ï?Discounted Price é¡¯ç¤º??0
             const discountedPriceValue = isExcluded ? 0 : discountedPrice;
             const isDiscounted = discountedPriceValue < price;
 
-            // [FIX v6291] (修復 PDF 步驟 1.2, 1.3, 1.4) 實現正確的顏色樣式邏輯 (GTH 版本)
-            let priceStyle = 'style="color: #333;"'; // (1.3) 預設 Price 為黑色
-            let discountedPriceStyle = 'style="font-weight: bold; color: #333;"'; // (1.3) GTH 預設黑色粗體
+            // [FIX v6291] (ä¿®å¾© PDF æ­¥é? 1.2, 1.3, 1.4) å¯¦ç ¾æ­?¢º?„é??²æ¨£å¼ é?è¼?(GTH ?ˆæœ¬)
+            let priceStyle = 'style="color: #333;"'; // (1.3) ? è¨­ Price ?ºé???
+            let discountedPriceStyle = 'style="font-weight: bold; color: #333;"'; // (1.3) GTH ? è¨­é»‘è‰²ç²—é?
 
             if (isExcluded) {
-                // (1.4) Price: 灰色刪除線 Discounted: 紅色
+                // (1.4) Price: ?°è‰²?ªé™¤ç·?Discounted: ç´…è‰²
                 priceStyle = 'style="text-decoration: line-through; color: #999999;"';
                 discountedPriceStyle = 'style="font-weight: bold; color: #d32f2f;"';
             } else if (isDiscounted) {
-                // (1.2) Price: 灰色 Discounted: 紅色
+                // (1.2) Price: ?°è‰² Discounted: ç´…è‰²
                 priceStyle = 'style="color: #999999;"';
                 discountedPriceStyle = 'style="font-weight: bold; color: #d32f2f;"';
             }
-            // (1.3) 情況 (isExcluded = false 且 isDiscounted = false) 已在預設中處理
+            // (1.3) ?…æ? (isExcluded = false ä¸?isDiscounted = false) å·²åœ¨? è¨­ä¸­è???
 
             // [MODIFIED] Return data object instead of string
             return {
@@ -477,11 +513,11 @@ export class QuoteGeneratorService {
             validItemCount,
             summaryData.firstRbPrice || 0,
             summaryData.disRbPrice || 0,
-            false // 確保 Roller Blinds Price 永遠不會被劃掉
+            false // ç¢ºä? Roller Blinds Price æ°¸é?ä¸ æ?è¢«å???
         ));
 
         // Row 2: Installation Accessories (Optional)
-        // [FIX v6291] 步驟 1: 修正 isExcluded 邏輯，確保 Price 永遠不會被劃掉
+        // [FIX v6291] æ­¥é? 1: ä¿®æ­£ isExcluded ? è¼¯ï¼Œç¢ºä¿?Price æ°¸é?ä¸ æ?è¢«å???
         if (summaryData.acceSum > 0) {
             rows.push(createRowData(
                 itemNumber++,
@@ -489,13 +525,13 @@ export class QuoteGeneratorService {
                 'NA',
                 summaryData.acceSum || 0,
                 summaryData.acceSum || 0,
-                false // 確保此項目 Price 永遠不會被劃掉
+                false // ç¢ºä?æ­¤é???Price æ°¸é?ä¸ æ?è¢«å???
             ));
         }
 
         // Row 3: Motorised Accessories (Optional)
-        // [FIX v6291] 步驟 2: 修正 isExcluded 邏輯，確保 Price 永遠不會被劃掉
-        // [MODIFIED v6291] 步驟 2: 註解
+        // [FIX v6291] æ­¥é? 2: ä¿®æ­£ isExcluded ? è¼¯ï¼Œç¢ºä¿?Price æ°¸é?ä¸ æ?è¢«å???
+        // [MODIFIED v6291] æ­¥é? 2: è¨»è§£
         if (summaryData.eAcceSum > 0) {
             rows.push(createRowData(
                 itemNumber++,
@@ -503,7 +539,7 @@ export class QuoteGeneratorService {
                 'NA',
                 summaryData.eAcceSum || 0,
                 summaryData.eAcceSum || 0,
-                false // 確保此項目 Price 永遠不會被劃掉
+                false // ç¢ºä?æ­¤é???Price æ°¸é?ä¸ æ?è¢«å???
             ));
         }
 

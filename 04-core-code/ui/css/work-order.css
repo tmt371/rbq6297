@@ -1,0 +1,13 @@
+/* FILE: 04-core-code/ui/css/work-order.css */
+
+/* 此檔案為工廠訂單 (Work Order) 專屬的樣式表。
+  未來所有 A4 列印佈局、工單表格樣式、字體大小等
+  都將在這裡定義。
+*/
+
+@media print {
+    body {
+        /* 未來將在此處定義列印專用樣式 */
+        background-color: #ffffff;
+    }
+}

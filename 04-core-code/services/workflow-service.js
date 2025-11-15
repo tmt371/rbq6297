@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/services/workflow-service.js */
-// [MODIFIED] (Tweak C) _getQuoteDataWithSnapshots now updates creationDate.
+// [MODIFIED] (階段 1) Added handleGenerateWorkOrder function.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
@@ -43,6 +43,39 @@ export class WorkflowService {
 
     setQuotePreviewComponent(component) {
         this.quotePreviewComponent = component;
+    }
+
+    // [NEW] 階段 1: 建立工單的工作流程
+    async handleGenerateWorkOrder() {
+        try {
+            const { quoteData, ui } = this.stateService.getState();
+
+            // 1. (動作) 呼叫 quoteGeneratorService 產生 HTML
+            // 在此階段，此函式只會回傳基礎模板
+            const finalHtml =
+                await this.quoteGeneratorService.generateWorkOrderHtml(
+                    quoteData,
+                    ui
+                );
+
+            if (finalHtml) {
+                // 2. (動作) 在新視窗中開啟
+                const blob = new Blob([finalHtml], { type: 'text/html' });
+                const url = URL.createObjectURL(blob);
+                window.open(url, '_blank');
+            } else {
+                throw new Error(
+                    'QuoteGeneratorService did not return Work Order HTML. Templates might not be loaded.'
+                );
+            }
+        } catch (error) {
+            console.error('Error generating work order:', error);
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message:
+                    'Failed to generate work order. See console for details.',
+                type: 'error',
+            });
+        }
     }
 
     async handlePrintableQuoteRequest() {
@@ -165,7 +198,6 @@ export class WorkflowService {
     // [MODIFIED v6292] F3 state is now read directly from quoteData state.
     // [MODIFIED v6295] Capture F1 Wifi Qty and all of F2 state.
     // [MODIFIED] (v6297) Capture ownerUid.
-    // [MODIFIED] (Tweak C) Capture creationDate.
     _getQuoteDataWithSnapshots() {
         const { quoteData, ui } = this.stateService.getState();
         // Create a deep copy to avoid mutating the original state
@@ -249,16 +281,14 @@ export class WorkflowService {
         // Save the entire F2 state object
         dataWithSnapshot.f2Snapshot = JSON.parse(JSON.stringify(ui.f2));
 
-        // --- 5. [NEW] (Tweak C) Add/Update creationDate ---
-        // This ensures every save action (overwrite or new version) updates the timestamp.
-        dataWithSnapshot.creationDate = new Date().toISOString();
+        // --- 5. [MODIFIED] (Tweak C) This line is intentionally *REMOVED* as per user request to separate "features" from "foundations"
+        // dataWithSnapshot.creationDate = new Date().toISOString();
 
         return dataWithSnapshot;
     }
 
     // [MODIFIED v6285 Phase 5] Logic migrated from quick-quote-view.js and updated.
     // [MODIFIED] (v6298-fix-6) Added try...catch for robust cloud save.
-    // [MODIFIED] (Tweak C) Now updates creationDate via _getQuoteDataWithSnapshots.
     async handleSaveToFile() {
         const dataToSave = this._getQuoteDataWithSnapshots();
 
@@ -285,7 +315,8 @@ export class WorkflowService {
 
     // [NEW] (Tweak A) Logic for "Save as New Version"
     async handleSaveAsNewVersion() {
-        // 1. Get the current data, with all snapshots and a NEW creationDate
+        // 1. Get the current data, with all snapshots
+        // [MODIFIED] Tweak C (Foundation) is *NOT* included here yet.
         const dataToSave = this._getQuoteDataWithSnapshots();
 
         // 2. Generate the new versioned quoteId

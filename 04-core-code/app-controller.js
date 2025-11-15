@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/app-controller.js */
-// [MODIFIED] (Tweak A) Added subscription for Save as New Version.
+// [MODIFIED] (階段 1) Added subscription for Generate Work Order.
 
 import { EVENTS, STORAGE_KEYS } from './config/constants.js';
 import * as uiActions from './actions/ui-actions.js';
@@ -252,9 +252,12 @@ export class AppController {
         this._subscribe(EVENTS.USER_REQUESTED_SAVE, () =>
             this.workflowService.handleSaveToFile()
         );
-        // [NEW] Tweak A: Add subscription for the "Save as New Version" event
         this._subscribe(EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION, () =>
             this.workflowService.handleSaveAsNewVersion()
+        );
+        // [NEW] 階段 1: 綁定工單事件
+        this._subscribe(EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, () =>
+            this.workflowService.handleGenerateWorkOrder()
         );
         this._subscribe(EVENTS.USER_REQUESTED_EXPORT_CSV, () =>
             this.workflowService.handleExportCSV()
