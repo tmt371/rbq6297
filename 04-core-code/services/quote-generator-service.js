@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/services/quote-generator-service.js */
-// [MODIFIED] (階段 1) Added logic to load work-order-template.html and stub for generateWorkOrderHtml.
+// [MODIFIED] (階段 2) Implemented generateWorkOrderHtml to populate data.
 
 import { paths } from '../config/paths.js';
 /**
@@ -23,6 +23,8 @@ export class QuoteGeneratorService {
         this.detailedItemListRow = '';
         // [NEW] 階段 1: Add property for the work order template
         this.workOrderTemplate = '';
+        // [NEW] 階段 2: Add property for the work order row template
+        this.workOrderTemplateRow = '';
 
         // [MODIFIED] The script now includes a robust CSS inlining mechanism.
         this.actionBarHtml = `
@@ -60,7 +62,9 @@ export class QuoteGeneratorService {
                 // [NEW] Fetch the detailed list row template
                 this.detailedItemListRow,
                 // [NEW] 階段 1: Fetch the new work order template
-                this.workOrderTemplate
+                this.workOrderTemplate,
+                // [NEW] 階段 2: Fetch the new work order row template
+                this.workOrderTemplateRow
             ] = await Promise.all([
                 fetch(paths.partials.quoteTemplate).then(res => res.text()),
                 fetch(paths.partials.detailedItemList).then(res => res.text()),
@@ -76,8 +80,10 @@ export class QuoteGeneratorService {
                 fetch(paths.partials.detailedItemListRow).then(res => res.text()),
                 // [NEW] 階段 1: Fetch the work order template
                 fetch(paths.partials.workOrderTemplate).then(res => res.text()),
+                // [NEW] 階段 2: Fetch the work order row template
+                fetch(paths.partials.workOrderTemplateRow).then(res => res.text()),
             ]);
-            console.log("QuoteGeneratorService: All (7) HTML templates and (2) client scripts pre-fetched and cached.");
+            console.log("QuoteGeneratorService: All (8) HTML templates and (2) client scripts pre-fetched and cached.");
         } catch (error) {
             console.error("QuoteGeneratorService: Failed to pre-fetch HTML templates:", error);
             // In a real-world scenario, you might want to publish an error event here.
@@ -88,8 +94,8 @@ export class QuoteGeneratorService {
     // This method ensures templates are loaded, but only fetches them once.
     async _loadTemplates() {
         // Check if templates are already loaded.
-        // [MODIFIED] 階段 1: Check for new work order template
-        if (this.quoteTemplate && this.detailsTemplate && this.gmailTemplate && this.quoteTemplateRow && this.gmailTemplateCard && this.quoteClientScript && this.gmailClientScript && this.detailedItemListRow && this.workOrderTemplate) {
+        // [MODIFIED] 階段 2: Check for new work order row template
+        if (this.quoteTemplate && this.detailsTemplate && this.gmailTemplate && this.quoteTemplateRow && this.gmailTemplateCard && this.quoteClientScript && this.gmailClientScript && this.detailedItemListRow && this.workOrderTemplate && this.workOrderTemplateRow) {
             return; // Already loaded, do nothing.
         }
 
@@ -98,7 +104,7 @@ export class QuoteGeneratorService {
         await this._initialize();
     }
 
-    // [NEW] 階段 1: 建立工單 HTML 的新函式
+    // [MODIFIED] 階段 2: 實作工單 HTML 的產生
     /**
      * Generates the HTML for the Work Order (No Prices).
      * @param {object} quoteData - The application's quote data.
@@ -109,19 +115,28 @@ export class QuoteGeneratorService {
         // 1. 確保模板已載入
         await this._loadTemplates();
 
-        if (!this.workOrderTemplate) {
-            console.error("QuoteGeneratorService: Work Order template is not loaded yet.");
+        if (!this.workOrderTemplate || !this.workOrderTemplateRow) {
+            console.error("QuoteGeneratorService: Work Order templates are not loaded yet.");
             return null;
         }
 
-        // 2. 獲取填充資料 (階段 2 才會實作)
-        // const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData);
+        // 2. 獲取填充資料
+        // [MODIFIED] (階段 2) f3Data (quoteData) 是為了相容性
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData);
 
-        // 3. (階段 1 暫時) 直接回傳模板內容
-        // let finalHtml = this._populateTemplate(this.workOrderTemplate, templateData);
-        let finalHtml = this.workOrderTemplate;
+        // 3. (階段 2) 產生工單專用的 (無價格) 表格列
+        const workOrderTableRows = this._generateWorkOrderItemsTableHtml(templateData);
 
-        // 4. (未來) 注入專屬的 JS
+        // 4. (階段 2) 組合所有資料
+        const populatedData = {
+            ...templateData,
+            workOrderTableRows: workOrderTableRows
+        };
+
+        // 5. (階段 2) 填充主模板
+        let finalHtml = this._populateTemplate(this.workOrderTemplate, populatedData);
+
+        // 6. (未來) 注入專屬的 JS
         // finalHtml = finalHtml.replace('</body>', `<script>${this.workOrderClientScript}</script></body>`);
 
         return finalHtml;
@@ -289,6 +304,62 @@ export class QuoteGeneratorService {
         if (templateData.customerEmail) html += `Email: ${templateData.customerEmail}`;
         return html;
     }
+
+    // [NEW] 階段 2: 建立一個專門給工單使用、不含價格的函式
+    _generateWorkOrderItemsTableHtml(templateData) {
+        const { items } = templateData;
+
+        const rows = items
+            .filter(item => item.width && item.height)
+            .map((item, index) => {
+
+                let fabricClass = '';
+                if (item.fabric && item.fabric.toLowerCase().includes('light-filter')) {
+                    fabricClass = 'bg-light-filter';
+                } else if (item.fabricType === 'SN') {
+                    fabricClass = 'bg-screen';
+                } else if (['B1', 'B2', 'B3', 'B4', 'B5'].includes(item.fabricType)) {
+                    fabricClass = 'bg-blockout';
+                }
+
+                // [MODIFIED] 階段 2: 移除價格計算
+                // const finalPrice = (item.linePrice || 0) * mulTimes;
+
+                const winderText = item.winder === 'HD' ? 'Y' : '';
+                const dualText = item.dual === 'D' ? 'Y' : '';
+                const motorText = item.motor ? 'Y' : '';
+
+                // [MODIFIED] 階段 2: 轉換為工廠格式 (此為未來 Tweak 的起點)
+                const factoryChain = item.chain ? `${item.chain}mm` : '';
+
+                const rowData = {
+                    index: index + 1,
+                    fabricClass: fabricClass,
+                    fabric: item.fabric || '',
+                    color: item.color || '',
+                    location: item.location || '',
+                    // [NEW] 階段 2: 填充 W & H
+                    width: item.width || '',
+                    height: item.height || '',
+                    winder: winderText,
+                    dual: dualText,
+                    motor: motorText,
+                    chain: factoryChain,
+                    // [MODIFIED] 階段 2: 移除 Price
+                    // price: `$${finalPrice.toFixed(2)}`,
+                    isEmptyClassHD: winderText ? '' : 'is-empty-cell',
+                    isEmptyClassDual: dualText ? '' : 'is-empty-cell',
+                    isEmptyClassMotor: motorText ? '' : 'is-empty-cell',
+                };
+
+                // [MODIFIED] 階段 2: 使用新的 workOrderTemplateRow
+                return this._populateTemplate(this.workOrderTemplateRow, rowData);
+            })
+            .join('');
+
+        return rows;
+    }
+
 
     // [MODIFIED] Renamed function
     _generateItemsTableHtml_RowsOnly(templateData) {

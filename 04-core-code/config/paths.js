@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/config/paths.js */
-// [MODIFIED] (FIX) Added path for workOrderTemplate.
+// [MODIFIED] (階段 2) Added path for workOrderTemplateRow.
 
 export const paths = {
     partials: {
@@ -23,6 +23,8 @@ export const paths = {
         searchDialog: './04-core-code/ui/partials/search-dialog.html',
         // [NEW] (階段 1) Add path for the work order template
         workOrderTemplate: './04-core-code/ui/partials/work-order-template.html',
+        // [NEW] (階段 2) Add path for the work order row template
+        workOrderTemplateRow: './04-core-code/ui/partials/work-order-template-row.html',
     },
     // [NEW] Add paths for new refactored tabs
     tabs: {
