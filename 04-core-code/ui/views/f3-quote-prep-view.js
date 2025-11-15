@@ -1,4 +1,5 @@
-// File: 04-core-code/ui/views/f3-quote-prep-view.js
+/* FILE: 04-core-code/ui/views/f3-quote-prep-view.js */
+// [MODIFIED] (FIX) Fixed "ReferenceError: dueDate is not defined" in render() method.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 import * as quoteActions from '../../actions/quote-actions.js'; // [NEW] Import actions
@@ -180,22 +181,22 @@ export class F3QuotePrepView {
                 const issueDate = this._parseDateFromYMD(issueDateValue);
                 if (!issueDate) return; // Invalid date input
 
-                const dueDate = new Date(issueDate);
-                dueDate.setDate(dueDate.getDate() + 14);
+                const dueDateObj = new Date(issueDate);
+                dueDateObj.setDate(dueDateObj.getDate() + 14);
 
                 // [NEW] Mechanism 3: Skip weekends
-                const dayOfWeek = dueDate.getDay(); // 0 = Sun, 6 = Sat
+                const dayOfWeek = dueDateObj.getDay(); // 0 = Sun, 6 = Sat
                 if (dayOfWeek === 6) {
                     // Saturday
-                    dueDate.setDate(dueDate.getDate() + 2);
+                    dueDateObj.setDate(dueDateObj.getDate() + 2);
                 } else if (dayOfWeek === 0) {
                     // Sunday
-                    dueDate.setDate(dueDate.getDate() + 1);
+                    dueDateObj.setDate(dueDateObj.getDate() + 1);
                 }
                 // [END NEW]
 
                 // [FIX] Use new robust formatter
-                const dueDateString = this._formatDateToYMD(dueDate);
+                const dueDateString = this._formatDateToYMD(dueDateObj);
                 this.f3.inputs.dueDate.value = dueDateString;
                 // [NEW] Also dispatch the auto-calculated due date to state
                 this.stateService.dispatch(
@@ -324,7 +325,8 @@ export class F3QuotePrepView {
         }
 
         // [MODIFIED] Mechanism 3: Restore Due Date generation (TIMEZONE-SAFE)
-        if (!dueDateStr) {
+        // [MODIFIED] (v6298-F3-Fix-2) Check userOverrodeDueDate flag
+        if (!dueDateStr || !this.userOverrodeDueDate) {
             // Use the (potentially new) issueDate object
             // [FIX] Remove timezone offset bug
             const dueDateObj = new Date(issueDateObj); // Start from the clean issueDate
@@ -334,19 +336,24 @@ export class F3QuotePrepView {
             const dayOfWeek = dueDateObj.getDay(); // 0 = Sun, 6 = Sat
             if (dayOfWeek === 6) {
                 // Saturday
-                dueDateObj.setDate(dueDate.getDate() + 2);
+                // [FIX] ReferenceError: dueDate is not defined. Should be dueDateObj.
+                dueDateObj.setDate(dueDateObj.getDate() + 2);
             } else if (dayOfWeek === 0) {
                 // Sunday
-                dueDateObj.setDate(dueDate.getDate() + 1);
+                // [FIX] ReferenceError: dueDate is not defined. Should be dueDateObj.
+                dueDateObj.setDate(dueDateObj.getDate() + 1);
             }
 
-            const dueDateString = this._formatDateToYMD(dueDateObj);
-            this.userOverrodeDueDate = false; // We just auto-generated it
-            // [NEW] Dispatch this new value back to state
-            this.stateService.dispatch(
-                quoteActions.updateQuoteProperty('dueDate', dueDateString)
-            );
-            needsStateUpdate = true;
+            const dueDateString = this._formatDateToYMD(dueDateObj); // [FIX] This var was missing, causing ReferenceError
+
+            // [MODIFIED] (v6298-F3-Fix-2) Only auto-update if not overridden
+            if (!this.userOverrodeDueDate) {
+                // [NEW] Dispatch this new value back to state
+                this.stateService.dispatch(
+                    quoteActions.updateQuoteProperty('dueDate', dueDateString)
+                );
+                needsStateUpdate = true;
+            }
             // [NEW] (v6298-F3-Fix-1) We just defined dueDateString, so set dueDateStr to it
             dueDateStr = dueDateString;
         } else {
@@ -354,15 +361,6 @@ export class F3QuotePrepView {
             dueDateStr = this._formatDateToYMD(
                 this._parseDateFromYMD(dueDateStr)
             );
-            // [REMOVED] (v6298-F3-Fix-1) This was the source of the ReferenceError.
-            // The flag is now correctly set only when the user *types* in the box.
-            // this.userOverrodeDueDate = true; 
-
-            // [REMOVED] (v6298-F3-Fix-1) This dispatch was the source of the ReferenceError
-            // and was also causing a recursive render loop.
-            // this.stateService.dispatch(
-            //     quoteActions.updateQuoteProperty('dueDate', dueDateString)
-            // );
         }
 
         // --- 2. Sync all inputs with state (NO MORE DOUBLE FORMATTING) ---

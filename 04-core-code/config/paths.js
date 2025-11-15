@@ -1,3 +1,6 @@
+/* FILE: 04-core-code/config/paths.js */
+// [MODIFIED] (FIX) Added path for workOrderTemplate.
+
 export const paths = {
     partials: {
         leftPanel: './04-core-code/ui/partials/left-panel.html',
@@ -18,6 +21,8 @@ export const paths = {
         loginComponent: './04-core-code/ui/partials/login-component.html',
         // [NEW] (v6298-F4-Search) Add path for the new search dialog
         searchDialog: './04-core-code/ui/partials/search-dialog.html',
+        // [NEW] (階段 1) Add path for the work order template
+        workOrderTemplate: './04-core-code/ui/partials/work-order-template.html',
     },
     // [NEW] Add paths for new refactored tabs
     tabs: {
