@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/services/quote-generator-service.js */
-// [MODIFIED] (階段 3) Refactored: Original Quote logic moved to OriginalQuoteStrategy.
+// [MODIFIED] (階段 4) Refactored: GTH logic moved to GthQuoteStrategy.
 
 import { paths } from '../config/paths.js';
 // [NEW] (階段 1) Import the new external utility functions
@@ -14,15 +14,15 @@ export class QuoteGeneratorService {
     constructor({
         calculationService,
         workOrderStrategy,
-        originalQuoteStrategy // [NEW] (階段 3)
-        // gthQuoteStrategy // [FUTURE]
+        originalQuoteStrategy,
+        gthQuoteStrategy // [NEW] (階段 4)
     }) {
         this.calculationService = calculationService;
 
         // [NEW] (階段 2) Store injected strategies
         this.workOrderStrategy = workOrderStrategy;
-        this.originalQuoteStrategy = originalQuoteStrategy; // [NEW] (階段 3)
-        // this.gthQuoteStrategy = gthQuoteStrategy;
+        this.originalQuoteStrategy = originalQuoteStrategy;
+        this.gthQuoteStrategy = gthQuoteStrategy; // [NEW] (階段 4)
 
         this.quoteTemplate = '';
         this.detailsTemplate = '';
@@ -158,8 +158,9 @@ export class QuoteGeneratorService {
         // [NEW] (Refactor - Lazy Load) Ensure templates are loaded before proceeding.
         await this._loadTemplates();
 
-        if (!this.gmailTemplate || !this.gmailClientScript) {
-            console.error("QuoteGeneratorService: Gmail template or client script is not loaded yet.");
+        // [MODIFIED] (階段 4) Check for strategy
+        if (!this.gmailTemplate || !this.gmailClientScript || !this.gthQuoteStrategy) {
+            console.error("QuoteGeneratorService: Gmail template, client script, or GthQuoteStrategy are not loaded yet.");
             return null;
         }
 
@@ -194,8 +195,13 @@ export class QuoteGeneratorService {
 
             // [MODIFIED] (階段 1) Call external util
             customerInfoHtml: formatCustomerInfo(templateData),
-            // [MODIFIED v6290 Task 1] Ensure item list is formatted
-            itemsTableBody: this._generatePageOneItemsTableHtml_GTH(templateData),
+
+            // [MODIFIED] (階段 4) Call external strategy
+            itemsTableBody: this.gthQuoteStrategy.generateCardsHtml(
+                templateData,
+                this.gmailTemplateCard
+            ),
+
             // [NEW v6290 Task 2] Pass the conditional GST row
             gstRowHtml: gstRowHtml
         });
@@ -300,124 +306,5 @@ export class QuoteGeneratorService {
     // [REMOVED] (階段 2) _generateWorkOrderItemsTableHtml moved to work-order-strategy.js
     // [REMOVED] (階段 3) _generateItemsTableHtml_RowsOnly moved to original-quote-strategy.js
     // [REMOVED] (階段 3) _generatePageOneItemsTableHtml_Original moved to original-quote-strategy.js
-
-    // [NEW v6290 Task 1] This is the restored function for GTH
-    // It generates MULTIPLE tables (cards)
-    _generatePageOneItemsTableHtml_GTH(templateData) {
-        const { summaryData, uiState, items } = templateData;
-        const rows = [];
-        const validItemCount = items.filter(i => i.width && i.height).length;
-
-        // [MODIFIED] Remove inline helper function
-        const createRowData = (number, description, qty, price, discountedPrice, isExcluded = false) => {
-            // [FIX v6291] æ­¥é? 3: å¦‚æ? Price è¢«æ??¤ï?Discounted Price é¡¯ç¤º??0
-            const discountedPriceValue = isExcluded ? 0 : discountedPrice;
-            const isDiscounted = discountedPriceValue < price;
-
-            // [FIX v6291] (ä¿®å¾© PDF æ­¥é? 1.2, 1.3, 1.4) å¯¦ç ¾æ­?¢º?„é??²æ¨£å¼ é?è¼?(GTH ?ˆæœ¬)
-            let priceStyle = 'style="color: #333;"'; // (1.3) ? è¨­ Price ?ºé???
-            let discountedPriceStyle = 'style="font-weight: bold; color: #333;"'; // (1.3) GTH ? è¨­é»‘è‰²ç²—é?
-
-            if (isExcluded) {
-                // (1.4) Price: ?°è‰²?ªé™¤ç·?Discounted: ç´…è‰²
-                priceStyle = 'style="text-decoration: line-through; color: #999999;"';
-                discountedPriceStyle = 'style="font-weight: bold; color: #d32f2f;"';
-            } else if (isDiscounted) {
-                // (1.2) Price: ?°è‰² Discounted: ç´…è‰²
-                priceStyle = 'style="color: #999999;"';
-                discountedPriceStyle = 'style="font-weight: bold; color: #d32f2f;"';
-            }
-            // (1.3) ?…æ? (isExcluded = false ä¸?isDiscounted = false) å·²åœ¨? è¨­ä¸­è???
-
-            // [MODIFIED] Return data object instead of string
-            return {
-                number,
-                description,
-                qty,
-                price: price.toFixed(2),
-                discountedPrice: discountedPriceValue.toFixed(2),
-                priceStyle,
-                discountedPriceStyle
-            };
-        };
-
-        let itemNumber = 1;
-
-        // Row 1: Roller Blinds
-        rows.push(createRowData(
-            itemNumber++,
-            'Roller Blinds',
-            validItemCount,
-            summaryData.firstRbPrice || 0,
-            summaryData.disRbPrice || 0,
-            false // ç¢ºä? Roller Blinds Price æ°¸é?ä¸ æ?è¢«å???
-        ));
-
-        // Row 2: Installation Accessories (Optional)
-        // [FIX v6291] æ­¥é? 1: ä¿®æ­£ isExcluded ? è¼¯ï¼Œç¢ºä¿?Price æ°¸é?ä¸ æ?è¢«å???
-        if (summaryData.acceSum > 0) {
-            rows.push(createRowData(
-                itemNumber++,
-                'Installation Accessories',
-                'NA',
-                summaryData.acceSum || 0,
-                summaryData.acceSum || 0,
-                false // ç¢ºä?æ­¤é???Price æ°¸é?ä¸ æ?è¢«å???
-            ));
-        }
-
-        // Row 3: Motorised Package (Optional)
-        // [FIX v6291] æ­¥é? 2: ä¿®æ­£ isExcluded ? è¼¯ï¼Œç¢ºä¿?Price æ°¸é?ä¸ æ?è¢«å???
-        // [MODIFIED v6291] æ­¥é? 2: è¨»è§£
-        if (summaryData.eAcceSum > 0) {
-            rows.push(createRowData(
-                itemNumber++,
-                'Motorised Package',
-                'NA',
-                summaryData.eAcceSum || 0,
-                summaryData.eAcceSum || 0,
-                false // ç¢ºä?æ­¤é???Price æ°¸é?ä¸ æ?è¢«å???
-            ));
-        }
-
-        // Row 4: Delivery
-        const deliveryExcluded = uiState.f2.deliveryFeeExcluded;
-        rows.push(createRowData(
-            itemNumber++,
-            'Delivery',
-            uiState.f2.deliveryQty || 1,
-            summaryData.deliveryFee || 0,
-            summaryData.deliveryFee || 0,
-            deliveryExcluded
-        ));
-
-        // Row 5: Installation
-        // [MODIFIED v6290 Bug 1 Fix]
-        const installExcluded = uiState.f2.installFeeExcluded;
-        rows.push(createRowData(
-            itemNumber++,
-            'Installation',
-            uiState.f2.installQty || 0, // Use installQty from F2 state
-            summaryData.installFee || 0,
-            summaryData.installFee || 0,
-            installExcluded
-        ));
-
-        // Row 6: Removal
-        const removalExcluded = uiState.f2.removalFeeExcluded;
-        rows.push(createRowData(
-            itemNumber++,
-            'Removal',
-            uiState.f2.removalQty || 0,
-            summaryData.removalFee || 0,
-            summaryData.removalFee || 0,
-            removalExcluded
-        ));
-
-        // [MODIFIED] Map data objects to HTML strings using the template
-        return rows.map(rowData =>
-            // [MODIFIED] (階段 1) Call external util
-            populateTemplate(this.gmailTemplateCard, rowData)
-        ).join('');
-    }
+    // [REMOVED] (階段 4) _generatePageOneItemsTableHtml_GTH moved to gth-quote-strategy.js
 }
