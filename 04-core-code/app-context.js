@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/app-context.js */
-// 04-core-code/app-context.js
+// [MODIFIED] (階段 2) Injected new WorkOrderStrategy into QuoteGeneratorService.
 
 /**
  * @description
@@ -140,8 +140,24 @@ export class AppContext {
         const k5TabComponent = new K5TabComponent();
         this.register('k5TabComponent', k5TabComponent);
 
+        // --- [NEW] (階段 2) 實例化新的 Generator 策略 ---
+        const workOrderStrategy = new WorkOrderStrategy();
+        this.register('workOrderStrategy', workOrderStrategy);
+        // (未來 階段 3, 4)
+        // const originalQuoteStrategy = new OriginalQuoteStrategy();
+        // this.register('originalQuoteStrategy', originalQuoteStrategy);
+        // const gthQuoteStrategy = new GthQuoteStrategy();
+        // this.register('gthQuoteStrategy', gthQuoteStrategy);
+
+
         // --- [NEW] Instantiate the new QuoteGeneratorService ---
-        const quoteGeneratorService = new QuoteGeneratorService({ calculationService });
+        // [MODIFIED] (階段 2) 注入 new strategy
+        const quoteGeneratorService = new QuoteGeneratorService({
+            calculationService,
+            workOrderStrategy // [NEW]
+            // originalQuoteStrategy, // [FUTURE]
+            // gthQuoteStrategy // [FUTURE]
+        });
         this.register('quoteGeneratorService', quoteGeneratorService);
 
         // --- [REMOVED] (Refactor - Lazy Load) Instantiate Right Panel Sub-Views ---
@@ -307,6 +323,8 @@ import { SearchDialogComponent } from './ui/search-dialog-component.js';
 // [NEW] 階段 4：Import S1/S2 子視圖
 import { SearchTabS1View } from './ui/views/search-tab-s1-view.js';
 import { SearchTabS2View } from './ui/views/search-tab-s2-view.js';
+// [NEW] (階段 2) Import the new generator strategy
+import { WorkOrderStrategy } from './services/generators/work-order-strategy.js';
 
 
 // [NEW IMPORTS]
