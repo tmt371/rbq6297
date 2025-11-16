@@ -1,6 +1,5 @@
 /* FILE: 04-core-code/services/generators/work-order-strategy.js */
-// [MODIFIED] (Tweak 2) Fixed LF (pink) coloring bug in getSortCategoryFixed.
-// [MODIFIED] (Tweak 3, 4, 5) Added NO, Location columns and removed 'mm' from chain.
+// [MODIFIED] (HOTFIX Tweak 2) Fixed LF (pink) coloring bug by re-ordering checks in getSortCategoryFixed.
 
 import { populateTemplate } from '../../utils/template-utils.js';
 
@@ -46,11 +45,11 @@ export class WorkOrderStrategy {
             });
 
         // 2. 定義排序類別 (Tweak 6)
-        // [MODIFIED] (Bug Fix Tweak 2) 新增 LF (粉紅色) 的檢查
+        // [MODIFIED] (Bug Fix Tweak 2) 將 LF (粉紅色) 的檢查移至最優先
         const getSortCategoryFixed = (item) => {
+            if (item.fabric && item.fabric.toLowerCase().includes('light-filter')) return 2; // 粉紅色 (LF)
             if (item.fabricType && item.fabricType.startsWith('B')) return 0; // 灰色 (B1-B5)
             if (item.fabricType === 'SN') return 1; // 水藍色 (SN)
-            if (item.fabric && item.fabric.toLowerCase().includes('light-filter')) return 2; // 粉紅色 (LF)
             return 3; // 其他
         };
 
