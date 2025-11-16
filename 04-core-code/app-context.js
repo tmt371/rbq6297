@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/app-context.js */
-// [MODIFIED] (階段 4) Injected new GthQuoteStrategy into QuoteGeneratorService.
+// [MODIFIED] (HOTFIX) Fixed typo in K5TabComponent import path.
 
 /**
  * @description
@@ -344,4 +344,5 @@ import { K3TabComponent } from './ui/tabs/k3-tab/k3-tab-component.js';
 import { K4TabInputHandler } from './ui/tabs/k4-tab/k4-tab-input-handler.js';
 import { K4TabComponent } from './ui/tabs/k4-tab/k4-tab-component.js';
 import { K5TabInputHandler } from './ui/tabs/k5-tab/k5-tab-input-handler.js';
-import { K5TabComponent } from './ui/tabs/k5-tab/kSort-of-blue.js';
+// [MODIFIED] (HOTFIX) Corrected typo from kSort-of-blue.js
+import { K5TabComponent } from './ui/tabs/k5-tab/k5-tab-component.js';
