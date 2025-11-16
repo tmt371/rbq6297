@@ -3,23 +3,13 @@
 /* 此檔案為工廠訂單 (Work Order) 專屬的樣式表。
 */
 
-/* [NEW] (Tweak 3, 4, 5) 項目著色 */
-.work-order-table .bg-blockout {
-    background-color: #f0f0f0 !important;
-    /* 灰色 */
-}
+/* [MODIFIED] (Bug Fix Tweak 2) 著色規則已移至 work-order-template.html 的內部 <style> 標籤中 */
 
-.work-order-table .bg-screen {
-    background-color: #e0f7fa !important;
-    /* 水藍色 */
-}
-
-.work-order-table .bg-light-filter {
-    background-color: #ffe4e1 !important;
-    /* 粉紅色 */
-}
 
 /* [NEW] (Tweak 8) 壓縮表格字體與間距 */
+/* 註：這些規則現在也存在於 work-order-template.html 的 <style> 中，
+   我們在此保留一份，以便未來 style.css 載入方式變更時仍能生效。
+*/
 .work-order-table th,
 .work-order-table td {
     padding: 6px 8px;
@@ -41,13 +31,5 @@
     body {
         /* 未來將在此處定義列印專用樣式 */
         background-color: #ffffff;
-    }
-
-    /* (Tweak 3, 4, 5) 強制列印背景顏色 */
-    .work-order-table .bg-blockout,
-    .work-order-table .bg-screen,
-    .work-order-table .bg-light-filter {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
     }
 }

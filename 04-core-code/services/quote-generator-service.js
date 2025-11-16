@@ -304,7 +304,7 @@ export class QuoteGeneratorService {
         return html;
     }
 
-    // [NEW] 階段 2 修復: 建立一個專門給工單使用、不含價格、且帶有複雜排序的函式
+    // [MODIFIED] 階段 2 修復: 建立一個專門給工單使用、不含價格、且帶有複雜排序的函式
     _generateWorkOrderItemsTableHtml(templateData) {
         const { items } = templateData;
 
@@ -316,6 +316,7 @@ export class QuoteGeneratorService {
         const validItems = items
             .filter(item => item.width && item.height)
             .map((item, index) => {
+                // [FIX] (Tweak 6B) Fcolor 應同時包含 fabric 和 color
                 const fcolorKey = `${item.fabric || ''}|${item.color || ''}`;
                 const bTypeKey = item.fabricType || '';
 
@@ -335,16 +336,26 @@ export class QuoteGeneratorService {
 
         // 2. 定義排序類別 (Tweak 6)
         const getSortCategory = (fabricType) => {
-            if (fabricType && fabricType.startsWith('B')) return 0; // (Query 6A) 灰色 (B1-B5) 優先
-            if (fabricType === 'SN') return 1; // (Query 6C) 水藍色 (SN) 其次
-            if (fabricType && fabricType.toLowerCase().includes('light-filter')) return 2; // (Query 6D) 粉紅色 (LF) 最後
+            // [FIX] (Tweak 6A) 確保 LF 也被正確分類
+            if (fabricType && fabricType.startsWith('B')) return 0; // 灰色 (B1-B5) 優先
+            if (fabricType === 'SN') return 1; // 水藍色 (SN) 其次
+            if (item.fabric && item.fabric.toLowerCase().includes('light-filter')) return 2; // 粉紅色 (LF) 最後
             return 3; // 其他
         };
 
+        // [FIX] (Tweak 6A) 修正 getSortCategory 的邏輯錯誤
+        const getSortCategoryFixed = (item) => {
+            if (item.fabricType && item.fabricType.startsWith('B')) return 0; // 灰色 (B1-B5)
+            if (item.fabricType === 'SN') return 1; // 水藍色 (SN)
+            if (item.fabric && item.fabric.toLowerCase().includes('light-filter')) return 2; // 粉紅色 (LF)
+            return 3; // 其他
+        };
+
+
         // 3. 執行複雜排序 (Tweak 6)
         validItems.sort((a, b) => {
-            const categoryA = getSortCategory(a.fabricType);
-            const categoryB = getSortCategory(b.fabricType);
+            const categoryA = getSortCategoryFixed(a);
+            const categoryB = getSortCategoryFixed(b);
 
             // A. 按主類別排序 (B > SN > LF)
             if (categoryA !== categoryB) {
@@ -355,7 +366,7 @@ export class QuoteGeneratorService {
             const fcolorCountA = fcolorCounts[a.fcolorKey];
             const fcolorCountB = fcolorCounts[b.fcolorKey];
 
-            // B1. 按 Fcolor 數量排序 (多 -> 少)
+            // B1. 按 Fcolor 數量排序 (多 -> 少) (Tweak 6B, 6C, 6D)
             if (fcolorCountA !== fcolorCountB) {
                 return fcolorCountB - fcolorCountA;
             }
@@ -364,9 +375,15 @@ export class QuoteGeneratorService {
             if (categoryA === 0) {
                 const bTypeCountA = bTypeCounts[a.bTypeKey] || 0;
                 const bTypeCountB = bTypeCounts[b.bTypeKey] || 0;
-                // 按 B-Type 數量排序 (多 -> 少)
+
+                // 按 B-Type 數量排序 (多 -> 少) (Tweak 6A)
                 if (bTypeCountA !== bTypeCountB) {
                     return bTypeCountB - bTypeCountA;
+                }
+
+                // (Tweak 6A) 如果 B-Type 數量也相同，按 B-Type 名稱排序 (B1 > B2)
+                if (a.bTypeKey !== b.bTypeKey) {
+                    return a.bTypeKey.localeCompare(b.bTypeKey);
                 }
             }
 
@@ -375,11 +392,11 @@ export class QuoteGeneratorService {
         });
 
         // --- (Tweak 2, 3, 4, 5) 產生 HTML ---
-        const rows = validItems.map((item) => {
+        const rows = validItems.map((item, mapIndex) => { // (Tweak 3) 取得 mapIndex
 
-            // (Tweak 3, 4, 5) 決定著色
+            // (Tweak 2) 決定著色
             let fabricClass = '';
-            const category = getSortCategory(item.fabricType);
+            const category = getSortCategoryFixed(item);
             if (category === 0) {
                 fabricClass = 'bg-blockout'; // 灰色
             } else if (category === 1) {
@@ -395,17 +412,19 @@ export class QuoteGeneratorService {
             const fcolorText = `${item.fabric || ''} ${item.color || ''}`.trim();
 
             const rowData = {
+                rowNumber: mapIndex + 1, // (Tweak 3)
                 index: item.originalIndex + 1, // (Tweak 6) 使用原始 ＃
+                location: item.location || '', // (Tweak 4)
                 fabricClass: fabricClass,
-                fcolor: fcolorText, // (Tweak 2)
+                fcolor: fcolorText,
                 width: item.width || '',
                 height: item.height || '',
-                lr: item.lr || '', // (Tweak 2)
-                over: item.oi || '', // (Tweak 2) (假設 over = oi)
+                lr: item.lr || '',
+                over: item.oi || '', // (假設 over = oi)
                 winder: winderText,
                 dual: dualText,
                 motor: motorText,
-                chain: item.chain ? `${item.chain}mm` : '', // (Tweak 2)
+                chain: item.chain || '', // (Tweak 5) 移除 mm
                 isEmptyClassHD: winderText ? '' : 'is-empty-cell',
                 isEmptyClassDual: dualText ? '' : 'is-empty-cell',
                 isEmptyClassMotor: motorText ? '' : 'is-empty-cell',

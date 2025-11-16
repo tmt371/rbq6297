@@ -105,7 +105,21 @@
             border-top: 2px solid #ccc;
         }
 
-        /* [MODIFIED] (Tweak 3,4,5) 移至 work-order.css */
+        /* [NEW] (Bug Fix Tweak 2) 著色規則移至此處 */
+        .detailed-list-table .bg-blockout {
+            background-color: #f0f0f0 !important;
+            /* 灰色 */
+        }
+
+        .detailed-list-table .bg-screen {
+            background-color: #e0f7fa !important;
+            /* 水藍色 */
+        }
+
+        .detailed-list-table .bg-light-filter {
+            background-color: #ffe4e1 !important;
+            /* 粉紅色 */
+        }
 
 
         .table-title {
@@ -322,6 +336,15 @@
                 page-break-inside: avoid;
             }
 
+            /* [NEW] (Bug Fix Tweak 2) 確保列印時也套用著色 */
+            .detailed-list-table .bg-blockout,
+            .detailed-list-table .bg-screen,
+            .detailed-list-table .bg-light-filter {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+
             /* --- [NEW v6290 Task 4] Print Override for Mobile Card View --- */
             /* å¼·åˆ¶?¢å¾©è¡¨æ ¼ä½ˆå? */
             .detailed-list-table {
@@ -384,23 +407,27 @@
                 <table class="detailed-list-table">
                     <colgroup>
                         <col style="width: 4%;">
-                        <col style="width: 18%;">
-                        <col style="width: 7%;">
-                        <col style="width: 7%;">
+                        <col style="width: 4%;">
+                        <col style="width: 14%;">
+                        <col style="width: 14%;">
                         <col style="width: 6%;">
                         <col style="width: 6%;">
                         <col style="width: 6%;">
                         <col style="width: 6%;">
-                        <col style="width: 10%;">
-                        <col style="width: 10%;">
-                        <col style="width: 10%;">
+                        <col style="width: 6%;">
+                        <col style="width: 6%;">
+                        <col style="width: 8%;">
+                        <col style="width: 8%;">
+                        <col style="width: 8%;">
                     </colgroup>
                     <thead>
                         <tr class="table-title">
-                            <th colspan="11">Roller Blinds - Work Order</th>
+                            <th colspan="13">Roller Blinds - Work Order</th>
                         </tr>
                         <tr>
+                            <th>NO</th>
                             <th>#</th>
+                            <th>Location</th>
                             <th>Fcolor</th>
                             <th>W</th>
                             <th>H</th>
