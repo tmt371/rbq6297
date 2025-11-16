@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/services/workflow-service.js */
-// [MODIFIED] (階段 1) Added handleGenerateWorkOrder function.
+// [MODIFIED] (HOTFIX Tweak 3) Re-added creationDate update logic to _getQuoteDataWithSnapshots.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
@@ -198,6 +198,7 @@ export class WorkflowService {
     // [MODIFIED v6292] F3 state is now read directly from quoteData state.
     // [MODIFIED v6295] Capture F1 Wifi Qty and all of F2 state.
     // [MODIFIED] (v6297) Capture ownerUid.
+    // [MODIFIED] (Tweak C) Capture creationDate.
     _getQuoteDataWithSnapshots() {
         const { quoteData, ui } = this.stateService.getState();
         // Create a deep copy to avoid mutating the original state
@@ -281,14 +282,16 @@ export class WorkflowService {
         // Save the entire F2 state object
         dataWithSnapshot.f2Snapshot = JSON.parse(JSON.stringify(ui.f2));
 
-        // --- 5. [MODIFIED] (Tweak C) This line is intentionally *REMOVED* as per user request to separate "features" from "foundations"
-        // dataWithSnapshot.creationDate = new Date().toISOString();
+        // --- 5. [NEW] (HOTFIX Tweak 3) Add/Update creationDate ---
+        // This ensures every save action (overwrite or new version) updates the timestamp.
+        dataWithSnapshot.creationDate = new Date().toISOString();
 
         return dataWithSnapshot;
     }
 
     // [MODIFIED v6285 Phase 5] Logic migrated from quick-quote-view.js and updated.
     // [MODIFIED] (v6298-fix-6) Added try...catch for robust cloud save.
+    // [MODIFIED] (Tweak C) Now updates creationDate via _getQuoteDataWithSnapshots.
     async handleSaveToFile() {
         const dataToSave = this._getQuoteDataWithSnapshots();
 
@@ -315,8 +318,7 @@ export class WorkflowService {
 
     // [NEW] (Tweak A) Logic for "Save as New Version"
     async handleSaveAsNewVersion() {
-        // 1. Get the current data, with all snapshots
-        // [MODIFIED] Tweak C (Foundation) is *NOT* included here yet.
+        // 1. Get the current data, with all snapshots and a NEW creationDate
         const dataToSave = this._getQuoteDataWithSnapshots();
 
         // 2. Generate the new versioned quoteId
