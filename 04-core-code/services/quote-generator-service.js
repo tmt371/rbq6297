@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/services/quote-generator-service.js */
-// [MODIFIED] (階段 2) Refactored: Work Order logic moved to WorkOrderStrategy.
+// [MODIFIED] (階段 3) Refactored: Original Quote logic moved to OriginalQuoteStrategy.
 
 import { paths } from '../config/paths.js';
 // [NEW] (階段 1) Import the new external utility functions
@@ -13,15 +13,15 @@ import { populateTemplate, formatCustomerInfo } from '../utils/template-utils.js
 export class QuoteGeneratorService {
     constructor({
         calculationService,
-        workOrderStrategy /* [NEW] (階段 2) */
-        // originalQuoteStrategy, // [FUTURE]
+        workOrderStrategy,
+        originalQuoteStrategy // [NEW] (階段 3)
         // gthQuoteStrategy // [FUTURE]
     }) {
         this.calculationService = calculationService;
 
         // [NEW] (階段 2) Store injected strategies
         this.workOrderStrategy = workOrderStrategy;
-        // this.originalQuoteStrategy = originalQuoteStrategy;
+        this.originalQuoteStrategy = originalQuoteStrategy; // [NEW] (階段 3)
         // this.gthQuoteStrategy = gthQuoteStrategy;
 
         this.quoteTemplate = '';
@@ -221,8 +221,9 @@ export class QuoteGeneratorService {
         // [NEW] (Refactor - Lazy Load) Ensure templates are loaded before proceeding.
         await this._loadTemplates();
 
-        if (!this.quoteTemplate || !this.detailsTemplate || !this.quoteClientScript) {
-            console.error("QuoteGeneratorService: Templates or client script are not loaded yet.");
+        // [MODIFIED] (階段 3) Check for strategy
+        if (!this.quoteTemplate || !this.detailsTemplate || !this.quoteClientScript || !this.originalQuoteStrategy) {
+            console.error("QuoteGeneratorService: Templates, client script, or OriginalQuoteStrategy are not loaded yet.");
             return null;
         }
 
@@ -246,11 +247,17 @@ export class QuoteGeneratorService {
             ...templateData,
             // [MODIFIED] (階段 1) Call external util
             customerInfoHtml: formatCustomerInfo(templateData),
-            // [MODIFIED v6290 Task 1] Use the single-table generator
-            // [FIX v6291] (æ­¥é? 1, 2) æ­¤å‡½?¸ç ¾?¨å ªè¿”å? <tr>...</tr>
-            itemsTableBody: this._generatePageOneItemsTableHtml_Original(templateData),
-            // [MODIFIED] Call renamed function and use new placeholder key
-            rollerBlindsTableRows: this._generateItemsTableHtml_RowsOnly(templateData),
+
+            // [MODIFIED] (階段 3) Call external strategy
+            itemsTableBody: this.originalQuoteStrategy.generatePageOneHtml(
+                templateData,
+                this.quoteTemplateRow
+            ),
+            rollerBlindsTableRows: this.originalQuoteStrategy.generateDetailsPageHtml(
+                templateData,
+                this.detailedItemListRow
+            ),
+
             gstRowHtml: gstRowHtml // [NEW] Pass the conditional GST row
         };
 
@@ -290,186 +297,9 @@ export class QuoteGeneratorService {
 
     // [REMOVED] (階段 1) _populateTemplate moved to template-utils.js
     // [REMOVED] (階段 1) _formatCustomerInfo moved to template-utils.js
-
     // [REMOVED] (階段 2) _generateWorkOrderItemsTableHtml moved to work-order-strategy.js
-    // _generateWorkOrderItemsTableHtml(templateData) { ... }
-
-
-    // [MODIFIED] Renamed function
-    _generateItemsTableHtml_RowsOnly(templateData) {
-        const { items, mulTimes } = templateData;
-        // [REMOVED] Headers are now defined in detailed-item-list-final.html
-        // const headers = ['#', 'F-NAME', 'F-COLOR', 'Location', 'HD', 'Dual', 'Motor', 'Price'];
-
-        const rows = items
-            .filter(item => item.width && item.height)
-            .map((item, index) => {
-
-                let fabricClass = '';
-                if (item.fabric && item.fabric.toLowerCase().includes('light-filter')) {
-                    fabricClass = 'bg-light-filter';
-                } else if (item.fabricType === 'SN') {
-                    fabricClass = 'bg-screen';
-                } else if (['B1', 'B2', 'B3', 'B4', 'B5'].includes(item.fabricType)) {
-                    fabricClass = 'bg-blockout';
-                }
-
-                const finalPrice = (item.linePrice || 0) * mulTimes;
-
-                // [REMOVED] The inline 'cell' helper function is removed.
-
-                // [NEW] Create data object for the template
-                const winderText = item.winder === 'HD' ? 'Y' : '';
-                const dualText = item.dual === 'D' ? 'Y' : '';
-                const motorText = item.motor ? 'Y' : '';
-
-                const rowData = {
-                    index: index + 1,
-                    fabricClass: fabricClass,
-                    fabric: item.fabric || '',
-                    color: item.color || '',
-                    location: item.location || '',
-                    winder: winderText,
-                    dual: dualText,
-                    motor: motorText,
-                    price: `$${finalPrice.toFixed(2)}`,
-                    isEmptyClassHD: winderText ? '' : 'is-empty-cell',
-                    isEmptyClassDual: dualText ? '' : 'is-empty-cell',
-                    isEmptyClassMotor: motorText ? '' : 'is-empty-cell',
-                };
-
-                // [NEW] Populate the new external template
-                // [MODIFIED] (階段 1) Call external util
-                return populateTemplate(this.detailedItemListRow, rowData);
-            })
-            .join('');
-
-        // [REMOVED] The <table> wrapper string is deleted.
-        return rows;
-    }
-
-    // [NEW v6290 Task 1] This is the new function for "Original" (Add Quote)
-    // It generates a SINGLE table
-    _generatePageOneItemsTableHtml_Original(templateData) {
-        const { summaryData, uiState, items } = templateData;
-        const rows = [];
-        const validItemCount = items.filter(i => i.width && i.height).length;
-
-        // [MODIFIED] Remove inline helper function
-        const createRowData = (number, description, qty, price, discountedPrice, isExcluded = false) => {
-            // [FIX v6291] æ­¥é? 3: å¦‚æ? Price è¢«æ??¤ï?Discounted Price é¡¯ç¤º??0
-            const discountedPriceValue = isExcluded ? 0 : discountedPrice;
-            const isDiscounted = discountedPriceValue < price;
-
-            // [FIX v6291] (ä¿®å¾© PDF æ­¥é? 1.2, 1.3, 1.4) å¯¦ç ¾æ­?¢º?„é??²æ¨£å¼ é?è¼?
-            let priceStyle = 'style="color: #333;"'; // (1.3) ? è¨­ Price ?ºé???
-            // (1.3) ? è¨­ Discounted Price ?ºé???(CSS ?ƒä½¿?¶ç‚ºç´…è‰²ï¼Œstyle ?¨æ–¼è¦†è?)
-            let discountedPriceStyle = 'style="color: #333;"';
-
-            if (isExcluded) {
-                // (1.4) Price: ?°è‰²?ªé™¤ç·?Discounted: ç´…è‰² (ä¸¦é¡¯ç¤?0)
-                priceStyle = 'style="text-decoration: line-through; color: #999999;"';
-                discountedPriceStyle = 'style="color: #d32f2f;"';
-            } else if (isDiscounted) {
-                // (1.2) Price: ?°è‰² Discounted: ç´…è‰²
-                priceStyle = 'style="color: #999999;"';
-                discountedPriceStyle = 'style="color: #d32f2f;"'; // ä¿ æ?ç´…è‰² (CSS ? è¨­)
-            }
-            // (1.3) ?…æ? (isExcluded = false ä¸?isDiscounted = false) å·²åœ¨? è¨­ä¸­è???(?©è€…ç??ºé???
-
-            // [MODIFIED] Return data object instead of string
-            return {
-                number,
-                description,
-                qty,
-                price: price.toFixed(2),
-                discountedPrice: discountedPriceValue.toFixed(2),
-                priceStyle,
-                discountedPriceStyle
-            };
-        };
-
-        let itemNumber = 1;
-
-        // Row 1: Roller Blinds
-        rows.push(createRowData(
-            itemNumber++,
-            'Roller Blinds',
-            validItemCount,
-            summaryData.firstRbPrice || 0,
-            summaryData.disRbPrice || 0,
-            false // ç¢ºä? Roller Blinds Price æ°¸é?ä¸ æ?è¢«å???
-        ));
-
-        // Row 2: Installation Accessories (Optional)
-        // [FIX v6291] æ­¥é? 1: ä¿®æ­£ isExcluded ? è¼¯ï¼Œç¢ºä¿?Price æ°¸é?ä¸ æ?è¢«å???
-        if (summaryData.acceSum > 0) {
-            rows.push(createRowData(
-                itemNumber++,
-                'Installation Accessories',
-                'NA',
-                summaryData.acceSum || 0,
-                summaryData.acceSum || 0,
-                false // ç¢ºä?æ­¤é???Price æ°¸é?ä¸ æ?è¢«å???
-            ));
-        }
-
-        // Row 3: Motorised Package (Optional)
-        // [MODIFIED v6291] æ­¥é? 2 & 5: è¨»è§£
-        // [FIX v6291] æ­¥é? 2: ä¿®æ­£ isExcluded ? è¼¯ï¼Œç¢ºä¿?Price æ°¸é?ä¸ æ?è¢«å???
-        if (summaryData.eAcceSum > 0) {
-            rows.push(createRowData(
-                itemNumber++,
-                'Motorised Package',
-                'NA',
-                summaryData.eAcceSum || 0,
-                summaryData.eAcceSum || 0,
-                false // ç¢ºä?æ­¤é???Price æ°¸é?ä¸ æ?è¢«å???
-            ));
-        }
-
-        // Row 4: Delivery
-        // [è¨»] æ­¥é? 6: æ­¤è?? è¼¯å·²æ­£ç¢ºï?isExcluded ?ƒç¹¼??deliveryExcluded
-        const deliveryExcluded = uiState.f2.deliveryFeeExcluded;
-        rows.push(createRowData(
-            itemNumber++,
-            'Delivery',
-            uiState.f2.deliveryQty || 1,
-            summaryData.deliveryFee || 0,
-            summaryData.deliveryFee || 0,
-            deliveryExcluded
-        ));
-
-        // Row 5: Installation
-        // [è¨»] æ­¥é? 7: æ­¤è?? è¼¯å·²æ­£ç¢ºï?isExcluded ?ƒç¹¼??installExcluded
-        const installExcluded = uiState.f2.installFeeExcluded;
-        rows.push(createRowData(
-            itemNumber++,
-            'Installation',
-            uiState.f2.installQty || 0, // Use installQty from F2 state
-            summaryData.installFee || 0,
-            summaryData.installFee || 0,
-            installExcluded
-        ));
-
-        // Row 6: Removal
-        // [è¨»] æ­¥é? 8: æ­¤è?? è¼¯å·²æ­£ç¢ºï?isExcluded ?ƒç¹¼??removalExcluded
-        const removalExcluded = uiState.f2.removalFeeExcluded;
-        rows.push(createRowData(
-            itemNumber++,
-            'Removal',
-            uiState.f2.removalQty || 0,
-            summaryData.removalFee || 0,
-            summaryData.removalFee || 0,
-            removalExcluded
-        ));
-
-        // [MODIFIED] Map data objects to HTML strings using the template
-        return rows.map(rowData =>
-            // [MODIFIED] (階段 1) Call external util
-            populateTemplate(this.quoteTemplateRow, rowData)
-        ).join('');
-    }
+    // [REMOVED] (階段 3) _generateItemsTableHtml_RowsOnly moved to original-quote-strategy.js
+    // [REMOVED] (階段 3) _generatePageOneItemsTableHtml_Original moved to original-quote-strategy.js
 
     // [NEW v6290 Task 1] This is the restored function for GTH
     // It generates MULTIPLE tables (cards)
@@ -536,7 +366,7 @@ export class QuoteGeneratorService {
             ));
         }
 
-        // Row 3: Motorised Accessories (Optional)
+        // Row 3: Motorised Package (Optional)
         // [FIX v6291] æ­¥é? 2: ä¿®æ­£ isExcluded ? è¼¯ï¼Œç¢ºä¿?Price æ°¸é?ä¸ æ?è¢«å???
         // [MODIFIED v6291] æ­¥é? 2: è¨»è§£
         if (summaryData.eAcceSum > 0) {

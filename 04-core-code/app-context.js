@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/app-context.js */
-// [MODIFIED] (階段 2) Injected new WorkOrderStrategy into QuoteGeneratorService.
+// [MODIFIED] (階段 3) Injected new OriginalQuoteStrategy into QuoteGeneratorService.
 
 /**
  * @description
@@ -143,19 +143,22 @@ export class AppContext {
         // --- [NEW] (階段 2) 實例化新的 Generator 策略 ---
         const workOrderStrategy = new WorkOrderStrategy();
         this.register('workOrderStrategy', workOrderStrategy);
-        // (未來 階段 3, 4)
-        // const originalQuoteStrategy = new OriginalQuoteStrategy();
-        // this.register('originalQuoteStrategy', originalQuoteStrategy);
+
+        // [NEW] (階段 3) 實例化原表策略
+        const originalQuoteStrategy = new OriginalQuoteStrategy();
+        this.register('originalQuoteStrategy', originalQuoteStrategy);
+
+        // (未來 階段 4)
         // const gthQuoteStrategy = new GthQuoteStrategy();
         // this.register('gthQuoteStrategy', gthQuoteStrategy);
 
 
         // --- [NEW] Instantiate the new QuoteGeneratorService ---
-        // [MODIFIED] (階段 2) 注入 new strategy
+        // [MODIFIED] (階段 3) 注入 new strategy
         const quoteGeneratorService = new QuoteGeneratorService({
             calculationService,
-            workOrderStrategy // [NEW]
-            // originalQuoteStrategy, // [FUTURE]
+            workOrderStrategy,
+            originalQuoteStrategy // [NEW]
             // gthQuoteStrategy // [FUTURE]
         });
         this.register('quoteGeneratorService', quoteGeneratorService);
@@ -325,6 +328,8 @@ import { SearchTabS1View } from './ui/views/search-tab-s1-view.js';
 import { SearchTabS2View } from './ui/views/search-tab-s2-view.js';
 // [NEW] (階段 2) Import the new generator strategy
 import { WorkOrderStrategy } from './services/generators/work-order-strategy.js';
+// [NEW] (階段 3) Import the new generator strategy
+import { OriginalQuoteStrategy } from './services/generators/original-quote-strategy.js';
 
 
 // [NEW IMPORTS]
