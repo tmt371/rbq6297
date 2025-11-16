@@ -1,5 +1,6 @@
 /* FILE: 04-core-code/services/generators/work-order-strategy.js */
-// [NEW] (階段 2) 建立工單 (Work Order) 產生策略
+// [MODIFIED] (Tweak 2) Fixed LF (pink) coloring bug in getSortCategoryFixed.
+// [MODIFIED] (Tweak 3, 4, 5) Added NO, Location columns and removed 'mm' from chain.
 
 import { populateTemplate } from '../../utils/template-utils.js';
 
@@ -45,7 +46,7 @@ export class WorkOrderStrategy {
             });
 
         // 2. 定義排序類別 (Tweak 6)
-        // [FIX] (Tweak 6A) 修正 getSortCategory 的邏輯錯誤
+        // [MODIFIED] (Bug Fix Tweak 2) 新增 LF (粉紅色) 的檢查
         const getSortCategoryFixed = (item) => {
             if (item.fabricType && item.fabricType.startsWith('B')) return 0; // 灰色 (B1-B5)
             if (item.fabricType === 'SN') return 1; // 水藍色 (SN)
