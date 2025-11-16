@@ -1,7 +1,10 @@
 /* FILE: 04-core-code/services/quote-generator-service.js */
-// [MODIFIED] (階段 2 修復) Implemented complex sorting and new columns for generateWorkOrderHtml.
+// [MODIFIED] (階段 1) Refactored: Moved utils to template-utils.js
 
 import { paths } from '../config/paths.js';
+// [NEW] (階段 1) Import the new external utility functions
+import { populateTemplate, formatCustomerInfo } from '../utils/template-utils.js';
+
 /**
  * @fileoverview A new, single-responsibility service for generating the final quote HTML.
  * It pre-fetches and caches templates for better performance.
@@ -133,7 +136,8 @@ export class QuoteGeneratorService {
         };
 
         // 5. (階段 2) 填充主模板
-        let finalHtml = this._populateTemplate(this.workOrderTemplate, populatedData);
+        // [MODIFIED] (階段 1) Call external util
+        let finalHtml = populateTemplate(this.workOrderTemplate, populatedData);
 
         // 6. (未來) 注入專屬的 JS
         // finalHtml = finalHtml.replace('</body>', `<script>${this.workOrderClientScript}</script></body>`);
@@ -174,7 +178,8 @@ export class QuoteGeneratorService {
         }
 
         // 3. Populate the GTH template
-        let finalHtml = this._populateTemplate(this.gmailTemplate, {
+        // [MODIFIED] (階段 1) Call external util
+        let finalHtml = populateTemplate(this.gmailTemplate, {
             ...templateData,
             // [MODIFIED] v6290 Bind to correct F2 values
             total: templateData.grandTotal,
@@ -182,8 +187,8 @@ export class QuoteGeneratorService {
             balance: templateData.balance,
             ourOffer: templateData.ourOffer, // [FIX v6291] æ­¥é? 5: ç¢ºä? ourOffer è¢«å‚³??
 
-            // Ensure customer info is formatted
-            customerInfoHtml: this._formatCustomerInfo(templateData),
+            // [MODIFIED] (階段 1) Call external util
+            customerInfoHtml: formatCustomerInfo(templateData),
             // [MODIFIED v6290 Task 1] Ensure item list is formatted
             itemsTableBody: this._generatePageOneItemsTableHtml_GTH(templateData),
             // [NEW v6290 Task 2] Pass the conditional GST row
@@ -234,7 +239,8 @@ export class QuoteGeneratorService {
         // 3. Generate HTML snippets using the prepared data.
         const populatedDataWithHtml = {
             ...templateData,
-            customerInfoHtml: this._formatCustomerInfo(templateData),
+            // [MODIFIED] (階段 1) Call external util
+            customerInfoHtml: formatCustomerInfo(templateData),
             // [MODIFIED v6290 Task 1] Use the single-table generator
             // [FIX v6291] (æ­¥é? 1, 2) æ­¤å‡½?¸ç ¾?¨å ªè¿”å? <tr>...</tr>
             itemsTableBody: this._generatePageOneItemsTableHtml_Original(templateData),
@@ -244,7 +250,8 @@ export class QuoteGeneratorService {
         };
 
         // 4. Populate templates
-        const populatedDetailsPageHtml = this._populateTemplate(this.detailsTemplate, populatedDataWithHtml);
+        // [MODIFIED] (階段 1) Call external util
+        const populatedDetailsPageHtml = populateTemplate(this.detailsTemplate, populatedDataWithHtml);
 
         const styleMatch = populatedDetailsPageHtml.match(/<style>([\s\S]*)<\/style>/i);
         const detailsBodyMatch = populatedDetailsPageHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
@@ -258,7 +265,8 @@ export class QuoteGeneratorService {
 
         let finalHtml = this.quoteTemplate.replace('</head>', `${detailsStyleContent}</head>`);
         finalHtml = finalHtml.replace('</body>', `${detailsBodyContent}</body>`);
-        finalHtml = this._populateTemplate(finalHtml, populatedDataWithHtml);
+        // [MODIFIED] (階段 1) Call external util
+        finalHtml = populateTemplate(finalHtml, populatedDataWithHtml);
 
         // 5. Inject the action bar and script into the final HTML
         finalHtml = finalHtml.replace(
@@ -275,36 +283,13 @@ export class QuoteGeneratorService {
         return finalHtml;
     }
 
-    _populateTemplate(template, data) {
-        return template.replace(/\{\{\{?([\w\-]+)\}\}\}?/g, (match, key) => {
-            // [MODIFIED] Handle GTH template keys which are different
-            const value = data.hasOwnProperty(key) ? data[key] : null;
+    // [REMOVED] (階段 1) _populateTemplate moved to template-utils.js
+    // _populateTemplate(template, data) { ... }
 
-            // Allow `null` or `0` to be rendered
-            if (value !== null && value !== undefined) {
-                return value;
-            }
+    // [REMOVED] (階段 1) _formatCustomerInfo moved to template-utils.js
+    // _formatCustomerInfo(templateData) { ... }
 
-            // Fallback for GTH keys that might not be in templateData root
-            if (key === 'total') return data.grandTotal;
-            if (key === 'deposit') return data.deposit;
-            if (key === 'balance') return data.balance;
-            // [NEW v6291] æ­¥é? 5: å¢žå? ourOffer ??fallback
-            if (key === 'ourOffer') return data.ourOffer;
-
-            return match; // Keep original placeholder if key not found
-        });
-    }
-
-    _formatCustomerInfo(templateData) {
-        let html = `<strong>${templateData.customerName || ''}</strong><br>`;
-        if (templateData.customerAddress) html += `${templateData.customerAddress.replace(/\n/g, '<br>')}<br>`;
-        if (templateData.customerPhone) html += `Phone: ${templateData.customerPhone}<br>`;
-        if (templateData.customerEmail) html += `Email: ${templateData.customerEmail}`;
-        return html;
-    }
-
-    // [MODIFIED] 階段 2 修復: 建立一個專門給工單使用、不含價格、且帶有複雜排序的函式
+    // [NEW] 階段 2 修復: 建立一個專門給工單使用、不含價格、且帶有複雜排序的函式
     _generateWorkOrderItemsTableHtml(templateData) {
         const { items } = templateData;
 
@@ -335,14 +320,6 @@ export class QuoteGeneratorService {
             });
 
         // 2. 定義排序類別 (Tweak 6)
-        const getSortCategory = (fabricType) => {
-            // [FIX] (Tweak 6A) 確保 LF 也被正確分類
-            if (fabricType && fabricType.startsWith('B')) return 0; // 灰色 (B1-B5) 優先
-            if (fabricType === 'SN') return 1; // 水藍色 (SN) 其次
-            if (item.fabric && item.fabric.toLowerCase().includes('light-filter')) return 2; // 粉紅色 (LF) 最後
-            return 3; // 其他
-        };
-
         // [FIX] (Tweak 6A) 修正 getSortCategory 的邏輯錯誤
         const getSortCategoryFixed = (item) => {
             if (item.fabricType && item.fabricType.startsWith('B')) return 0; // 灰色 (B1-B5)
@@ -431,7 +408,8 @@ export class QuoteGeneratorService {
             };
 
             // (Tweak 2) 使用 workOrderRowTemplate
-            return this._populateTemplate(this.workOrderRowTemplate, rowData);
+            // [MODIFIED] (階段 1) Call external util
+            return populateTemplate(this.workOrderRowTemplate, rowData);
         })
             .join('');
 
@@ -483,7 +461,8 @@ export class QuoteGeneratorService {
                 };
 
                 // [NEW] Populate the new external template
-                return this._populateTemplate(this.detailedItemListRow, rowData);
+                // [MODIFIED] (階段 1) Call external util
+                return populateTemplate(this.detailedItemListRow, rowData);
             })
             .join('');
 
@@ -609,7 +588,8 @@ export class QuoteGeneratorService {
 
         // [MODIFIED] Map data objects to HTML strings using the template
         return rows.map(rowData =>
-            this._populateTemplate(this.quoteTemplateRow, rowData)
+            // [MODIFIED] (階段 1) Call external util
+            populateTemplate(this.quoteTemplateRow, rowData)
         ).join('');
     }
 
@@ -728,7 +708,8 @@ export class QuoteGeneratorService {
 
         // [MODIFIED] Map data objects to HTML strings using the template
         return rows.map(rowData =>
-            this._populateTemplate(this.gmailTemplateCard, rowData)
+            // [MODIFIED] (階段 1) Call external util
+            populateTemplate(this.gmailTemplateCard, rowData)
         ).join('');
     }
 }
