@@ -26,13 +26,15 @@
             max-width: 900px;
             /* [MODIFIED] Set max-width to match the main quote page */
             margin: auto;
-            padding: 20px;
+            /* [MODIFIED] (Tweak 8) 壓縮邊界 */
+            padding: 10px;
         }
 
         .content-wrapper {
 
             background-color: #fff;
-            padding: 30px;
+            /* [MODIFIED] (Tweak 8) 壓縮邊界 */
+            padding: 20px;
             border-radius:
                 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
@@ -83,9 +85,9 @@
         th,
         td {
             border: 1px solid var(--border-light-grey);
-            padding: 10px 12px;
-            text-align: left;
-            font-size: 14px;
+            /* [MODIFIED] (Tweak 8) 壓縮間距與字體 */
+            padding: 6px 8px;
+            font-size: 13px;
             white-space: nowrap;
         }
 
@@ -103,22 +105,8 @@
             border-top: 2px solid #ccc;
         }
 
-        .bg-blockout {
+        /* [MODIFIED] (Tweak 3,4,5) 移至 work-order.css */
 
-            background-color: #f0f0f0;
-            /* Light Grey */
-        }
-
-
-        .bg-screen {
-            background-color: #e0f7fa;
-            /* Light Blue */
-        }
-
-        .bg-light-filter {
-            background-color: #ffe4e1;
-            /* Pink */
-        }
 
         .table-title {
             background-color: var(--header-bg-color);
@@ -395,26 +383,34 @@
             <div class="table-scroll-wrapper">
                 <table class="detailed-list-table">
                     <colgroup>
-                        <col style="width: 5%;">
-                        <col style="width: 20%;">
-                        <col style="width: 15%;">
-                        <col style="width: 14.65%;">
-                        <col style="width: 8.1%;">
-                        <col style="width: 8.1%;">
-                        <col style="width: 8.1%;">
+                        <col style="width: 4%;">
+                        <col style="width: 18%;">
+                        <col style="width: 7%;">
+                        <col style="width: 7%;">
+                        <col style="width: 6%;">
+                        <col style="width: 6%;">
+                        <col style="width: 6%;">
+                        <col style="width: 6%;">
+                        <col style="width: 10%;">
+                        <col style="width: 10%;">
+                        <col style="width: 10%;">
                     </colgroup>
                     <thead>
                         <tr class="table-title">
-                            <th colspan="7">Roller Blinds - Work Order</th>
+                            <th colspan="11">Roller Blinds - Work Order</th>
                         </tr>
                         <tr>
                             <th>#</th>
-                            <th>F-NAME</th>
-                            <th>F-COLOR</th>
-                            <th>Location</th>
+                            <th>Fcolor</th>
+                            <th>W</th>
+                            <th>H</th>
+                            <th>L/R</th>
+                            <th>over</th>
+                            <th>dual</th>
                             <th>HD</th>
-                            <th>Dual</th>
-                            <th>Motor</th>
+                            <th>chain</th>
+                            <th>motor</th>
+                            <th>PRICE</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -475,12 +471,12 @@
 
                 <div class="legend">
                     <h3>Abbreviations Key</h3>
-                    <p><span class="color-swatch" style="background-color: #f0f0f0;"></span><strong>F-Name &
-                            F-Color:</strong> Blockout (BO)</p>
-                    <p><span class="color-swatch" style="background-color: #e0f7fa;"></span><strong>F-Name &
-                            F-Color:</strong> Screen (SN)</p>
-                    <p><span class="color-swatch" style="background-color: #ffe4e1;"></span><strong>F-Name &
-                            F-Color:</strong> Light Filter (LF)</p>
+                    <p><span class="color-swatch" style="background-color: #f0f0f0;"></span><strong>Fcolor:</strong>
+                        Blockout (BO)</p>
+                    <p><span class="color-swatch" style="background-color: #e0f7fa;"></span><strong>Fcolor:</strong>
+                        Screen (SN)</p>
+                    <p><span class="color-swatch" style="background-color: #ffe4e1;"></span><strong>Fcolor:</strong>
+                        Light Filter (LF)</p>
                     <p><strong>HD:</strong> Heavy-Duty Winder</p>
                     <p><strong>Dual:</strong> Double Bracket (for Dual Roller Blinds)</p>
                 </div>

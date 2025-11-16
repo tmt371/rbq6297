@@ -1,5 +1,5 @@
 /* FILE: 04-core-code/services/quote-generator-service.js */
-// [MODIFIED] (階段 2) Implemented generateWorkOrderHtml to populate data.
+// [MODIFIED] (階段 2 修復) Implemented complex sorting and new columns for generateWorkOrderHtml.
 
 import { paths } from '../config/paths.js';
 /**
@@ -23,8 +23,8 @@ export class QuoteGeneratorService {
         this.detailedItemListRow = '';
         // [NEW] 階段 1: Add property for the work order template
         this.workOrderTemplate = '';
-        // [NEW] 階段 2: Add property for the work order row template
-        this.workOrderTemplateRow = '';
+        // [MODIFIED] 階段 2 修復: Renamed from 'workOrderTemplateRow'
+        this.workOrderRowTemplate = ''; // Will hold work-order-template-row.html
 
         // [MODIFIED] The script now includes a robust CSS inlining mechanism.
         this.actionBarHtml = `
@@ -63,8 +63,8 @@ export class QuoteGeneratorService {
                 this.detailedItemListRow,
                 // [NEW] 階段 1: Fetch the new work order template
                 this.workOrderTemplate,
-                // [NEW] 階段 2: Fetch the new work order row template
-                this.workOrderTemplateRow
+                // [MODIFIED] 階段 2 修復: Load the new work order row template
+                this.workOrderRowTemplate
             ] = await Promise.all([
                 fetch(paths.partials.quoteTemplate).then(res => res.text()),
                 fetch(paths.partials.detailedItemList).then(res => res.text()),
@@ -80,7 +80,7 @@ export class QuoteGeneratorService {
                 fetch(paths.partials.detailedItemListRow).then(res => res.text()),
                 // [NEW] 階段 1: Fetch the work order template
                 fetch(paths.partials.workOrderTemplate).then(res => res.text()),
-                // [NEW] 階段 2: Fetch the work order row template
+                // [MODIFIED] 階段 2 修復: Fetch the work order row template
                 fetch(paths.partials.workOrderTemplateRow).then(res => res.text()),
             ]);
             console.log("QuoteGeneratorService: All (8) HTML templates and (2) client scripts pre-fetched and cached.");
@@ -94,8 +94,8 @@ export class QuoteGeneratorService {
     // This method ensures templates are loaded, but only fetches them once.
     async _loadTemplates() {
         // Check if templates are already loaded.
-        // [MODIFIED] 階段 2: Check for new work order row template
-        if (this.quoteTemplate && this.detailsTemplate && this.gmailTemplate && this.quoteTemplateRow && this.gmailTemplateCard && this.quoteClientScript && this.gmailClientScript && this.detailedItemListRow && this.workOrderTemplate && this.workOrderTemplateRow) {
+        // [MODIFIED] 階段 2 修復: Check for new work order row template
+        if (this.quoteTemplate && this.detailsTemplate && this.gmailTemplate && this.quoteTemplateRow && this.gmailTemplateCard && this.quoteClientScript && this.gmailClientScript && this.detailedItemListRow && this.workOrderTemplate && this.workOrderRowTemplate) {
             return; // Already loaded, do nothing.
         }
 
@@ -104,7 +104,7 @@ export class QuoteGeneratorService {
         await this._initialize();
     }
 
-    // [MODIFIED] 階段 2: 實作工單 HTML 的產生
+    // [MODIFIED] 階段 2 修復: 實作工單 HTML 的產生
     /**
      * Generates the HTML for the Work Order (No Prices).
      * @param {object} quoteData - The application's quote data.
@@ -115,16 +115,15 @@ export class QuoteGeneratorService {
         // 1. 確保模板已載入
         await this._loadTemplates();
 
-        if (!this.workOrderTemplate || !this.workOrderTemplateRow) {
+        if (!this.workOrderTemplate || !this.workOrderRowTemplate) {
             console.error("QuoteGeneratorService: Work Order templates are not loaded yet.");
             return null;
         }
 
         // 2. 獲取填充資料
-        // [MODIFIED] (階段 2) f3Data (quoteData) 是為了相容性
         const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData);
 
-        // 3. (階段 2) 產生工單專用的 (無價格) 表格列
+        // 3. (階段 2 修復) 產生工單專用的 (無價格) 表格列 (含複雜排序)
         const workOrderTableRows = this._generateWorkOrderItemsTableHtml(templateData);
 
         // 4. (階段 2) 組合所有資料
@@ -305,56 +304,116 @@ export class QuoteGeneratorService {
         return html;
     }
 
-    // [NEW] 階段 2: 建立一個專門給工單使用、不含價格的函式
+    // [NEW] 階段 2 修復: 建立一個專門給工單使用、不含價格、且帶有複雜排序的函式
     _generateWorkOrderItemsTableHtml(templateData) {
         const { items } = templateData;
 
-        const rows = items
+        // --- (Tweak 6) 排序邏輯 ---
+
+        // 1. 預先處理，計算 Fcolor 和 B-Type 的出現次數
+        const fcolorCounts = {};
+        const bTypeCounts = {};
+        const validItems = items
             .filter(item => item.width && item.height)
             .map((item, index) => {
+                const fcolorKey = `${item.fabric || ''}|${item.color || ''}`;
+                const bTypeKey = item.fabricType || '';
 
-                let fabricClass = '';
-                if (item.fabric && item.fabric.toLowerCase().includes('light-filter')) {
-                    fabricClass = 'bg-light-filter';
-                } else if (item.fabricType === 'SN') {
-                    fabricClass = 'bg-screen';
-                } else if (['B1', 'B2', 'B3', 'B4', 'B5'].includes(item.fabricType)) {
-                    fabricClass = 'bg-blockout';
+                fcolorCounts[fcolorKey] = (fcolorCounts[fcolorKey] || 0) + 1;
+
+                if (bTypeKey.startsWith('B')) {
+                    bTypeCounts[bTypeKey] = (bTypeCounts[bTypeKey] || 0) + 1;
                 }
 
-                // [MODIFIED] 階段 2: 移除價格計算
-                // const finalPrice = (item.linePrice || 0) * mulTimes;
-
-                const winderText = item.winder === 'HD' ? 'Y' : '';
-                const dualText = item.dual === 'D' ? 'Y' : '';
-                const motorText = item.motor ? 'Y' : '';
-
-                // [MODIFIED] 階段 2: 轉換為工廠格式 (此為未來 Tweak 的起點)
-                const factoryChain = item.chain ? `${item.chain}mm` : '';
-
-                const rowData = {
-                    index: index + 1,
-                    fabricClass: fabricClass,
-                    fabric: item.fabric || '',
-                    color: item.color || '',
-                    location: item.location || '',
-                    // [NEW] 階段 2: 填充 W & H
-                    width: item.width || '',
-                    height: item.height || '',
-                    winder: winderText,
-                    dual: dualText,
-                    motor: motorText,
-                    chain: factoryChain,
-                    // [MODIFIED] 階段 2: 移除 Price
-                    // price: `$${finalPrice.toFixed(2)}`,
-                    isEmptyClassHD: winderText ? '' : 'is-empty-cell',
-                    isEmptyClassDual: dualText ? '' : 'is-empty-cell',
-                    isEmptyClassMotor: motorText ? '' : 'is-empty-cell',
+                return {
+                    ...item,
+                    originalIndex: index, // (Tweak 6) 保留原始 ＃
+                    fcolorKey: fcolorKey,
+                    bTypeKey: bTypeKey
                 };
+            });
 
-                // [MODIFIED] 階段 2: 使用新的 workOrderTemplateRow
-                return this._populateTemplate(this.workOrderTemplateRow, rowData);
-            })
+        // 2. 定義排序類別 (Tweak 6)
+        const getSortCategory = (fabricType) => {
+            if (fabricType && fabricType.startsWith('B')) return 0; // (Query 6A) 灰色 (B1-B5) 優先
+            if (fabricType === 'SN') return 1; // (Query 6C) 水藍色 (SN) 其次
+            if (fabricType && fabricType.toLowerCase().includes('light-filter')) return 2; // (Query 6D) 粉紅色 (LF) 最後
+            return 3; // 其他
+        };
+
+        // 3. 執行複雜排序 (Tweak 6)
+        validItems.sort((a, b) => {
+            const categoryA = getSortCategory(a.fabricType);
+            const categoryB = getSortCategory(b.fabricType);
+
+            // A. 按主類別排序 (B > SN > LF)
+            if (categoryA !== categoryB) {
+                return categoryA - categoryB;
+            }
+
+            // B. 如果在同一類別中
+            const fcolorCountA = fcolorCounts[a.fcolorKey];
+            const fcolorCountB = fcolorCounts[b.fcolorKey];
+
+            // B1. 按 Fcolor 數量排序 (多 -> 少)
+            if (fcolorCountA !== fcolorCountB) {
+                return fcolorCountB - fcolorCountA;
+            }
+
+            // B2. (Query 6A) 如果是 B 類別 (灰色)，且 Fcolor 數量相同
+            if (categoryA === 0) {
+                const bTypeCountA = bTypeCounts[a.bTypeKey] || 0;
+                const bTypeCountB = bTypeCounts[b.bTypeKey] || 0;
+                // 按 B-Type 數量排序 (多 -> 少)
+                if (bTypeCountA !== bTypeCountB) {
+                    return bTypeCountB - bTypeCountA;
+                }
+            }
+
+            // C. 如果還是相同，保持原始 ＃ 順序
+            return a.originalIndex - b.originalIndex;
+        });
+
+        // --- (Tweak 2, 3, 4, 5) 產生 HTML ---
+        const rows = validItems.map((item) => {
+
+            // (Tweak 3, 4, 5) 決定著色
+            let fabricClass = '';
+            const category = getSortCategory(item.fabricType);
+            if (category === 0) {
+                fabricClass = 'bg-blockout'; // 灰色
+            } else if (category === 1) {
+                fabricClass = 'bg-screen'; // 水藍色
+            } else if (category === 2) {
+                fabricClass = 'bg-light-filter'; // 粉紅色
+            }
+
+            // (Tweak 2) 準備欄位資料
+            const winderText = item.winder === 'HD' ? 'Y' : '';
+            const dualText = item.dual === 'D' ? 'Y' : '';
+            const motorText = item.motor ? 'Y' : '';
+            const fcolorText = `${item.fabric || ''} ${item.color || ''}`.trim();
+
+            const rowData = {
+                index: item.originalIndex + 1, // (Tweak 6) 使用原始 ＃
+                fabricClass: fabricClass,
+                fcolor: fcolorText, // (Tweak 2)
+                width: item.width || '',
+                height: item.height || '',
+                lr: item.lr || '', // (Tweak 2)
+                over: item.oi || '', // (Tweak 2) (假設 over = oi)
+                winder: winderText,
+                dual: dualText,
+                motor: motorText,
+                chain: item.chain ? `${item.chain}mm` : '', // (Tweak 2)
+                isEmptyClassHD: winderText ? '' : 'is-empty-cell',
+                isEmptyClassDual: dualText ? '' : 'is-empty-cell',
+                isEmptyClassMotor: motorText ? '' : 'is-empty-cell',
+            };
+
+            // (Tweak 2) 使用 workOrderRowTemplate
+            return this._populateTemplate(this.workOrderRowTemplate, rowData);
+        })
             .join('');
 
         return rows;

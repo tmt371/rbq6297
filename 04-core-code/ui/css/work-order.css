@@ -1,13 +1,53 @@
 /* FILE: 04-core-code/ui/css/work-order.css */
 
 /* 此檔案為工廠訂單 (Work Order) 專屬的樣式表。
-  未來所有 A4 列印佈局、工單表格樣式、字體大小等
-  都將在這裡定義。
 */
+
+/* [NEW] (Tweak 3, 4, 5) 項目著色 */
+.work-order-table .bg-blockout {
+    background-color: #f0f0f0 !important;
+    /* 灰色 */
+}
+
+.work-order-table .bg-screen {
+    background-color: #e0f7fa !important;
+    /* 水藍色 */
+}
+
+.work-order-table .bg-light-filter {
+    background-color: #ffe4e1 !important;
+    /* 粉紅色 */
+}
+
+/* [NEW] (Tweak 8) 壓縮表格字體與間距 */
+.work-order-table th,
+.work-order-table td {
+    padding: 6px 8px;
+    font-size: 13px;
+    white-space: nowrap;
+    /* 確保 L/R, over 等欄位不換行 */
+}
+
+/* [NEW] (Tweak 8) 壓縮 A4 邊界 */
+.page-container {
+    padding: 10px;
+}
+
+.content-wrapper {
+    padding: 20px;
+}
 
 @media print {
     body {
         /* 未來將在此處定義列印專用樣式 */
         background-color: #ffffff;
+    }
+
+    /* (Tweak 3, 4, 5) 強制列印背景顏色 */
+    .work-order-table .bg-blockout,
+    .work-order-table .bg-screen,
+    .work-order-table .bg-light-filter {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
     }
 }
