@@ -1,13 +1,69 @@
 /* /04-core-code/ui/css/f3-adjustments.css */
+/* [MODIFIED] (v6297 F3 Layout) Reworked layout from Grid to Flex, removed headers, and added new colored group boxes. */
 
 /* --- F3 Main Container & Grid Layout --- */
 .f3-container {
+    display: flex;
+    /* [MODIFIED] Changed from grid to flex */
+    flex-direction: column;
+    /* [NEW] Set direction to vertical */
+    gap: 10px;
+    /* [MODIFIED] Set consistent 10px gap between groups */
+    /* [REMOVED] grid-template-columns: 0.8fr 1.2fr 1.2fr 0.5fr; (Moved to groups) */
+    /* [REMOVED] gap: 12px 10px; */
+    /* [REMOVED] align-items: center; */
+}
+
+/* --- [NEW] (v6297 F3 Layout) New Group Box Styles --- */
+.f3-group-quote,
+.f3-group-customer,
+.f3-group-notes,
+.f3-group-action {
+    /* [NEW] Apply the old grid layout *inside* each group */
     display: grid;
-    /* Columns: A (Label), B (Content), C (Content), D (Blank) */
     grid-template-columns: 0.8fr 1.2fr 1fr 0.5fr;
     gap: 12px 10px;
     align-items: center;
+
+    /* [NEW] Visual styling */
+    padding: 15px;
+    border-radius: 4px;
 }
+
+/* [NEW] Group 1: Quote Details (Blue) */
+.f3-group-quote {
+    background-color: #e0f2fe;
+    /* 水藍色底色 */
+    border: 1px solid #1e40af;
+    /* 深藍色框線 */
+}
+
+/* [NEW] Group 2: Customer Info (Yellow) */
+.f3-group-customer {
+    background-color: #fefce8;
+    /* 淡黃色底色 */
+    border: 1px solid #facc15;
+    /* 黃色外框線 */
+}
+
+/* [NEW] Group 3: Notes & Terms (Green) */
+.f3-group-notes {
+    background-color: #dcfce7;
+    /* 淡綠色底色 */
+    border: 1px solid #166534;
+    /* 深綠色外框線 */
+}
+
+/* [NEW] Group 4: Action (Pink/Red) */
+.f3-group-action {
+    background-color: #fee2e2;
+    /* 粉紅色底色 */
+    border: 1px solid #dc2626;
+    /* 紅色外框線 */
+}
+
+/* --- [END NEW] --- */
+
 
 /* --- Generic Cell Styles --- */
 .f3-container .grid-cell {
@@ -25,10 +81,10 @@
     grid-column: span 4;
 }
 
-/* --- Section Headers --- */
+/* --- [REMOVED] (v6297 F3 Layout) Section Headers --- */
+/*
 .f3-container .section-header {
-    grid-column: 1 / -1;
-    /* Span all columns */
+    grid-column: 1 / -1; 
     font-weight: bold;
     color: #1f2937;
     background-color: #d1d5db;
@@ -41,6 +97,7 @@
 .f3-container .section-header:first-child {
     margin-top: 0;
 }
+*/
 
 /* --- Input & Button Styles --- */
 .f3-container .input-field,
@@ -70,6 +127,13 @@
     background-color: #3b82f6;
     color: white;
     transition: background-color 0.2s;
+
+    /* [NEW] (v6297 F3 Layout) Ensure consistent button height */
+    height: 42px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .f3-container .action-button:hover {
