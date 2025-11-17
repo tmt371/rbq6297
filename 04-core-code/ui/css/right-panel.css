@@ -130,31 +130,64 @@
     display: block;
 }
 
-/* --- Function Grid Styles (Now inside a tab) --- */
-/* [REMOVED] Old .function-grid (2 columns) */
-/*
-.function-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr); 
-    gap: 10px;
-}
-*/
+/* --- [MODIFIED] (v6297 F4 Layout) --- */
 
-/* [NEW] New .f4-grid-concise (single column) */
+/* [REMOVED] Old .f4-grid-concise (single column) */
+/*
 .f4-grid-concise {
     display: grid;
     grid-template-columns: 1fr;
-    /* Single column layout */
     gap: 12px;
-    /* Increased gap */
+}
+*/
+
+/* [NEW] New F4 layout container */
+.f4-layout-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    /* 統一間距 */
 }
 
-/* [MODIFIED] Apply styles to the new grid class */
-.f4-grid-concise .f4-button {
+/* [NEW] New F4 grid group styles */
+.f4-group-save,
+.f4-group-load,
+.f4-group-actions,
+.f4-group-tools {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+/* [NEW] Style for the "Save" group border */
+.f4-group-save {
+    border: 2px solid #166534;
+    /* 深綠色 */
+    background-color: #f0fdf4;
+    /* 非常淡的綠色背景 */
+    padding: 10px;
+    border-radius: 4px;
+}
+
+/* [NEW] Horizontal separator style */
+.f4-separator {
+    height: 1px;
+    background-color: var(--panel-border-color);
+    margin: 5px 0;
+    /* 上下間距 */
+}
+
+/* [REMOVED] Old .f4-grid-concise .f4-button styles */
+/*
+.f4-grid-concise .f4-button { ... }
+.f4-grid-concise .f4-button:disabled { ... }
+*/
+
+/* [NEW] Generic .f4-button style for the new layout */
+.f4-button {
     width: 100%;
     padding: 10px 5px;
     font-size: 1.1em;
-    /* Increased font size */
     font-weight: 500;
     background-color: #fff;
     border: 1px solid #ccc;
@@ -163,50 +196,60 @@
     transition: background-color 0.2s, opacity 0.2s;
 }
 
-.f4-grid-concise .f4-button:disabled {
+.f4-button:disabled {
     background-color: #f3f4f6;
     opacity: 0.5;
     cursor: not-allowed;
 }
 
-/* Specific button styles */
-#f1-key-save {
+/* [NEW] Color classes for buttons */
+.f4-button.btn-green {
     background-color: #dcfce7;
+    /* 淡綠 */
     border-color: #a7f3d0;
 }
 
-/* [NEW] Tweak A: Style for the new "Save as New Version" button */
-#f4-key-save-as-new {
+.f4-button.btn-green:hover {
+    background-color: #bbf7d0;
+}
+
+.f4-button.btn-orange {
     background-color: #ffedd5;
-    /* Same as Load File */
+    /* 淺橘 */
     border-color: #fed7aa;
 }
 
-#f1-key-export {
-    background-color: #d1fae5;
-    border-color: #a7f3d0;
+.f4-button.btn-orange:hover {
+    background-color: #fde68a;
 }
 
-#f1-key-load {
-    background-color: #ffedd5;
-    border-color: #fed7aa;
-}
-
-/* [NEW] Style for the new Search/Load button */
-#f4-key-search-dialog {
-    background-color: #e0f2fe;
-    border-color: #bae6fd;
-}
-
-/* [NEW] Style for the new Logout button */
-#f4-key-logout {
+.f4-button.btn-pink {
     background-color: #fee2e2;
+    /* 粉紅 */
     border-color: #fecaca;
 }
 
-#f1-key-reset {
+.f4-button.btn-pink:hover {
+    background-color: #fca5a5;
+}
+
+.f4-button.btn-red {
     background-color: #ef4444;
+    /* 紅色 */
     color: white;
     font-weight: bold;
     border-color: #dc2626;
 }
+
+.f4-button.btn-red:hover {
+    background-color: #dc2626;
+}
+
+/* [REMOVED] Old specific button color styles */
+/* #f1-key-save { ... } */
+/* #f4-key-save-as-new { ... } */
+/* #f1-key-export { ... } */
+/* #f1-key-load { ... } */
+/* #f4-key-search-dialog { ... } */
+/* #f4-key-logout { ... } */
+/* #f1-key-reset { ... } */
