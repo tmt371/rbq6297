@@ -1,12 +1,13 @@
 /* /04-core-code/ui/css/f1-grid.css */
+/* [MODIFIED] (v6297 F1 Tweak) Reduced vertical gaps and padding for a tighter layout. */
 
 .f1-grid {
     display: grid;
     /* Columns: A (label), B (quantity/label), C (amount) */
     /* [MODIFIED] Rightmost column width reduced by 10% */
     grid-template-columns: 1.2fr 0.8fr 0.9fr;
-    gap: 12px 10px;
-    /* Increased vertical gap */
+    gap: 11px 10px;
+    /* [MODIFIED] (v6297 F1 Tweak) Vertical gap was 12px */
     align-items: center;
     /* [MODIFIED] Base font size reduced by ~10% */
     font-size: 13px;
@@ -41,10 +42,12 @@
     grid-column: 1 / -1;
     border-radius: 8px;
     /* [MODIFIED] Reduced horizontal padding to widen the component */
-    padding: 15px 8px;
+    padding: 5px 8px;
+    /* [MODIFIED] (v6297 F1 Tweak) Vertical padding was 15px */
     display: grid;
     grid-template-columns: subgrid;
-    gap: 8px 10px;
+    gap: 7px 10px;
+    /* [MODIFIED] (v6297 F1 Tweak) Vertical gap was 8px */
 }
 
 .component-cost-group {
@@ -146,6 +149,7 @@
     background-color: #f8f8f8;
     /* [MODIFIED] Adjusted negative margin to match new padding */
     margin: -4px -8px;
+    /* [MODIFIED] (v6297 F1 Tweak) This value is based on the new padding/gap */
     padding: 4px 8px;
 }
 
