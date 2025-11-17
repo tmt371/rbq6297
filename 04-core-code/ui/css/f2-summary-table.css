@@ -3,9 +3,9 @@
 /* [MODIFIED] (v6297 F2 Layout) Added .f2-subgrid-erb for 4-column nested grid. */
 /* [MODIFIED] (v6297 F2 Layout Fix 2) Added :not() to main selector to prevent override. */
 /* [MODIFIED] (v6297 F2 Grouping) Added new .f2-group-* containers. */
+/* [MODIFIED] (v6297 F2 Style Tweak 4) Final fix for CSS inheritance and specificity. */
 
 .f2-summary-grid {
-
     display: grid;
     /* Columns: A(label) B(value/input) C(value) */
     grid-template-columns: 1fr 1fr 1fr;
@@ -14,10 +14,19 @@
     align-items: center;
 }
 
-/* [MODIFIED] (v6297 F2 Layout Fix 2) Use :not() to exclude the subgrid container */
-/* [MODIFIED] (v6297 F2 Grouping) Exclude new group containers as well */
-.f2-summary-grid>div:not(.f2-subgrid-erb):not(.f2-group-costs):not(.f2-group-summary),
-.f2-summary-grid>input {
+/* [REMOVED] (v6297 F2 Style Tweak 4) Removed all broad, brittle selectors */
+/*
+.f2-summary-grid > div:not(.f2-subgrid-erb):not(.f2-group-costs):not(.f2-group-summary),
+.f2-summary-grid > input { ... }
+*/
+
+/* [NEW] (v6297 F2 Style Tweak 4) Apply base styles directly to item classes */
+.f2-summary-grid .grid-cell-label,
+.f2-summary-grid .grid-cell-value,
+.f2-summary-grid .grid-cell-input,
+.f2-summary-grid .section-header,
+.f2-summary-grid .section-header-total,
+.f2-summary-grid .grid-cell-placeholder {
     font-size: 0.8em;
     padding: 4px;
     box-sizing: border-box;
@@ -38,11 +47,14 @@
 
 .grid-cell-value {
     font-family: 'Courier New', Courier, monospace;
-    font-weight: bold;
+    /* [REMOVED] (v6297 F2 Style Tweak 2) font-weight: bold; */
     justify-content: flex-end;
+    /* [MODIFIED] (v6297 F2 Style Tweak 2) This is correct for flex items */
     background-color: #e9ecef;
     border-radius: 3px;
     padding-right: 6px;
+    /* [REMOVED] (v6297 F2 Style Tweak 2) text-align: right; (Ineffective on flex) */
+    /* [REMOVED] (v6297 F2 Style Tweak 2) width: 100%; */
 }
 
 .grid-cell-input {
@@ -82,18 +94,11 @@
     /* 保持與主網格相同的間距 */
 }
 
-/* [NEW] (v6297 F2 Layout Fix 2) Apply base styles to nested grid children */
-/* This fixes the layout bug by applying the missing flex/font styles */
-.f2-subgrid-erb>div {
-    font-size: 0.8em;
-    padding: 4px;
-    box-sizing: border-box;
-    min-height: 26px;
-    display: flex;
-    align-items: center;
-}
-
-/* [END FIX] */
+/* [REMOVED] (v6297 F2 Style Tweak 4) This rule is no longer needed, */
+/* as the new .f2-summary-grid .grid-cell-label/value rules apply correctly */
+/*
+.f2-subgrid-erb > div { ... }
+*/
 
 .section-header {
     /* [MODIFIED] Changed to span 2 columns */
@@ -156,7 +161,7 @@
 
 .f2-group-summary {
     background-color: #cceeff;
-    /* 淡粉紅 */
+    /* [MODIFIED] 淡藍 */
     border: 1px solid #dc2626;
     /* 紅色 */
 }
