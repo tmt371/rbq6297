@@ -1,4 +1,5 @@
 /* File: 04-core-code/ui/css/f2-summary-table.css */
+/* [MODIFIED] (v6297 F2 Tweak) Reduced section header margin-top from 8px to 6px. */
 
 .f2-summary-grid {
 
@@ -75,22 +76,16 @@
     background-color: #d1d5db;
     padding: 4px;
     border-radius: 3px;
-    margin-top: 8px;
+    margin-top: 6px;
+    /* [MODIFIED] (v6297 F2 Tweak) Was 8px */
     justify-content: center;
     font-size: 0.85em;
 }
 
-/* [NEW] Total æ¨™ç±¤?„ç??²æ?å­?*/
-.text-red {
-    color: #c0392b;
-
-    /* Red */
-}
-
 /* [ADDED] Style for the total value in the header row */
 .section-header-total {
-    margin-top: 8px;
-    /* Aligns with the section-header */
+    margin-top: 6px;
+    /* [MODIFIED] (v6297 F2 Tweak) Was 8px - Aligns with the section-header */
 }
 
 
@@ -103,12 +98,12 @@
     /* Light yellow */
 }
 
-/* [NEW] new-offer ä½¿ç”¨æ·¡ç???*/
+/* [NEW] new-offer 使用淡綠色 */
 #new-offer {
     background-color: #dcfce7;
 }
 
-/* [NEW] (Phase 2) f2-b24-gst ä½¿ç”¨æ·¡è???*/
+/* [NEW] (Phase 2) f2-b24-gst 使用淡藍色 */
 #f2-b24-gst {
     background-color: #e0f7fa;
     /* Light Blue */
@@ -154,8 +149,7 @@
     color: #721c24;
 }
 
-/* [NEW] (Phase 
- 2) Add exclusion style for GST */
+/* [NEW] (Phase 2) Add exclusion style for GST */
 #f2-label-gst.is-excluded,
 #f2-b24-gst.is-excluded {
     background-color: #f8d7da !important;
