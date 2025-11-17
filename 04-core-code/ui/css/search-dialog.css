@@ -1,5 +1,6 @@
 /* FILE: 04-core-code/ui/css/search-dialog.css */
 /* [MODIFIED] (v6298-F4-Search) Styles for the new advanced search dialog */
+/* [MODIFIED] (v6297 F4 Search Tweak) Adjusted mobile view from 100% fullscreen to 85% width dialog. */
 
 /* --- Container & Overlay --- */
 .search-dialog-container {
@@ -68,12 +69,12 @@
     color: #333;
 }
 
-/* --- [NEW] 階段 1：標準頁籤導航列 (同 left/right panel) --- */
+/* --- [NEW] ?段 1：æ?準é?籤å??å? (??left/right panel) --- */
 .search-tab-nav {
     display: flex;
     flex-shrink: 0;
     background-color: #d1d5db;
-    /* [MODIFIED] 階段 1：預設隱藏 (桌機版) */
+    /* [MODIFIED] ?段 1：é?設隱??(桌æ??? */
     display: none;
 }
 
@@ -101,23 +102,23 @@
     color: var(--tab-active-color);
 }
 
-/* --- [MODIFIED] 階段 1：原 .search-dialog-content (flex 容器) --- */
+/* --- [MODIFIED] ?段 1：å? .search-dialog-content (flex 容器) --- */
 .search-dialog-content {
-    /* [MODIFIED] 階段 1：桌機版維持三欄 flex 佈局 */
+    /* [MODIFIED] ?段 1：æ?機ç?維æ?三æ? flex 佈å? */
     display: flex;
     flex-grow: 1;
     min-height: 0;
     /* Important for flex child overflow */
 }
 
-/* --- [NEW] 階段 1：頁籤內容包裹器 (.tab-content) --- */
+/* --- [NEW] ?段 1：é?籤內容å?裹器 (.tab-content) --- */
 .search-dialog-content .tab-content {
-    /* [MODIFIED] 階段 1：桌機版使用 display: contents 讓包裹器 "失效" */
+    /* [MODIFIED] ?段 1：æ?機ç?使用 display: contents 讓å?裹器 "失æ?" */
     display: contents;
 }
 
 .search-dialog-content .tab-content.active {
-    /* [MODIFIED] 階段 1：桌機版 .active 狀態也必須是 "失效" */
+    /* [MODIFIED] ?段 1：æ?機ç? .active ?€?ä?必é???"失æ?" */
     display: contents;
 }
 
@@ -201,7 +202,7 @@
 
 .search-result-item small {
     display: block;
-    /* [NEW] 確保 small 標籤也換行 */
+    /* [NEW] 確ä? small 標籤也æ?¡?*/
     font-size: 0.8em;
     color: #555;
 }
@@ -285,7 +286,7 @@
     line-height: 1;
 }
 
-/* [MODIFIED] Tweak 1: SH 按鈕改為淡綠色 */
+/* [MODIFIED] Tweak 1: SH ?é??為淡ç???*/
 .search-dialog-btn.btn-primary {
     background-color: #dcfce7;
     /* Light green (from f1-grid) */
@@ -296,23 +297,23 @@
     transition: background-color 0.2s, border-color 0.2s, outline 0.1s ease-in-out;
 }
 
-/* [NEW] Tweak 2: SH 按鈕的 Hover 狀態 */
+/* [NEW] Tweak 2: SH ?é???Hover ?€??*/
 .search-dialog-btn.btn-primary:hover {
     background-color: #bbf7d0;
     /* Slightly darker green */
     border-color: #86efac;
 }
 
-/* [NEW] Tweak 2: SH 按鈕的 Focus 狀態 */
+/* [NEW] Tweak 2: SH ?é???Focus ?€??*/
 .search-dialog-btn.btn-primary:focus {
     background-color: #dcfce7;
-    /* 保持淡綠色 */
+    /* 保æ?淡ç???*/
     color: #1f2937;
-    /* 保持深色文字 */
+    /* 保æ?深色?å? */
     border-color: #a7f3d0;
-    /* 保持綠色邊框 */
+    /* 保æ?綠色?æ? */
 
-    /* 深藍色外框 */
+    /* 深è??å?¡?*/
     outline: 2px solid var(--primary-color);
     outline-offset: 2px;
 }
@@ -323,7 +324,7 @@
     border-color: #9fa8da;
     cursor: not-allowed;
     color: white;
-    /* 確保 disabled 狀態的文字顏色正確 */
+    /* 確ä? disabled ?€?ç??å?顏色­?º */
 }
 
 .search-dialog-btn.btn-secondary {
@@ -331,28 +332,33 @@
     color: #333;
 }
 
-/* --- [NEW] 階段 1：手機版響應式佈局 (768px) --- */
+/* --- [NEW] ?段 1：æ?機ç??æ?式ä?局 (768px) --- */
+/* [MODIFIED] (v6297 F4 Search Tweak) Changed mobile to 85% width dialog */
 @media (max-width: 768px) {
     .search-dialog-box {
-        width: 100%;
-        height: 100%;
-        max-width: 100%;
-        border-radius: 0;
+        width: 85%;
+        /* [MODIFIED] Was 100% */
+        height: 80vh;
+        /* [MODIFIED] Was 100% */
+        max-width: 90%;
+        /* [MODIFIED] Was 100% */
+        border-radius: 8px;
+        /* [MODIFIED] Was 0 */
     }
 
-    /* 1. 顯示頁籤導航列 */
+    /* 1. 顯示?籤導航??*/
     .search-tab-nav {
         display: flex;
     }
 
-    /* 2. 恢復 .search-dialog-content 的標準 flex-column 佈局 */
+    /* 2. ?復 .search-dialog-content ?æ?º?flex-column 佈å? */
     .search-dialog-content {
         flex-direction: column;
         display: flex;
-        /* 確保 flex 生效 */
+        /* 確ä? flex ?æ? */
     }
 
-    /* 3. 將頁籤內容切換回 display: block/none */
+    /* 3. 將é?籤內容å??å? display: block/none */
     .search-dialog-content .tab-content {
         display: none;
         width: 100%;
@@ -365,14 +371,14 @@
         display: block;
     }
 
-    /* --- S1 篩選器面板 (手機版) --- */
-    /* 4. S1 內部改為 "兩兩一排" 佈局 */
+    /* --- S1 篩選?面??(?æ??? --- */
+    /* 4. S1 ?部?為 "?兩一?? 佈å? */
     #s1-content {
         background-color: #fcfcfc;
     }
 
     #s1-content .search-filters-panel {
-        /* 移除桌機版的固定寬度、邊框和 padding */
+        /* 移除桌æ??ç??å?寬度?é?框å? padding */
         flex: 1 1 auto;
         border-right: none;
         padding: 15px;
@@ -381,61 +387,61 @@
         gap: 10px 15px;
         /* row-gap, column-gap */
         overflow-y: auto;
-        /* 允許 S1 滾動 */
+        /* ?許 S1 滾å? */
     }
 
     #s1-content .search-filter-group {
-        /* 每個群組佔 50% 寬度，減去 gap */
+        /* 每個群組ä? 50% 寬度，æ???gap */
         flex: 1 1 calc(50% - 8px);
         min-width: 150px;
-        /* 避免過度壓縮 */
+        /* ?å??度壓縮 */
         margin-bottom: 0;
-        /* 移除 margin，改用 gap */
+        /* 移除 margin，改??gap */
     }
 
-    /* 讓 YYYY/MM 群組保持在同一行 */
+    /* ®?YYYY/MM 群ç?保æ??å?一¡?*/
     #s1-content .search-filter-group:has(.filter-date-row) {
         flex-basis: 100%;
-        /* 佔滿整行 */
+        /* 佔滿?è? */
     }
 
     #s1-content .filter-date-row {
         gap: 15px;
     }
 
-    /* --- S2 結果/預覽面板 (手機版) --- */
-    /* 5. 將 #s2-content.active 設為 flex-column */
+    /* --- S2 結æ?/?覽?板 (?æ??? --- */
+    /* 5. °?#s2-content.active 設為 flex-column */
     .search-dialog-content #s2-content.active {
         display: flex;
         flex-direction: column;
     }
 
-    /* 移除桌機版的固定寬度、邊框 */
+    /* 移除桌æ??ç??å?寬度?é?¡?*/
     #s2-content .search-results-panel,
     #s2-content .search-preview-panel {
         flex-basis: auto;
         border-right: none;
     }
 
-    /* (5.1) S2 結果列表 (上半部) */
+    /* (5.1) S2 結æ??表 (上å??? */
     #s2-content .search-results-panel {
         flex-grow: 1;
-        /* 佔用可用空間 */
+        /* 佔用?用空é? */
         flex-shrink: 1;
-        /* 允許壓縮 */
+        /* ?許壓縮 */
         min-height: 200px;
-        /* 至少 200px 高 */
+        /* ?å? 200px «?*/
         border-bottom: 1px solid var(--panel-border-color);
     }
 
-    /* (5.2) S2 預覽窗格 (下半部) */
+    /* (5.2) S2 ?覽窗格 (下å??? */
     #s2-content .search-preview-panel {
         flex-grow: 1;
-        /* 佔用可用空間 */
+        /* 佔用?用空é? */
         flex-shrink: 1;
-        /* 允許壓縮 */
+        /* ?許壓縮 */
         min-height: 200px;
-        /* 至少 200px 高 */
+        /* ?å? 200px «?*/
         background-color: #fdfdfd;
     }
 
