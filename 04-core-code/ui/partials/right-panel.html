@@ -112,98 +112,105 @@
     <div id="f2-content" class="tab-content">
 
         <div class="f2-summary-grid">
-            <div class="section-header">Accessories</div>
-            <div class="grid-cell-value section-header-total" id="f2-b4-acce-sum">$0</div>
 
-            <div class="grid-cell-label">Winder</div>
-            <div class="grid-cell-value" id="f2-b2-winder-price">$0</div>
-            <div></div>
+            <div class="f2-group-costs grid-span-3">
+                <div class="section-header">Accessories</div>
+                <div class="grid-cell-value section-header-total" id="f2-b4-acce-sum">$0</div>
 
-            <div class="grid-cell-label">Dual</div>
+                <div class="grid-cell-label">Winder</div>
+                <div class="grid-cell-value" id="f2-b2-winder-price">$0</div>
+                <div></div>
 
-            <div class="grid-cell-value" id="f2-b3-dual-price">$0</div>
-            <div></div>
+                <div class="grid-cell-label">Dual</div>
 
-            <div class="section-header">E RB</div>
-            <div class="grid-cell-value section-header-total" id="f2-b11-e-acce-sum">$0</div>
+                <div class="grid-cell-value" id="f2-b3-dual-price">$0</div>
+                <div></div>
 
-            <div class="f2-subgrid-erb grid-span-3">
-                <div class="grid-cell-label">Motor</div>
-                <div class="grid-cell-value" id="f2-b6-motor-price">$0</div>
-                <div class="grid-cell-label">Remote</div>
-                <div class="grid-cell-value" id="f2-b7-remote-price">$0</div>
+                <div class="section-header">E RB</div>
+                <div class="grid-cell-value section-header-total" id="f2-b11-e-acce-sum">$0</div>
 
-                <div class="grid-cell-label">Charger</div>
-                <div class="grid-cell-value" id="f2-b8-charger-price">$0</div>
-                <div class="grid-cell-label">Ext Cord</div>
-                <div class="grid-cell-value" id="f2-b9-cord-price">$0</div>
+                <div class="f2-subgrid-erb grid-span-3">
+                    <div class="grid-cell-label">Motor</div>
+                    <div class="grid-cell-value" id="f2-b6-motor-price">$0</div>
+                    <div class="grid-cell-label">Remote</div>
+                    <div class="grid-cell-value" id="f2-b7-remote-price">$0</div>
 
-                <div class="grid-cell-label">WIFI $300</div>
-                <div class="grid-cell-value" id="f2-b10-wifi-qty">$0</div>
+                    <div class="grid-cell-label">Charger</div>
+                    <div class="grid-cell-value" id="f2-b8-charger-price">$0</div>
+                    <div class="grid-cell-label">Ext Cord</div>
+                    <div class="grid-cell-value" id="f2-b9-cord-price">$0</div>
+
+                    <div class="grid-cell-label">WIFI $300</div>
+                    <div class="grid-cell-value" id="f2-b10-wifi-qty">$0</div>
+                </div>
+
+                <div class="section-header">Fee</div>
+                <div class="grid-cell-value section-header-total" id="f2-b16-surcharge-fee">$0</div>
+
+                <div class="grid-cell-label">Delivery</div>
+
+                <input type="number" class="grid-cell-input" id="f2-b13-delivery-qty" placeholder="QTY">
+                <div class="grid-cell-value" id="f2-c13-delivery-fee">$0</div>
+
+                <div class="grid-cell-label">Install</div>
+                <input type="number" class="grid-cell-input" id="f2-b14-install-qty" placeholder="QTY">
+                <div class="grid-cell-value" id="f2-c14-install-fee">$0</div>
+
+                <div class="grid-cell-label">Removal</div>
+                <input type="number" class="grid-cell-input" id="f2-b15-removal-qty" placeholder="QTY">
+                <div class="grid-cell-value" id="f2-c15-removal-fee">$0</div>
             </div>
-            <div class="section-header">Fee</div>
-            <div class="grid-cell-value section-header-total" id="f2-b16-surcharge-fee">$0</div>
+            <div class="f2-group-summary grid-span-3">
+                <div class="section-header" style="grid-column: 1 / -1;">Roller Summary</div>
 
-            <div class="grid-cell-label">Delivery</div>
+                <div class="grid-cell-value" id="f2-a17-total-sum"></div>
+                <input type="number" class="grid-cell-input" id="f2-b17-mul-times" placeholder="mul-times" step="0.01">
+                <div class="grid-cell-value" id="f2-c17-1st-rb-price"></div>
 
-            <input type="number" class="grid-cell-input" id="f2-b13-delivery-qty" placeholder="QTY">
-            <div class="grid-cell-value" id="f2-c13-delivery-fee">$0</div>
+                <div class="grid-cell-label">Disc. %</div>
 
-            <div class="grid-cell-label">Install</div>
-            <input type="number" class="grid-cell-input" id="f2-b14-install-qty" placeholder="QTY">
-            <div class="grid-cell-value" id="f2-c14-install-fee">$0</div>
+                <input type="number" class="grid-cell-input" id="f2-b18-discount" placeholder="discount" min="0"
+                    max="99">
+                <div class="grid-cell-value" id="f2-b19-dis-rb-price"></div>
 
-            <div class="grid-cell-label">Removal</div>
-            <input type="number" class="grid-cell-input" id="f2-b15-removal-qty" placeholder="QTY">
-            <div class="grid-cell-value" id="f2-c15-removal-fee">$0</div>
+                <div class="grid-cell-label">S profit</div>
+                <div class="grid-cell-value" id="f2-b20-singleprofit"></div>
+                <div class="grid-cell-value" id="f2-17-pre-sum"></div>
 
-            <div class="section-header" style="grid-column: 1 / -1;">Roller Summary</div>
+                <div class="grid-cell-label">RB Profit</div>
+                <div class="grid-cell-value" id="f2-b21-rb-profit"></div>
 
-            <div class="grid-cell-value" id="f2-a17-total-sum"></div>
-            <input type="number" class="grid-cell-input" id="f2-b17-mul-times" placeholder="mul-times" step="0.01">
-            <div class="grid-cell-value" id="f2-c17-1st-rb-price"></div>
+                <div></div>
 
-            <div class="grid-cell-label">Disc. %</div>
+                <div class="section-header">Selling Price</div>
+                <div class="grid-cell-value section-header-total" id="f2-b22-sumprice"></div>
 
-            <input type="number" class="grid-cell-input" id="f2-b18-discount" placeholder="discount" min="0" max="99">
-            <div class="grid-cell-value" id="f2-b19-dis-rb-price"></div>
+                <div class="section-header">Our Offer</div>
+                <input type="number" class="grid-cell-input" id="new-offer" value="0.00" onfocus="this.select();">
 
-            <div class="grid-cell-label">S profit</div>
-            <div class="grid-cell-value" id="f2-b20-singleprofit"></div>
-            <div class="grid-cell-value" id="f2-17-pre-sum"></div>
+                <div></div>
 
-            <div class="grid-cell-label">RB Profit</div>
-            <div class="grid-cell-value" id="f2-b21-rb-profit"></div>
+                <div class="grid-cell-label" id="f2-label-gst" style="justify-content: flex-end; padding-right: 10px;">
+                    GST
+                </div>
+                <div class="grid-cell-value" id="f2-b24-gst"></div>
 
-            <div></div>
+                <div class="section-header text-red">Total</div>
+                <div class="grid-cell-value section-header-total" id="grand-total">$0.00</div>
 
-            <div class="section-header">Selling Price</div>
-            <div class="grid-cell-value section-header-total" id="f2-b22-sumprice"></div>
+                <div class="grid-cell-label">NET Profit</div>
+                <div class="grid-cell-value" id="f2-b25-netprofit"></div>
 
-            <div class="section-header">Our Offer</div>
-            <input type="number" class="grid-cell-input" id="new-offer" value="0.00" onfocus="this.select();">
+                <div></div>
 
-            <div></div>
+                <div class="grid-cell-placeholder"></div>
+                <div class="grid-cell-label text-right">Deposit</div>
+                <input type="number" class="grid-cell-input bg-light-green" id="f2-deposit" onfocus="this.select();">
 
-            <div class="grid-cell-label" id="f2-label-gst" style="justify-content: flex-end; padding-right: 10px;">GST
+                <div class="grid-cell-placeholder"></div>
+                <div class="grid-cell-label text-right">Balance</div>
+                <input type="number" class="grid-cell-input bg-light-orange" id="f2-balance" readonly>
             </div>
-            <div class="grid-cell-value" id="f2-b24-gst"></div>
-
-            <div class="section-header text-red">Total</div>
-            <div class="grid-cell-value section-header-total" id="grand-total">$0.00</div>
-
-            <div class="grid-cell-label">NET Profit</div>
-            <div class="grid-cell-value" id="f2-b25-netprofit"></div>
-
-            <div></div>
-
-            <div class="grid-cell-placeholder"></div>
-            <div class="grid-cell-label text-right">Deposit</div>
-            <input type="number" class="grid-cell-input bg-light-green" id="f2-deposit" onfocus="this.select();">
-
-            <div class="grid-cell-placeholder"></div>
-            <div class="grid-cell-label text-right">Balance</div>
-            <input type="number" class="grid-cell-input bg-light-orange" id="f2-balance" readonly>
         </div>
     </div>
     <div id="f3-content" class="tab-content">
