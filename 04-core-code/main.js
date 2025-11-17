@@ -1,4 +1,5 @@
 // File: 04-core-code/main.js
+// [MODIFIED] (v6297 瘦身) 階段 2：將 quotePersistenceService 注入 appController。
 
 import { AppContext } from './app-context.js';
 import { MigrationService } from './services/migration-service.js';
@@ -351,6 +352,8 @@ class App {
         // [MODIFIED] (v6298-fix-4) Store references
         const calculationService = this.appContext.get('calculationService');
         const configManager = this.appContext.get('configManager');
+        // [NEW] (v6297 瘦身) 階段 2：取得 quotePersistenceService
+        const quotePersistenceService = this.appContext.get('quotePersistenceService');
         this.appController = this.appContext.get('appController');
         const rightPanelComponent = this.appContext.get('rightPanelComponent');
         const leftPanelTabManager = this.appContext.get('leftPanelTabManager');
@@ -399,6 +402,9 @@ class App {
             }
         };
         eventAggregator.subscribe(EVENTS.STATE_CHANGED, this.stateChangeListener);
+
+        // [NEW] (v6297 瘦身) 階段 2：將 quotePersistenceService 注入 appController
+        this.appController.quotePersistenceService = quotePersistenceService;
 
         this.appController.publishInitialState(); // [MODIFIED] (v6298-fix-4) Use stored ref
 

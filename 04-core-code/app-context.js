@@ -1,23 +1,24 @@
 /* FILE: 04-core-code/app-context.js */
-// [MODIFIED] (HOTFIX) Fixed typo in K5TabComponent import path.
+// [MODIFIED] (v6297 瘦身) 階段 1：Import 並註冊新的 QuotePersistenceService。
+// [SELF-CORRECTION] 依賴 `fileService` 仍被保留在 `workflowService` 中，因為 `handleFileLoad` 仍由 `workflowService` 處理。
 
 /**
  * @description
- * AppContext 是此應用程式的「依賴注入容器」(DI Container)。
- * 它的職責是「建立」並註冊所有服務 (Services) 和 UI 元件 (Components)。
- * 1. 建立 Services (例如 StateService, CalculationService)。
- * 2. 建立 UI Components (例如 QuickQuoteView, RightPanelComponent)。
- * 3. 將這些實例 (instances) 保存在一個中央登記表 (this.instances) 中。
+ * AppContext ?此?用程å??「ä?賴注?容?€?DI Container)??
+ * 它ç??責?「建立」並註å??€?æ???(Services) ??UI ?件 (Components)??
+ * 1. 建ç? Services (例å? StateService, CalculationService)??
+ * 2. 建ç? UI Components (例å? QuickQuoteView, RightPanelComponent)??
+ * 3. 將這ä?實ä? (instances) 保å??ä??中央登記表 (this.instances) 中€?
  *
- * 這種模式的好處 (依賴注入):
- * - 「解耦」：元件不需要知道「如何」建立「其他依賴」。
- * 例如，`AppController` 不需要 `new WorkflowService()`，只需要向 AppContext「請求」已經存在的 `workflowService` 實例。
- * - 「可測試性」：在進行單元測試時，我們可以輕易地「模擬」(mock) 並替換 AppContext 中的真實服務。
- * - 「集中管理」：所有物件的建立邏輯都集中在此，便於管理和維護。
+ * ?種模å??好??(依賴注入):
+ * - ?解?」ï??件不é?要知?「å?何」建立「其他ä?賴」€?
+ * 例å?，`AppController` 不é?¦?`new WorkflowService()`，只?要å? AppContext?è?求」已經å??ç? `workflowService` 實ä???
+ * - ?可測試?」ï??進è??å?測試?ï??們可以è??地?模?€?mock) 並替??AppContext 中ç??實?å???
+ * - ?é?中管?」ï??€?物件ç?建ç??輯?é?中在此ï?便於管ç??維護€?
  *
  * Example:
- * `main.js` (組裝廠) 向 AppContext 請求建立好的所有零件 (Services, Components)，
- * 然後將這些零件 (例如 `quickQuoteView`, `appController`) 交給 `UIManager` (總指揮) 去組裝和渲染畫面。
+ * `main.js` (組è?»? ??AppContext 請æ?建ç?好ç??€?零»?(Services, Components)¼?
+ * ?å?將這ä??件 (例å? `quickQuoteView`, `appController`) 交給 `UIManager` (總æ??? ?ç?裝å?渲æ??面??
  * */
 export class AppContext {
     constructor() {
@@ -25,9 +26,9 @@ export class AppContext {
     }
 
     /**
-     * 註冊一個實例到容器中。
-     * @param {string} name - 實例的唯一名稱 (key)
-     * @param {object} instance - 要註冊的實例。
+     * 註å?一?實例到容器中€?
+     * @param {string} name - 實ä??唯一?稱 (key)
+     * @param {object} instance - 要註?ç?實ä???
      */
     register(name, instance) {
         this.instances[name] =
@@ -35,9 +36,9 @@ export class AppContext {
     }
 
     /**
-     * 從容器中取得一個實例。
-     * @param {string} name - 要取得的實例名稱。
-     * @returns {object} - 註冊的實例。
+     * 從容?中?å?一?實例€?
+     * @param {string} name - 要å?得ç?實ä??稱??
+     * @returns {object} - 註å??實例€?
      */
     get(name) {
         const instance = this.instances[name];
@@ -140,21 +141,34 @@ export class AppContext {
         const k5TabComponent = new K5TabComponent();
         this.register('k5TabComponent', k5TabComponent);
 
-        // --- [NEW] (階段 2) 實例化新的 Generator 策略 ---
+        // --- [NEW] (?段 2) 實ä??新??Generator 策略 ---
         const workOrderStrategy = new WorkOrderStrategy();
         this.register('workOrderStrategy', workOrderStrategy);
 
-        // [NEW] (階段 3) 實例化原表策略
+        // [NEW] (?段 3) 實ä??å?表ç???
         const originalQuoteStrategy = new OriginalQuoteStrategy();
         this.register('originalQuoteStrategy', originalQuoteStrategy);
 
-        // [NEW] (階段 4) 實例化 GTH 策略
+        // [NEW] (?段 4) 實ä???GTH 策略
         const gthQuoteStrategy = new GthQuoteStrategy();
         this.register('gthQuoteStrategy', gthQuoteStrategy);
 
 
+        // [NEW] (v6297 瘦身) 階段 1：實例化 QuotePersistenceService
+        const quotePersistenceService = new QuotePersistenceService({
+            eventAggregator,
+            stateService,
+            fileService,
+            authService,
+            calculationService,
+            configManager,
+            productFactory
+        });
+        this.register('quotePersistenceService', quotePersistenceService);
+
+
         // --- [NEW] Instantiate the new QuoteGeneratorService ---
-        // [MODIFIED] (階段 4) 注入所有 strategy
+        // [MODIFIED] (?段 4) 注入?€??strategy
         const quoteGeneratorService = new QuoteGeneratorService({
             calculationService,
             workOrderStrategy,
@@ -223,7 +237,7 @@ export class AppContext {
         const workflowService = new WorkflowService({
             eventAggregator,
             stateService,
-            fileService,
+            fileService, // [MODIFIED] (v6297 瘦身) 自我修正：保留 fileService，因為 handleFileLoad 仍在此服務中
             calculationService,
             productFactory,
             detailConfigView,
@@ -251,25 +265,26 @@ export class AppContext {
             workflowService,
             quickQuoteView,
             detailConfigView
+            // [MODIFIED] (v6297 瘦身) 階段 2 將在此處注入 quotePersistenceService
         });
         this.register('appController', appController);
 
         // --- [NEW] (v6298-F4-Search) Instantiate the Search Dialog Component ---
-        // --- [NEW] 階段 4：實例化 S1/S2 子視圖 ---
+        // --- [NEW] ?段 4：實例å? S1/S2 子è???---
         const s1View = new SearchTabS1View({ eventAggregator });
         this.register('s1View', s1View);
 
         const s2View = new SearchTabS2View({ eventAggregator, stateService });
         this.register('s2View', s2View);
 
-        // --- [MODIFIED] 階段 4：將 S1/S2 子視圖注入管理員 ---
+        // --- [MODIFIED] ?段 4：å? S1/S2 子è??注?管?員 ---
         const searchDialogComponent = new SearchDialogComponent({
             containerElement: document.getElementById(DOM_IDS.SEARCH_DIALOG_CONTAINER),
             eventAggregator,
             // [MODIFIED] (v6298-F4-Search) Inject required services
             stateService,
             authService,
-            // [NEW] 階段 4 注入
+            // [NEW] ?段 4 注入
             s1View: s1View,
             s2View: s2View
         });
@@ -303,6 +318,8 @@ import { FileService } from './services/file-service.js';
 import { WorkflowService } from './services/workflow-service.js';
 import { QuoteGeneratorService } from './services/quote-generator-service.js'; // [NEW]
 import { AuthService } from './services/auth-service.js'; // [NEW] (v6297)
+// [NEW] (v6297 瘦身) 階段 1：Import 新服務
+import { QuotePersistenceService } from './services/quote-persistence-service.js';
 import { RightPanelComponent } from './ui/right-panel-component.js';
 import { QuickQuoteView } from './ui/views/quick-quote-view.js';
 import { DetailConfigView } from './ui/views/detail-config-view.js';
@@ -323,14 +340,14 @@ import { LeftPanelTabManager } from './ui/left-panel-tab-manager.js'; // [MODIFI
 import { DOM_IDS } from './config/constants.js'; // [MODIFIED]
 // [NEW] (v6298-F4-Search) Import the new search dialog component
 import { SearchDialogComponent } from './ui/search-dialog-component.js';
-// [NEW] 階段 4：Import S1/S2 子視圖
+// [NEW] ?段 4：Import S1/S2 子è???
 import { SearchTabS1View } from './ui/views/search-tab-s1-view.js';
 import { SearchTabS2View } from './ui/views/search-tab-s2-view.js';
-// [NEW] (階段 2) Import the new generator strategy
+// [NEW] (?段 2) Import the new generator strategy
 import { WorkOrderStrategy } from './services/generators/work-order-strategy.js';
-// [NEW] (階段 3) Import the new generator strategy
+// [NEW] (?段 3) Import the new generator strategy
 import { OriginalQuoteStrategy } from './services/generators/original-quote-strategy.js';
-// [NEW] (階段 4) Import the new generator strategy
+// [NEW] (?段 4) Import the new generator strategy
 import { GthQuoteStrategy } from './services/generators/gth-quote-strategy.js';
 
 

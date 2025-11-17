@@ -1,11 +1,10 @@
 /* FILE: 04-core-code/app-controller.js */
-// [MODIFIED] (階段 1) Added subscription for Generate Work Order.
+// [MODIFIED] (v6297 瘦身) 階段 2：注入 quotePersistenceService 並重新路由 F4 事件。
 
 import { EVENTS, STORAGE_KEYS } from './config/constants.js';
 import * as uiActions from './actions/ui-actions.js';
 
 const AUTOSAVE_INTERVAL_MS = 60000;
-
 export class AppController {
     constructor({
         eventAggregator,
@@ -13,12 +12,14 @@ export class AppController {
         quickQuoteView,
         detailConfigView,
         workflowService,
+        quotePersistenceService // [NEW] (v6297 瘦身) 注入新服務
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService; // Still needed for _getFullState and _handleAutoSave
         this.quickQuoteView = quickQuoteView;
         this.detailConfigView = detailConfigView;
         this.workflowService = workflowService;
+        this.quotePersistenceService = quotePersistenceService; // [NEW] (v6297 瘦身) 儲存新服務
 
         this.autoSaveTimerId = null;
         this.subscriptions = []; // [NEW] (v6298-fix-4) Store subscriptions
@@ -111,8 +112,8 @@ export class AppController {
             () => delegate('handleToggleMultiSelectMode')
         );
         this._subscribe(
-            EVENTS.USER_CHOSE_SAVE_THEN_LOAD,
-            () => delegate('handleSaveThenLoad')
+            EVENTS.USER_REQUESTED_MULTI_TYPE_SET,
+            () => delegate('handleMultiTypeSet')
         );
         this._subscribe(
             EVENTS.TYPE_CELL_LONG_PRESSED,
@@ -123,8 +124,8 @@ export class AppController {
             (data) => delegate('handleTypeButtonLongPress', data)
         );
         this._subscribe(
-            EVENTS.USER_REQUESTED_MULTI_TYPE_SET,
-            () => delegate('handleMultiTypeSet')
+            EVENTS.USER_REQUESTED_SAVE_THEN_LOAD,
+            () => delegate('handleSaveThenLoad')
         );
     }
 
@@ -249,19 +250,23 @@ export class AppController {
 
     // [NEW] Centralized subscription for all F4 actions, delegating to WorkflowService.
     _subscribeF4Events() {
+        // [MODIFIED] (v6297 瘦身) 階段 2：重新路由 SAVE 事件
         this._subscribe(EVENTS.USER_REQUESTED_SAVE, () =>
-            this.workflowService.handleSaveToFile()
+            this.quotePersistenceService.handleSaveToFile()
         );
+        // [MODIFIED] (v6297 瘦身) 階段 2：重新路由 SAVE_AS_NEW_VERSION 事件
         this._subscribe(EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION, () =>
-            this.workflowService.handleSaveAsNewVersion()
+            this.quotePersistenceService.handleSaveAsNewVersion()
         );
-        // [NEW] 階段 1: 綁定工單事件
+        // [NEW] ?段 1: 綁å?工單事件 (此事件仍由 workflowService 處理)
         this._subscribe(EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, () =>
             this.workflowService.handleGenerateWorkOrder()
         );
+        // [MODIFIED] (v6297 瘦身) 階段 2：重新路由 EXPORT_CSV 事件
         this._subscribe(EVENTS.USER_REQUESTED_EXPORT_CSV, () =>
-            this.workflowService.handleExportCSV()
+            this.quotePersistenceService.handleExportCSV()
         );
+        // (此事件仍由 workflowService 處理)
         this._subscribe(EVENTS.USER_REQUESTED_LOAD, () =>
             this.workflowService.handleUserRequestedLoad()
         );
@@ -275,6 +280,7 @@ export class AppController {
             EVENTS.USER_REQUESTED_SEARCH_DIALOG,
             () => this.workflowService.handleSearchDialogRequest()
         );
+        // (此事件仍由 workflowService 處理)
         this._subscribe(EVENTS.USER_REQUESTED_RESET, () =>
             this.workflowService.handleReset()
         );
