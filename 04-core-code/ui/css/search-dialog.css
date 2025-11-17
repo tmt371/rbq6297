@@ -1,6 +1,6 @@
 /* FILE: 04-core-code/ui/css/search-dialog.css */
 /* [MODIFIED] (v6298-F4-Search) Styles for the new advanced search dialog */
-/* [MODIFIED] (v6297 F4 Search Tweak) Adjusted mobile view from 100% fullscreen to 85% width dialog. */
+/* [MODIFIED] (v6297 F4 Search Tweak 2) Changed width to 85vw and height to 90vh on ALL devices. */
 
 /* --- Container & Overlay --- */
 .search-dialog-container {
@@ -29,9 +29,12 @@
     background-color: white;
     border-radius: 8px;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-    width: 90%;
-    max-width: 900px;
-    height: 80vh;
+    width: 85vw;
+    /* [MODIFIED] (Tweak 2) Was 90% */
+    max-width: none;
+    /* [MODIFIED] (Tweak 2) Was 900px */
+    height: 90vh;
+    /* [MODIFIED] (Tweak 2) Was 80vh */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -333,17 +336,11 @@
 }
 
 /* --- [NEW] ?段 1：æ?機ç??æ?式ä?局 (768px) --- */
-/* [MODIFIED] (v6297 F4 Search Tweak) Changed mobile to 85% width dialog */
+/* [MODIFIED] (v6297 F4 Search Tweak 2) Simplified mobile view */
 @media (max-width: 768px) {
     .search-dialog-box {
-        width: 85%;
-        /* [MODIFIED] Was 100% */
-        height: 80vh;
-        /* [MODIFIED] Was 100% */
-        max-width: 90%;
-        /* [MODIFIED] Was 100% */
-        border-radius: 8px;
-        /* [MODIFIED] Was 0 */
+        /* [REMOVED] (Tweak 2) All width/height overrides removed. */
+        /* It will now inherit 85vw width and 90vh height from the main rule. */
     }
 
     /* 1. 顯示?籤導航??*/
