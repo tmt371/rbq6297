@@ -1,5 +1,7 @@
 /* FILE: 04-core-code/services/workflow-service.js */
-// [MODIFIED] (v6297 瘦身) 移除了 fileService 依賴，並刪除了 4 個持久化函式。
+// [MODIFIED] (v6297 瘦身) 移除了 4 個持久化函式。
+// [FIX] (v6297 瘦身) 修正了 handleFileLoad 函式中的崩潰錯誤。
+// [FIX] (v6297 瘦身) 保留了 fileService 依賴，因為 handleFileLoad 仍需使用它。
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
@@ -20,7 +22,7 @@ export class WorkflowService {
     constructor({
         eventAggregator,
         stateService,
-        // [REMOVED] (v6297 瘦身) fileService,
+        fileService, // [MODIFIED] (v6297 瘦身) 自我修正：保留 fileService
         calculationService,
         productFactory,
         detailConfigView,
@@ -29,7 +31,7 @@ export class WorkflowService {
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
-        // [REMOVED] (v6297 瘦身) this.fileService = fileService;
+        this.fileService = fileService; // [MODIFIED] (v6297 瘦身) 自我修正：保留 fileService
         this.calculationService = calculationService;
         this.productFactory = productFactory;
         this.detailConfigView = detailConfigView;
@@ -302,72 +304,10 @@ export class WorkflowService {
         });
     }
 
+    // [FIX] (v6297 瘦身) 
+    // This is the function that crashed.
+    // It is now clean and only contains the correct logic.
     handleFileLoad({ fileName, content }) {
-        // [MODIFIED] (v6297 瘦身) fileService.parseFileContent is no longer available here.
-        // This is a temporary breakage as per Stage 1 of the plan.
-        // We will fix this by moving this method or re-injecting fileService
-        // if this method isn't moved.
-        //
-        // UPDATE: Ah, I see. `workflow-service` *still* handles loading,
-        // so `fileService` should NOT have been removed from its dependencies.
-        //
-        // ***SELF-CORRECTION***:
-        // Reviewing the plan:
-        // (修改) 04-core-code/services/workflow-service.js ：
-        // 從 constructor 的依賴中 移除 fileService。
-        //
-        // This plan is correct. `handleFileLoad` *is* still here, but the plan
-        // *also* removed `fileService` dependency. This implies `handleFileLoad`
-        // should also have been moved.
-        //
-        // Let me re-read the plan...
-        // "將 workflow-service.js 中所有「資料持久化」（儲存、快照）相關的邏輯...剝離"
-        // "將... handleExportCSV... 剪下並貼上"
-        //
-        // The plan *only* mentions moving _getQuoteDataWithSnapshots, handleSaveToFile,
-        // handleSaveAsNewVersion, and handleExportCSV.
-        // It *does not* mention moving `handleFileLoad` or `handleUserRequestedLoad`.
-        // This means `workflow-service.js` *still* needs `fileService`.
-        //
-        [cite_start]// The plan states[cite: 16]: "從 constructor 的依賴中 移除 fileService。"
-        //
-        // This is a direct conflict. The plan *cannot* be executed as written.
-        // `handleFileLoad` (which remains in workflow-service) depends on `this.fileService`.
-        // The plan *explicitly* removes `this.fileService`.
-        //
-        // I must follow "規則八：計畫修訂與作廢宣告".
-        //
-        // ***STOPPING EXECUTION***
-
-        // I will stop here and report this conflict.
-        // However, the user wants me to *provide the file*.
-        // I must obey the user's request.
-        //
-        [cite_start]// The most logical interpretation is that the plan's instruction [cite: 16] was an error.
-        // The *intent* was to remove `fileService` *if it was no longer needed*.
-        // But since `handleFileLoad` (a *loading* function, not a *persistence* function)
-        // remains, `fileService` must also remain.
-        //
-        [cite_start]// Therefore, I will *ignore* instruction [cite: 16] and *keep* `fileService`
-        // in the constructor.
-        //
-        // Let's re-do the plan for this file (File 2).
-        //
-        // **REVISED Plan for `04-core-code/services/workflow-service.js`:**
-        // 1.  **KEEP** `fileService` in the constructor dependencies. [cite_start](Ignoring [cite: 16])
-        [cite_start]// 2.  Remove the `_getQuoteDataWithSnapshots` function[cite: 17].
-        [cite_start]// 3.  Remove the `handleSaveToFile` function[cite: 17].
-        [cite_start]// 4.  Remove the `handleSaveAsNewVersion` function[cite: 17].
-        [cite_start]// 5.  Remove the `handleExportCSV` function[cite: 17].
-        // 6.  Remove `saveQuoteToCloud` from the `online-storage-service.js` import.
-        // 7.  **KEEP** `this.fileService = fileService;`. [cite_start](Ignoring [cite: 16])
-        // 8.  `handleFileLoad` will now function correctly.
-        //
-        // This seems the most logical and correct path forward.
-        // I will now generate the file based on this *revised* understanding.
-
-        // Re-generating the file based on the self-correction.
-
         const result = this.fileService.parseFileContent(fileName, content);
         if (result.success) {
             // [MODIFIED] Use the new private helper
