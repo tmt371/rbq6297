@@ -1,5 +1,7 @@
 /* File: 04-core-code/ui/css/f2-summary-table.css */
 /* [MODIFIED] (v6297 F2 Tweak) Reduced section header margin-top from 8px to 6px. */
+/* [MODIFIED] (v6297 F2 Layout) Added .f2-subgrid-erb for 4-column nested grid. */
+/* [MODIFIED] (v6297 F2 Layout Fix 2) Added :not() to main selector to prevent override. */
 
 .f2-summary-grid {
 
@@ -11,7 +13,8 @@
     align-items: center;
 }
 
-.f2-summary-grid>div,
+/* [MODIFIED] (v6297 F2 Layout Fix 2) Use :not() to exclude the subgrid container */
+.f2-summary-grid>div:not(.f2-subgrid-erb),
 .f2-summary-grid>input {
     font-size: 0.8em;
     padding: 4px;
@@ -67,6 +70,28 @@
 .grid-spacer {
     min-height: 10px;
 }
+
+/* [NEW] (v6297 F2 Layout) Style for the E RB nested 4-column grid */
+.f2-subgrid-erb {
+    display: grid;
+    /* [MODIFIED] (v6297 F2 Layout Fix) Adjust column ratios for better spacing */
+    grid-template-columns: 0.8fr 1.2fr 0.8fr 1.2fr;
+    gap: 4px 10px;
+    /* 保持與主網格相同的間距 */
+}
+
+/* [NEW] (v6297 F2 Layout Fix 2) Apply base styles to nested grid children */
+/* This fixes the layout bug by applying the missing flex/font styles */
+.f2-subgrid-erb>div {
+    font-size: 0.8em;
+    padding: 4px;
+    box-sizing: border-box;
+    min-height: 26px;
+    display: flex;
+    align-items: center;
+}
+
+/* [END FIX] */
 
 .section-header {
     /* [MODIFIED] Changed to span 2 columns */
