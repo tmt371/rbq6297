@@ -1,5 +1,6 @@
 /* /04-core-code/ui/css/f3-adjustments.css */
 /* [MODIFIED] (v6297 F3 Layout) Reworked layout from Grid to Flex, removed headers, and added new colored group boxes. */
+/* [MODIFIED] (v6297 F3 Tweak) Reduced internal padding/gap and label font size. */
 
 /* --- F3 Main Container & Grid Layout --- */
 .f3-container {
@@ -8,7 +9,7 @@
     flex-direction: column;
     /* [NEW] Set direction to vertical */
     gap: 10px;
-    /* [MODIFIED] Set consistent 10px gap between groups */
+    /* [MODIFIED] Set consistent 10px gap between groups (This is the external spacing - UNCHANGED as requested) */
     /* [REMOVED] grid-template-columns: 0.8fr 1.2fr 1.2fr 0.5fr; (Moved to groups) */
     /* [REMOVED] gap: 12px 10px; */
     /* [REMOVED] align-items: center; */
@@ -22,11 +23,13 @@
     /* [NEW] Apply the old grid layout *inside* each group */
     display: grid;
     grid-template-columns: 0.8fr 1.2fr 1fr 0.5fr;
-    gap: 12px 10px;
+    gap: 12px 8px;
+    /* [MODIFIED] (Tweak) Reduced horizontal gap from 10px to 8px */
     align-items: center;
 
     /* [NEW] Visual styling */
-    padding: 15px;
+    padding: 12px 10px;
+    /* [MODIFIED] (Tweak) Reduced padding from 15px to 12px(T/B) 10px(L/R) */
     border-radius: 4px;
 }
 
@@ -70,6 +73,8 @@
     min-height: 28px;
     display: flex;
     align-items: center;
+    font-size: 0.9em;
+    /* [NEW] (Tweak) Reduced font size by 10% for labels */
 }
 
 /* --- Span Helpers --- */
@@ -109,6 +114,7 @@
     box-sizing: border-box;
     font-family: inherit;
     font-size: 1em;
+    /* [MODIFIED] (Tweak) Input font size is now 1em *relative to parent (0.9em)* */
 }
 
 .f3-container .textarea-field {
@@ -119,7 +125,8 @@
 .f3-container .action-button {
     width: 100%;
     padding: 10px;
-    font-size: 1.1em;
+    font-size: 1.0em;
+    /* [MODIFIED] (Tweak) Reduced font size from 1.1em */
     font-weight: bold;
     cursor: pointer;
     border-radius: 5px;
