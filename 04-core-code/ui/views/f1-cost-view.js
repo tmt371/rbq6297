@@ -1,4 +1,5 @@
-// File: 04-core-code/ui/views/f1-cost-view.js
+/* FILE: 04-core-code/ui/views/f1-cost-view.js */
+// [MODIFIED] (第 7 次編修) 移除本地 F1 成本計算邏輯，改為呼叫 calculationService.calculateF1Costs
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -127,83 +128,58 @@ export class F1CostView {
         if (!this.f1 || !state || !state.quoteData || !state.ui) return;
 
         const { quoteData, ui } = state;
-        const items = quoteData.products.rollerBlind.items;
         const formatPrice = (price) => (typeof price === 'number' && price > 0 ? `$${price.toFixed(2)}` : '');
         const formatDisplay = (value) => (value !== null && value !== undefined) ? value : '';
 
-        // --- Component Cost Calculation ---
-        const componentPrices = {};
-        const winderQty = items.filter(item => item.winder === 'HD').length;
-        componentPrices.winder = this.calculationService.calculateF1ComponentPrice('winder', winderQty);
-        if (this.f1.displays.qty.winder) this.f1.displays.qty.winder.textContent = winderQty;
+        // --- [NEW] (第 7 次編修) ---
+        // 1. 從 CalculationService 獲取所有 F1 成本和數量
+        const f1Costs = this.calculationService.calculateF1Costs(quoteData, ui);
+        // --- [END NEW] ---
 
-        const motorQty = items.filter(item => !!item.motor).length;
-        componentPrices.motor = this.calculationService.calculateF1ComponentPrice('motor', motorQty);
-        if (this.f1.displays.qty.motor) this.f1.displays.qty.motor.textContent = motorQty;
 
-        // [FIX] (v6295-fix-2) Implement auto-sync of total remotes from K4
-        const totalRemoteCount = ui.driveRemoteCount || 0;
-        let remote1chQty = ui.f1.remote_1ch_qty || 0;
-        let remote16chQty = ui.f1.remote_16ch_qty || 0;
+        // --- [REMOVED] (第 7 次編修) 移除本地的成本計算邏輯 ---
+        // const componentPrices = {};
+        // const winderQty = items.filter(item => item.winder === 'HD').length;
+        // ... (所有 componentPrices.winder, .motor 等計算邏輯均被移除)
+        // --- [END REMOVED] ---
 
-        // Check if K4's total count does not match the F1 distributed count
-        if (totalRemoteCount !== (remote1chQty + remote16chQty)) {
-            // K4 total has changed and F1 is out of sync.
-            // Reset the F1 distribution state.
-            // Default the new total to the 16ch field.
-            remote1chQty = 0;
-            remote16chQty = totalRemoteCount;
+        // --- [MODIFIED] (第 7 次編修) 使用 f1Costs 物件來更新顯示 ---
 
-            // Dispatch this change to update the state persistently
-            // Use setTimeout to avoid dispatching during an existing state render
-            setTimeout(() => {
-                this.stateService.dispatch(uiActions.setF1RemoteDistribution(remote1chQty, remote16chQty));
-            }, 0);
-        }
+        // --- Component Cost Display ---
+        if (this.f1.displays.qty.winder) this.f1.displays.qty.winder.textContent = f1Costs.qtys.winder;
+        if (this.f1.displays.price.winder) this.f1.displays.price.winder.textContent = formatPrice(f1Costs.winderCost);
 
-        // Calculation logic now uses (potentially re-synced) correct values
-        remote1chQty = remote1chQty || 0;
-        remote16chQty = remote16chQty || 0;
+        if (this.f1.displays.qty.motor) this.f1.displays.qty.motor.textContent = f1Costs.qtys.motor;
+        if (this.f1.displays.price.motor) this.f1.displays.price.motor.textContent = formatPrice(f1Costs.motorCost);
 
-        componentPrices['remote-1ch'] = this.calculationService.calculateF1ComponentPrice('remote-1ch', remote1chQty);
-        componentPrices['remote-16ch'] = this.calculationService.calculateF1ComponentPrice('remote-16ch', remote16chQty);
-        if (this.f1.displays.qty['remote-1ch']) this.f1.displays.qty['remote-1ch'].textContent = remote1chQty;
-        if (this.f1.displays.qty['remote-16ch']) this.f1.displays.qty['remote-16ch'].textContent = remote16chQty;
+        if (this.f1.displays.qty['remote-1ch']) this.f1.displays.qty['remote-1ch'].textContent = f1Costs.qtys.remote1ch;
+        if (this.f1.displays.price['remote-1ch']) this.f1.displays.price['remote-1ch'].textContent = formatPrice(f1Costs.remote1chCost);
 
-        const chargerQty = ui.driveChargerCount || 0;
-        componentPrices.charger = this.calculationService.calculateF1ComponentPrice('charger', chargerQty);
-        if (this.f1.displays.qty.charger) this.f1.displays.qty.charger.textContent = chargerQty;
+        if (this.f1.displays.qty['remote-16ch']) this.f1.displays.qty['remote-16ch'].textContent = f1Costs.qtys.remote16ch;
+        if (this.f1.displays.price['remote-16ch']) this.f1.displays.price['remote-16ch'].textContent = formatPrice(f1Costs.remote16chCost);
 
-        const cordQty = ui.driveCordCount || 0;
-        componentPrices['3m-cord'] = this.calculationService.calculateF1ComponentPrice('3m-cord', cordQty);
-        if (this.f1.displays.qty['3m-cord']) this.f1.displays.qty['3m-cord'].textContent = cordQty;
+        if (this.f1.displays.qty.charger) this.f1.displays.qty.charger.textContent = f1Costs.qtys.charger;
+        if (this.f1.displays.price.charger) this.f1.displays.price.charger.textContent = formatPrice(f1Costs.chargerCost);
 
-        const totalDualPairs = Math.floor(items.filter(item => item.dual === 'D').length / 2);
-        const comboQty = (ui.f1.dual_combo_qty === null) ? totalDualPairs : ui.f1.dual_combo_qty;
-        const slimQty = (ui.f1.dual_slim_qty === null) ?
-            0 : ui.f1.dual_slim_qty;
-        componentPrices['dual-combo'] = this.calculationService.calculateF1ComponentPrice('dual-combo', comboQty);
-        componentPrices.slim = this.calculationService.calculateF1ComponentPrice('slim', slimQty);
-        if (this.f1.displays.qty['dual-combo']) this.f1.displays.qty['dual-combo'].textContent = comboQty;
-        if (this.f1.displays.qty.slim) this.f1.displays.qty.slim.textContent = slimQty;
+        if (this.f1.displays.qty['3m-cord']) this.f1.displays.qty['3m-cord'].textContent = f1Costs.qtys.cord;
+        if (this.f1.displays.price['3m-cord']) this.f1.displays.price['3m-cord'].textContent = formatPrice(f1Costs.cordCost);
 
-        // [NEW] (v6295) Add Wifi calculation
-        const wifiQty = ui.f1.wifi_qty || 0;
-        componentPrices.wifihub = this.calculationService.calculateF1ComponentPrice('wifihub', wifiQty);
+        if (this.f1.displays.qty['dual-combo']) this.f1.displays.qty['dual-combo'].textContent = f1Costs.qtys.combo;
+        if (this.f1.displays.price['dual-combo']) this.f1.displays.price['dual-combo'].textContent = formatPrice(f1Costs.dualComboCost);
+
+        if (this.f1.displays.qty.slim) this.f1.displays.qty.slim.textContent = f1Costs.qtys.slim;
+        if (this.f1.displays.price.slim) this.f1.displays.price.slim.textContent = formatPrice(f1Costs.slimCost);
+
         if (this.f1.inputs.wifihub && document.activeElement !== this.f1.inputs.wifihub) {
-            this.f1.inputs.wifihub.value = formatDisplay(wifiQty) || '';
+            this.f1.inputs.wifihub.value = formatDisplay(f1Costs.qtys.wifi) || '';
         }
         if (this.f1.displays.price.wifihub) {
-            this.f1.displays.price.wifihub.textContent = formatPrice(componentPrices.wifihub);
+            this.f1.displays.price.wifihub.textContent = formatPrice(f1Costs.wifiCost);
         }
 
-        for (const [key, price] of Object.entries(componentPrices)) {
-            if (this.f1.displays.price[key]) {
-                this.f1.displays.price[key].textContent = formatPrice(price);
-            }
-        }
-        const componentTotal = Object.values(componentPrices).reduce((sum, price) => sum + price, 0);
-        if (this.f1.displays.price.total) this.f1.displays.price.total.textContent = formatPrice(componentTotal);
+        if (this.f1.displays.price.total) this.f1.displays.price.total.textContent = formatPrice(f1Costs.componentTotal);
+        // --- [END MODIFIED] ---
+
 
         // --- RB Pricing Calculation ---
         const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
@@ -217,7 +193,8 @@ export class F1CostView {
         if (this.f1.displays.price['rb-price']) this.f1.displays.price['rb-price'].textContent = formatPrice(rbPrice);
 
         // --- Final Summary Calculation ---
-        const subTotal = componentTotal + rbPrice;
+        // [MODIFIED] (第 7 次編修) 使用來自 f1Costs 的 componentTotal
+        const subTotal = f1Costs.componentTotal + rbPrice;
         const gst = subTotal * 0.10;
         const finalTotal = subTotal + gst;
 
@@ -231,8 +208,8 @@ export class F1CostView {
     activate() {
         this.eventAggregator.publish(EVENTS.F1_TAB_ACTIVATED);
 
-        // [MODIFIED] (v6294) (第12次編修)
-        // 恢復 F1 在所有裝置上的自動對焦功能，使其與 F2 的行為一致。
+        // [MODIFIED] (v6294) (第 2 次編修)
+        // 恢復 F1 頁籤的自動聚焦功能，使其與 F2 頁籤的行為一致
         // if (!window.matchMedia("(max-width: 600px)").matches) {
         setTimeout(() => {
             const discountInput = this.f1.inputs.discount;

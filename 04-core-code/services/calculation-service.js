@@ -1,4 +1,6 @@
 // /04-core-code/services/calculation-service.js
+// [MODIFIED] (第 7 次編修) 新增 calculateF1Costs，並修改 getQuoteTemplateData 以使用 F1 成本
+// [MODIFIED] (第 8 次編修) 擴充 getQuoteTemplateData，傳遞 F1 成本明細 (RB, Acce, Total) 以供工單新表格使用
 
 /**
  * @fileoverview Service for handling all price and sum calculations.
@@ -156,6 +158,7 @@ export class CalculationService {
     /**
      * [REFACTORED] Calculates the total price for a given F1 panel component based on its quantity.
      * It now fetches mappings from the ConfigManager.
+     * [MODIFIED] (第 7 次編修) 此方法已更名為 calculateF1ComponentPrice
      */
     calculateF1ComponentPrice(componentKey, quantity) {
         if (typeof quantity !== 'number' || quantity < 0) {
@@ -187,6 +190,88 @@ export class CalculationService {
 
         return unitPrice * quantity;
     }
+
+    /**
+     * [NEW] (第 7 次編修)
+     * 從 f1-cost-view.js 移轉至此，集中計算 F1 的*成本*。
+     * 這是 F1 面板和工單的成本計算的唯一真實來源。
+     */
+    calculateF1Costs(quoteData, uiState) {
+        const items = quoteData.products[quoteData.currentProduct].items;
+        const ui = uiState;
+
+        const componentPrices = {};
+
+        // Winder
+        const winderQty = items.filter(item => item.winder === 'HD').length;
+        componentPrices.winder = this.calculateF1ComponentPrice('winder', winderQty);
+
+        // Motor
+        const motorQty = items.filter(item => !!item.motor).length;
+        componentPrices.motor = this.calculateF1ComponentPrice('motor', motorQty);
+
+        // Remotes (使用 F1 分配的數量)
+        const totalRemoteCount = ui.driveRemoteCount || 0;
+        let remote1chQty = ui.f1.remote_1ch_qty || 0;
+        let remote16chQty = ui.f1.remote_16ch_qty || 0;
+        if (totalRemoteCount !== (remote1chQty + remote16chQty)) {
+            remote1chQty = 0;
+            remote16chQty = totalRemoteCount;
+        }
+        remote1chQty = remote1chQty || 0;
+        remote16chQty = remote16chQty || 0;
+        componentPrices['remote-1ch'] = this.calculateF1ComponentPrice('remote-1ch', remote1chQty);
+        componentPrices['remote-16ch'] = this.calculateF1ComponentPrice('remote-16ch', remote16chQty);
+
+        // Charger (使用 K4 的數量)
+        const chargerQty = ui.driveChargerCount || 0;
+        componentPrices.charger = this.calculateF1ComponentPrice('charger', chargerQty);
+
+        // 3M Cord (使用 K4 的數量)
+        const cordQty = ui.driveCordCount || 0;
+        componentPrices['3m-cord'] = this.calculateF1ComponentPrice('3m-cord', cordQty);
+
+        // Dual (使用 F1 分配的數量)
+        const totalDualPairs = Math.floor(items.filter(item => item.dual === 'D').length / 2);
+        const comboQty = (ui.f1.dual_combo_qty === null) ? totalDualPairs : ui.f1.dual_combo_qty;
+        const slimQty = (ui.f1.dual_slim_qty === null) ? 0 : ui.f1.dual_slim_qty;
+        componentPrices['dual-combo'] = this.calculateF1ComponentPrice('dual-combo', comboQty);
+        componentPrices.slim = this.calculateF1ComponentPrice('slim', slimQty);
+
+        // Wifi (使用 F1 的數量)
+        const wifiQty = ui.f1.wifi_qty || 0;
+        componentPrices.wifihub = this.calculateF1ComponentPrice('wifihub', wifiQty);
+
+        // 總成本
+        const componentTotal = Object.values(componentPrices).reduce((sum, price) => sum + price, 0);
+
+        // 返回一個包含所有成本的物件
+        return {
+            winderCost: componentPrices.winder,
+            motorCost: componentPrices.motor,
+            remote1chCost: componentPrices['remote-1ch'],
+            remote16chCost: componentPrices['remote-16ch'],
+            chargerCost: componentPrices.charger,
+            cordCost: componentPrices['3m-cord'],
+            dualComboCost: componentPrices['dual-combo'],
+            slimCost: componentPrices.slim,
+            wifiCost: componentPrices.wifihub,
+            componentTotal: componentTotal,
+            // 同時返回計算中使用的 QTY，F1 View 會需要它們
+            qtys: {
+                winder: winderQty,
+                motor: motorQty,
+                remote1ch: remote1chQty,
+                remote16ch: remote16chQty,
+                charger: chargerQty,
+                cord: cordQty,
+                combo: comboQty,
+                slim: slimQty,
+                wifi: wifiQty
+            }
+        };
+    }
+
 
     /**
      * Calculates all values for the F2 summary panel.
@@ -313,7 +398,11 @@ export class CalculationService {
      * @returns {object} A comprehensive data object ready for template population.
      */
     getQuoteTemplateData(quoteData, ui, liveQuoteData) {
+        // [MODIFIED] (第 7 次編修) 
+        // 1. 獲取 F2 *銷售* 總結
         const summaryData = this.calculateF2Summary(quoteData, ui);
+        // 2. 獲取 F1 *成本* 總結
+        const f1Costs = this.calculateF1Costs(quoteData, ui);
 
         // [MODIFIED] (Phase 4) Grand total is now derived from F2's newOffer state, not F3.
         const newOfferValue = (ui.f2.newOffer !== null && ui.f2.newOffer !== undefined) ? ui.f2.newOffer : summaryData.sumPrice;
@@ -329,25 +418,43 @@ export class CalculationService {
         const items = quoteData.products.rollerBlind.items;
         const formatPrice = (price) => (typeof price === 'number' && price > 0) ? `$${price.toFixed(2)}` : '';
 
-        const motorQty = items.filter(item => !!item.motor).length;
-        const motorPrice = (this.configManager.getAccessoryPrice('motorStandard') || 0) * motorQty;
+        // [REMOVED] (第 7 次編修) 移除所有舊的、重複的價格計算
+        // const motorQty = items.filter(item => !!item.motor).length;
+        // const motorPrice = (this.configManager.getAccessoryPrice('motorStandard') || 0) * motorQty;
+        // ... (所有 remote, charger, cord, wifi 的計算都移除)
 
-        const totalRemoteQty = ui.driveRemoteCount || 0;
-        const remote1chQty = ui.f1.remote_1ch_qty;
-        const remote16chQty = (ui.f1.remote_1ch_qty === null) ? totalRemoteQty : (totalRemoteQty - remote1chQty);
-        const remotePricePerUnit = this.configManager.getAccessoryPrice('remoteStandard') || 0;
-        const remote1chPrice = remotePricePerUnit * remote1chQty;
-        const remote16chPrice = remotePricePerUnit * remote16chQty;
+        // [NEW] (第 7 次編修) 直接使用 F1 成本物件 (f1Costs) 的 QTY 和 Cost
+        const motorQty = f1Costs.qtys.motor || '';
+        const motorPrice = f1Costs.motorCost; // 這是 F1 成本
 
-        const chargerQty = ui.driveChargerCount || 0;
-        const chargerPrice = (this.configManager.getAccessoryPrice('chargerStandard') || 0) * chargerQty;
+        const remote1chQty = f1Costs.qtys.remote1ch || '';
+        const remote1chPrice = f1Costs.remote1chCost; // 這是 F1 成本
 
-        const cord3mQty = ui.driveCordCount || 0;
-        const cord3mPrice = (this.configManager.getAccessoryPrice('cord3m') || 0) * cord3mQty;
+        const remote16chQty = f1Costs.qtys.remote16ch || '';
+        const remote16chPrice = f1Costs.remote16chCost; // 這是 F1 成本
 
-        // [NEW] (v6295) Get Wifi Qty from F1 state and calculate Sale Price ($300)
-        const wifiHubQty = ui.f1.wifi_qty || 0;
-        const wifiHubPrice = wifiHubQty * 300; // Use $300 sale price
+        const chargerQty = f1Costs.qtys.charger || '';
+        const chargerPrice = f1Costs.chargerCost; // 這是 F1 成本
+
+        const cord3mQty = f1Costs.qtys.cord || '';
+        const cord3mPrice = f1Costs.cordCost; // 這是 F1 成本
+
+        const wifiHubQty = f1Costs.qtys.wifi || '';
+        const wifiHubPrice = f1Costs.wifiCost; // 這是 F1 成本
+
+        // [NEW] (第 7 次編修) eAcceSum 現在是 F1 成本的總和
+        const eAcceSum = motorPrice + remote1chPrice + remote16chPrice + chargerPrice + cord3mPrice + wifiHubPrice;
+
+        // [NEW] (第 8 次編修) 計算工單表格所需的 F1 成本明細
+        // 1. RB 成本
+        const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
+        const discountPercentage = ui.f1.discountPercentage || 0;
+        const f1_rb_price = retailTotal * (1 - (discountPercentage / 100));
+        // 2. Acce. 成本 (非 E-item)
+        const acce_total = f1Costs.winderCost + f1Costs.dualComboCost + f1Costs.slimCost;
+        // 3. F1 總成本
+        const f1_sub_total = f1Costs.componentTotal + f1_rb_price;
+
 
         // [MODIFIED] Read from the liveQuoteData object instead of f3Data(DOM)
         let documentTitleParts = [];
@@ -371,7 +478,7 @@ export class CalculationService {
             gst: `$${gstValue.toFixed(2)}`,
             grandTotal: `$${grandTotal.toFixed(2)}`,
 
-            // [FIX v6291] 步驟 5: 確保 ourOffer 被正確回傳
+            // [FIX v6291] 步驟 5: 確保 ourOffer 被正確傳遞
             ourOffer: `$${newOfferValue.toFixed(2)}`,
 
             // [MODIFIED v6290 Task 3] Use correct values from F2 state
@@ -387,20 +494,27 @@ export class CalculationService {
             items: items,
             mulTimes: summaryData.mulTimes || 1,
 
-            // Data for the accessories table (Appendix)
-            motorQty: motorQty || '',
+            // [MODIFIED] (第 7 次編修) Data for the accessories table (Appendix / Work Order)
+            // 這些變數現在都攜帶 F1 的 *成本* 金額
+            motorQty: motorQty,
             motorPrice: formatPrice(motorPrice),
-            remote1chQty: remote1chQty || '',
+            remote1chQty: remote1chQty,
             remote1chPrice: formatPrice(remote1chPrice),
-            remote16chQty: remote16chQty || '',
+            remote16chQty: remote16chQty,
             remote16chPrice: formatPrice(remote16chPrice),
-            chargerQty: chargerQty || '',
+            chargerQty: chargerQty,
             chargerPrice: formatPrice(chargerPrice),
-            cord3mQty: cord3mQty || '',
+            cord3mQty: cord3mQty,
             cord3mPrice: formatPrice(cord3mPrice),
-            wifiHubQty: wifiHubQty || '', // [NEW] (v6295)
+            wifiHubQty: wifiHubQty, // [NEW] (v6295)
             wifiHubPrice: formatPrice(wifiHubPrice), // [NEW] (v6295)
-            eAcceSum: formatPrice(summaryData.eAcceSum),
+            eAcceSum: formatPrice(eAcceSum), // [MODIFIED] 這是 F1 成本總和
+
+            // [NEW] (第 8 次編修) 傳遞工單新表格所需的 F1 成本
+            wo_rb_price: formatPrice(f1_rb_price),
+            wo_acce_price: formatPrice(acce_total),
+            // 'eAcceSum' (wo_e_item_price) 已經在上面傳遞了
+            wo_total_price: formatPrice(f1_sub_total),
 
             // Pass the entire summary for flexibility
             summaryData: summaryData,

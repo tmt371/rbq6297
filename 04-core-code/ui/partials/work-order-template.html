@@ -26,14 +26,14 @@
             max-width: 900px;
             /* [MODIFIED] Set max-width to match the main quote page */
             margin: auto;
-            /* [MODIFIED] (Tweak 8) 壓縮邊界 */
+            /* [MODIFIED] (Tweak 8) 壓縮邊距 */
             padding: 10px;
         }
 
         .content-wrapper {
 
             background-color: #fff;
-            /* [MODIFIED] (Tweak 8) 壓縮邊界 */
+            /* [MODIFIED] (Tweak 8) 壓縮邊距 */
             padding: 20px;
             border-radius:
                 8px;
@@ -85,7 +85,7 @@
         th,
         td {
             border: 1px solid var(--border-light-grey);
-            /* [MODIFIED] (Tweak 8) 壓縮間距與字體 */
+            /* [MODIFIED] (Tweak 8) 壓縮邊距與字級 */
             padding: 6px 8px;
             font-size: 13px;
             white-space: nowrap;
@@ -105,7 +105,7 @@
             border-top: 2px solid #ccc;
         }
 
-        /* [NEW] (Bug Fix Tweak 2) 著色規則移至此處 */
+        /* [NEW] (Bug Fix Tweak 2) 顏色規則移至此處 */
         .detailed-list-table .bg-blockout {
             background-color: #f0f0f0 !important;
             /* 灰色 */
@@ -145,8 +145,8 @@
             text-align: right;
         }
 
+        /* [MODIFIED] (第 8 次編修) 舊的 legend 樣式 (保留外框) */
         .legend {
-
             margin-top: 40px;
             padding: 15px;
             border: 1px solid #ccc;
@@ -154,19 +154,13 @@
             font-size: 13px;
         }
 
-        .legend h3 {
+        /* [REMOVED] (第 8 次編修) 移除舊的 legend 內部樣式
+        .legend h3 { ... }
+        .legend p { ... }
+        */
 
-            margin-top: 0;
-        }
-
-        .legend p {
-            margin: 8px 0;
-            display: flex;
-            align-items: center;
-        }
-
+        /* [NEW] (第 9 次編修) 恢復 .color-swatch 樣式 */
         .color-swatch {
-
             display: inline-block;
             width: 14px;
             height: 14px;
@@ -188,23 +182,88 @@
             align-items: flex-start;
         }
 
-        /* <CHANGE> ä¿®æ­£è¨­å?ï¼Œè? .table-scroll-wrapper ??flex å±¬æ€§ä??ƒä??‰å¤ªå¤šç©º??*/
+        /* <CHANGE> 修正設定，讓 .table-scroll-wrapper 的 flex 屬性不要佔用太多空間 */
         .appendix-flex-container>.table-scroll-wrapper {
             flex: 0 0 auto;
-            /* ä¸ æ“´å±•ã€ ä?å£“ç¸®ï¼ŒåŸºç¤Žå¯¬åº¦è‡ª??*/
+            /* 不擴展、不壓縮，基礎寬度自動 */
             max-width: 400px;
-            /* ?€å¤§å¯¬åº¦ç‚º 400px */
+            /* 最大寬度為 400px */
 
             min-width: 272px;
-            /* ?€å° å¯¬åº¦ç‚º 272px */
+            /* 最小寬度為 272px */
         }
 
         .appendix-flex-container>.legend {
             flex: 1;
-            /* ? è¨± legend å¡«æ»¿?©é?ç©ºé? */
+            /* 允許 legend 填滿剩餘空間 */
             min-width: 250px;
-            /* ç¢ºä??¨ç?å± ä??€å° å¯¬åº?*/
+            /* 確保小螢幕最小寬度 */
         }
+
+        /* [NEW] (第 8 次編修) 新增總結表格樣式 */
+        .summary-key-table {
+            width: 100%;
+            border: none;
+            table-layout: auto;
+            margin-top: 0;
+        }
+
+        .summary-key-table>tbody>tr>td {
+            border: none;
+            padding: 0;
+            vertical-align: top;
+        }
+
+        .summary-key-table .key-column {
+            width: 40%;
+            padding-right: 10px;
+        }
+
+        .summary-key-table .summary-column {
+            width: 60%;
+        }
+
+        .summary-key-table h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .summary-key-table p {
+            margin: 5px 0;
+            /* [NEW] (第 9 次編修) 確保 P 標籤內的 flex 佈局 */
+            display: flex;
+            align-items: center;
+        }
+
+        /* [NEW] (第 8 次編修) 新增成本總結表格樣式 */
+        .cost-summary-table {
+            width: 100%;
+            border: 1px solid var(--border-dark-grey);
+            table-layout: fixed;
+            margin-top: 0;
+        }
+
+        .cost-summary-table th,
+        .cost-summary-table td {
+            border: 1px solid var(--border-light-grey);
+            font-size: 12px;
+            padding: 5px 6px;
+        }
+
+        .cost-summary-table th {
+            background-color: var(--header-bg-color);
+        }
+
+        .cost-summary-table tfoot td {
+            font-weight: bold;
+            background-color: var(--header-bg-color);
+            border-top: 2px solid var(--border-dark-grey);
+            color: #c0392b;
+            /* 醒目的紅色 */
+        }
+
+        /* [END NEW] (第 8 次編修) */
+
 
         @media (max-width: 850px) {
             .appendix-flex-container {
@@ -310,6 +369,13 @@
                 table-layout: auto;
                 border: 1px solid var(--border-dark-grey);
             }
+
+            /* [NEW] (第 8 次編修) 在手機上，讓 Key 和 Summary 垂直堆疊 */
+            .summary-key-table>tbody>tr {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }
         }
 
         /* [NEW v6285 Print Optimization] */
@@ -336,7 +402,7 @@
                 page-break-inside: avoid;
             }
 
-            /* [NEW] (Bug Fix Tweak 2) 確保列印時也套用著色 */
+            /* [NEW] (Bug Fix Tweak 2) 確保列印時套用顏色 */
             .detailed-list-table .bg-blockout,
             .detailed-list-table .bg-screen,
             .detailed-list-table .bg-light-filter {
@@ -346,13 +412,13 @@
 
 
             /* --- [NEW v6290 Task 4] Print Override for Mobile Card View --- */
-            /* å¼·åˆ¶?¢å¾©è¡¨æ ¼ä½ˆå? */
+            /* 強制恢復表格佈局 */
             .detailed-list-table {
                 display: table !important;
                 table-layout: fixed !important;
             }
 
-            /* å¼·åˆ¶é¡¯ç¤ºè¡¨æ ¼æ¨™é ­ */
+            /* 強制顯示表格標頭 */
             .detailed-list-table thead {
                 display: table-header-group !important;
                 position: static !important;
@@ -364,7 +430,7 @@
                 clip: rect(auto, auto, auto, auto) !important;
             }
 
-            /* å¼·åˆ¶?¢å¾©è¡¨æ ¼è¡?*/
+            /* 強制恢復表格行 */
             .detailed-list-table tr {
                 display: table-row !important;
                 margin-bottom: 0 !important;
@@ -372,7 +438,7 @@
                 box-shadow: none !important;
             }
 
-            /* å¼·åˆ¶?¢å¾©è¡¨æ ¼?®å???*/
+            /* 強制恢復表格儲存格 */
             .detailed-list-table td {
                 display: table-cell !important;
                 justify-content: flex-start !important;
@@ -380,7 +446,7 @@
                 border-bottom: 1px solid var(--border-light-grey) !important;
             }
 
-            /* å¼·åˆ¶?±è? data-label */
+            /* 強制隱藏 data-label */
             .detailed-list-table td:before {
                 content: none !important;
                 display: none !important;
@@ -453,16 +519,18 @@
                     <table class="motorised-accessories-table">
                         <colgroup>
                             <col style="width: auto;">
-                            <col style="width: auto;">
+                            <col style="width: 25%;">
+                            <col style="width: 35%;">
                         </colgroup>
 
                         <thead>
                             <tr class="table-title">
-                                <th colspan="2">Motorised Package Summary</th>
+                                <th colspan="3">Motorised Package Summary</th>
                             </tr>
                             <tr>
                                 <th>Item</th>
                                 <th class="text-center">QTY</th>
+                                <th class="text-right">Total Price</th>
                             </tr>
                         </thead>
 
@@ -470,42 +538,91 @@
                             <tr>
                                 <td data-label="Item">Motor</td>
                                 <td data-label="QTY" class="text-center">{{motorQty}}</td>
+                                <td data-label="Total Price" class="text-right">{{{motorPrice}}}</td>
                             </tr>
                             <tr>
                                 <td data-label="Item">Remote (1CH)</td>
                                 <td data-label="QTY" class="text-center">{{remote1chQty}}</td>
+                                <td data-label="Total Price" class="text-right">{{{remote1chPrice}}}</td>
                             </tr>
                             <tr>
                                 <td data-label="Item">Remote (16CH)</td>
                                 <td data-label="QTY" class="text-center">{{remote16chQty}}</td>
+                                <td data-label="Total Price" class="text-right">{{{remote16chPrice}}}</td>
                             </tr>
                             <tr>
                                 <td data-label="Item">Charger</td>
                                 <td data-label="QTY" class="text-center">{{chargerQty}}</td>
+                                <td data-label="Total Price" class="text-right">{{{chargerPrice}}}</td>
                             </tr>
                             <tr>
                                 <td data-label="Item">3M Cord</td>
                                 <td data-label="QTY" class="text-center">{{cord3mQty}}</td>
+                                <td data-label="Total Price" class="text-right">{{{cord3mPrice}}}</td>
                             </tr>
                             <tr>
                                 <td data-label="Item">WiFi Hub</td>
                                 <td data-label="QTY" class="text-center">{{{wifiHubQty}}}</td>
+                                <td data-label="Total Price" class="text-right">{{{wifiHubPrice}}}</td>
                             </tr>
                         </tbody>
+                        <tfoot>
+                            <tr class="total-row">
+                                <td colspan="2" class="text-right" data-label="QTY">Total</td>
+                                <td class="text-right" data-label="Total Price">{{eAcceSum}}</td>
+                            </tr>
+                        </tfoot>
                     </table>
                 </div>
 
-
                 <div class="legend">
-                    <h3>Abbreviations Key</h3>
-                    <p><span class="color-swatch" style="background-color: #f0f0f0;"></span><strong>Fcolor:</strong>
-                        Blockout (BO)</p>
-                    <p><span class="color-swatch" style="background-color: #e0f7fa;"></span><strong>Fcolor:</strong>
-                        Screen (SN)</p>
-                    <p><span class="color-swatch" style="background-color: #ffe4e1;"></span><strong>Fcolor:</strong>
-                        Light Filter (LF)</p>
-                    <p><strong>HD:</strong> Heavy-Duty Winder</p>
-                    <p><strong>Dual:</strong> Double Bracket (for Dual Roller Blinds)</p>
+                    <table class="summary-key-table">
+                        <tbody>
+                            <tr>
+                                <td class="key-column">
+                                    <h3>Abbreviations Key</h3>
+                                    <p><span class="color-swatch" style="background-color: #f0f0f0;"></span>Blockout
+                                        (BO)</p>
+                                    <p><span class="color-swatch" style="background-color: #e0f7fa;"></span>Screen (SN)
+                                    </p>
+                                    <p><span class="color-swatch" style="background-color: #ffe4e1;"></span>Light Filter
+                                        (LF)</p>
+                                    <p><strong>HD:</strong> Heavy-Duty Winder</p>
+                                    <p><strong>Dual:</strong> Double Bracket</p>
+                                </td>
+                                <td class="summary-column">
+                                    <table class="cost-summary-table">
+                                        <thead>
+                                            <tr>
+                                                <th>ITEM</th>
+                                                <th>Price</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>RB</td>
+                                                <td class="text-right">{{{wo_rb_price}}}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Acce.</td>
+                                                <td class="text-right">{{{wo_acce_price}}}</td>
+                                            </tr>
+                                            <tr>
+                                                <td>E-item</td>
+                                                <td class="text-right">{{{eAcceSum}}}</td>
+                                            </tr>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <td>Total</td>
+                                                <td class="text-right">{{{wo_total_price}}}</td>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
