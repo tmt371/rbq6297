@@ -1,6 +1,6 @@
 /* FILE: 04-core-code/config/constants.js */
-// [MODIFIED] (階段 1) Added USER_REQUESTED_GENERATE_WORK_ORDER.
-// [FIX] Removed self-importing line that caused SyntaxError.
+// [MODIFIED] (?段 1) Added USER_REQUESTED_GENERATE_WORK_ORDER.
+// [MODIFIED] (第 11 次編修) Added USER_REQUESTED_RELOGIN.
 
 /**
  * @fileoverview Centralized constants for the application.
@@ -46,14 +46,8 @@ export const EVENTS = {
     USER_REQUESTED_LF_DIALOG: 'userRequestedLFDialog', // [NEW] (Phase 2)
     USER_REQUESTED_SSET_DIALOG: 'userRequestedSSetDialog', // [NEW] (Phase 3)
     USER_TOGGLED_K2_MODE: 'userToggledK2Mode', // [NEW] (v6294)
-    // [REMOVED] (Phase 3 Cleanup) Obsolete panel events
-    // PANEL_INPUT_ENTER_PRESSED: 'panelInputEnterPressed',
-    // PANEL_INPUT_BLURRED: 'panelInputBlurred',
     LOCATION_INPUT_ENTER_PRESSED: 'locationInputEnterPressed',
-    // [REMOVED] (Phase 3 Cleanup) Obsolete K2 mode events
-    // USER_REQUESTED_LF_EDIT_MODE: 'userRequestedLFEditMode',
     USER_REQUESTED_LF_DELETE_MODE: 'userRequestedLFDeleteMode',
-    // USER_REQUESTED_SSET_MODE: 'userRequestedSSetMode',
     USER_TOGGLED_K3_EDIT_MODE: 'userToggledK3EditMode',
     USER_REQUESTED_BATCH_CYCLE: 'userRequestedBatchCycle',
     DUAL_CHAIN_MODE_CHANGED: 'dualChainModeChanged',
@@ -87,11 +81,11 @@ export const EVENTS = {
     USER_REQUESTED_SEARCH_DIALOG: 'userRequestedSearchDialog',
     // [NEW] (v6298-F4-Search) New event for the advanced dialog
     SHOW_SEARCH_DIALOG: 'showSearchDialog',
-    // --- [NEW] 階段 3：S1/S2 通訊事件 ---
+    // --- [NEW] 階段 3：S1/S2 互動事件 ---
     USER_REQUESTED_EXECUTE_SEARCH: 'userRequestedExecuteSearch',
     SEARCH_RESULTS_SUCCESSFUL: 'searchResultsSuccessful',
     USER_REQUESTED_CLOSE_SEARCH_DIALOG: 'userRequestedCloseSearchDialog', // [NEW] 階段 3 S2View 請求
-    // --- End v6298 ---
+    USER_REQUESTED_RELOGIN: 'userRequestedRelogin', // [NEW] (第 11 次編修)
 
     // --- User Actions: F1/F2 Panels ---
     F1_TAB_ACTIVATED: 'f1TabActivated',
@@ -131,8 +125,6 @@ export const DOM_IDS = {
     // --- Left Panel & Tabs ---
     LEFT_PANEL_TOGGLE: 'left-panel-toggle',
     LOCATION_INPUT_BOX: 'location-input-box',
-    // [REMOVED] (Phase 3 Cleanup)
-    // FABRIC_BATCH_TABLE: 'fabric-batch-table',
 
     // --- Right Panel & Tabs ---
     FUNCTION_PANEL_TOGGLE: 'function-panel-toggle',
@@ -169,14 +161,9 @@ export const DOM_IDS = {
     // --- [NEW] v6298 F4 Panel Elements ---
     F4_BTN_SEARCH_DIALOG: 'f4-key-search-dialog',
     F4_BTN_LOGOUT: 'f4-key-logout',
+    F4_BTN_RELOGIN: 'f4-key-relogin', // [NEW] (第 11 次編修)
 
     // --- [NEW] v6298 Search Dialog Elements ---
-    // [REMOVED] Old simple dialog IDs
-    // DIALOG_SEARCH_INPUT: 'dialog-search-input',
-    // DIALOG_SEARCH_BUTTON: 'dialog-search-button',
-    // DIALOG_SEARCH_RESULTS: 'dialog-search-results',
-    // DIALOG_SEARCH_MESSAGE: 'dialog-search-message',
-    // [NEW] (v6298-F4-Search) Advanced Search Dialog IDs
     SEARCH_DIALOG_CONTAINER: 'search-dialog-container',
     SEARCH_DIALOG_CLOSE_BTN: 'search-dialog-close-btn',
     SEARCH_FILTER_NAME: 'search-filter-name',

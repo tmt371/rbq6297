@@ -1,5 +1,6 @@
 /* FILE: 04-core-code/ui/views/f4-actions-view.js */
-// [MODIFIED] (階段 1) Added new "Generate Work Order" button.
+// [MODIFIED] (?段 1) Added new "Generate Work Order" button.
+// [MODIFIED] (第 11 次編修) Added Re-Login button handler.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 
@@ -50,11 +51,12 @@ export class F4ActionsView {
             buttons: {
                 'f1-key-save': query('#f1-key-save'),
                 'f4-key-save-as-new': query('#f4-key-save-as-new'),
-                'f4-key-generate-work-order': query('#f4-key-generate-work-order'), // [NEW] 階段 1
+                'f4-key-generate-work-order': query('#f4-key-generate-work-order'), // [NEW] ?段 1
                 'f1-key-export': query('#f1-key-export'),
                 'f1-key-load': query('#f1-key-load'),
                 'f4-key-load-cloud': query(`#${DOM_IDS.F4_BTN_SEARCH_DIALOG}`), // [MODIFIED] Old ID no longer exists, new ID used
                 'f4-key-logout': query(`#${DOM_IDS.F4_BTN_LOGOUT}`), // [NEW]
+                'f4-key-relogin': query(`#${DOM_IDS.F4_BTN_RELOGIN}`), // [NEW] (第 11 次編修)
                 'f1-key-reset': query('#f1-key-reset'),
             },
         };
@@ -65,11 +67,12 @@ export class F4ActionsView {
         const buttonEventMap = {
             'f1-key-save': EVENTS.USER_REQUESTED_SAVE,
             'f4-key-save-as-new': EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION,
-            'f4-key-generate-work-order': EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, // [NEW] 階段 1
+            'f4-key-generate-work-order': EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, // [NEW] ?段 1
             'f1-key-export': EVENTS.USER_REQUESTED_EXPORT_CSV,
             'f1-key-load': EVENTS.USER_REQUESTED_LOAD,
             'f4-key-load-cloud': EVENTS.USER_REQUESTED_SEARCH_DIALOG, // [MODIFIED] (v6298) This button now triggers the search dialog
             'f1-key-reset': EVENTS.USER_REQUESTED_RESET,
+            'f4-key-relogin': EVENTS.USER_REQUESTED_RELOGIN, // [NEW] (第 11 次編修)
         };
 
         for (const [id, eventName] of Object.entries(buttonEventMap)) {

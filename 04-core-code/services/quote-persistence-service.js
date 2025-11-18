@@ -1,6 +1,7 @@
 /* FILE: 04-core-code/services/quote-persistence-service.js */
 // [NEW] (v6297) 階段 1：建立新檔案以實現持久化
 // [MODIFIED] (第 1 次編修) 在儲存方法中加入 authService.verifyAuthentication() 驗證
+// [MODIFIED] (第 11 次編修) 針對 'blocked' 錯誤，降級為警告並繼續執行本地儲存。
 
 // [MODIFIED] 從 workflow-service.js 移入此處
 import {
@@ -129,32 +130,41 @@ export class QuotePersistenceService {
 
     // [MOVED] 從 workflow-service.js 移入
     // [MODIFIED] (第 1 次編修) 加入 authService.verifyAuthentication()
+    // [MODIFIED] (第 11 次編修) 針對 'blocked' 錯誤做特殊處理，不中斷本地儲存
     async handleSaveToFile() {
-        // [NEW] (第 1 次編修) 執行任何動作前，先驗證 token
         const authResult = await this.authService.verifyAuthentication();
+        let skipCloudSave = false;
+
         if (!authResult.success) {
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: authResult.message,
-                type: 'error',
-            });
-            // 驗證失敗 (Token 過期)，強制登出並立即停止儲存
-            await this.authService.logout();
-            return;
+            if (authResult.reason === 'blocked') {
+                // [NEW] 如果是被阻擋 (Config/Network Error)，顯示警告但繼續執行本地儲存
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: authResult.message, // e.g., "Cloud connection failed..."
+                    type: 'error', // or warning
+                });
+                console.warn("Cloud save skipped due to network/config block. Proceeding to local save.");
+                skipCloudSave = true;
+            } else {
+                // [NEW] 如果是其他原因 (例如 token 過期)，則執行原有的登出與中斷邏輯
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: authResult.message,
+                    type: 'error',
+                });
+                await this.authService.logout();
+                return;
+            }
         }
-        // [END] (第 1 次編修)
 
         const dataToSave = this._getQuoteDataWithSnapshots();
 
         // --- [NEW] (v6298-fix-6) Robust Firebase Save ---
-        // We wrap the cloud save in a try...catch block.
-        // If it fails (e.g., Ad Blocker, no permissions, no internet),
-        // we log the error but *do not* stop the function.
-        // This ensures the local save will *always* be attempted.
-        try {
-            await saveQuoteToCloud(dataToSave);
-        } catch (error) {
-            // saveQuoteToCloud already logs its own friendly error
-            console.error("WorkflowService: Cloud save failed, but proceeding to local save.", error);
+        // [MODIFIED] (第 11 次編修) 如果被標記為 skipCloudSave，則跳過雲端儲存
+        if (!skipCloudSave) {
+            try {
+                await saveQuoteToCloud(dataToSave);
+            } catch (error) {
+                console.error("WorkflowService: Cloud save failed, but proceeding to local save.", error);
+            }
         }
         // --- [END NEW] ---
 
@@ -168,19 +178,30 @@ export class QuotePersistenceService {
 
     // [MOVED] 從 workflow-service.js 移入
     // [MODIFIED] (第 1 次編修) 加入 authService.verifyAuthentication()
+    // [MODIFIED] (第 11 次編修) 針對 'blocked' 錯誤做特殊處理，不中斷本地儲存
     async handleSaveAsNewVersion() {
-        // [NEW] (第 1 次編修) 執行任何動作前，先驗證 token
         const authResult = await this.authService.verifyAuthentication();
+        let skipCloudSave = false;
+
         if (!authResult.success) {
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: authResult.message,
-                type: 'error',
-            });
-            // 驗證失敗 (Token 過期)，強制登出並立即停止儲存
-            await this.authService.logout();
-            return;
+            if (authResult.reason === 'blocked') {
+                // [NEW] 針對 Blocked，顯示警告但繼續
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: authResult.message,
+                    type: 'error',
+                });
+                console.warn("Cloud save skipped due to network/config block. Proceeding to local save.");
+                skipCloudSave = true;
+            } else {
+                // 針對 Expired，登出並停止
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: authResult.message,
+                    type: 'error',
+                });
+                await this.authService.logout();
+                return;
+            }
         }
-        // [END] (第 1 次編修)
 
         // 1. Get the current data, with all snapshots and a NEW creationDate
         const dataToSave = this._getQuoteDataWithSnapshots();
@@ -209,11 +230,14 @@ export class QuotePersistenceService {
 
         // 4. Save to both cloud (new document) and local (new file)
         let cloudSaveSuccess = false;
-        try {
-            await saveQuoteToCloud(dataToSave);
-            cloudSaveSuccess = true;
-        } catch (error) {
-            console.error("WorkflowService: Cloud save (new version) failed, but proceeding to local save.", error);
+        // [MODIFIED] (第 11 次編修) 檢查 skipCloudSave
+        if (!skipCloudSave) {
+            try {
+                await saveQuoteToCloud(dataToSave);
+                cloudSaveSuccess = true;
+            } catch (error) {
+                console.error("WorkflowService: Cloud save (new version) failed, but proceeding to local save.", error);
+            }
         }
 
         const localSaveResult = this.fileService.saveToJson(dataToSave);
@@ -222,9 +246,14 @@ export class QuotePersistenceService {
         this.stateService.dispatch(quoteActions.setQuoteData(dataToSave));
 
         // 6. Notify user
-        const message = cloudSaveSuccess
-            ? `New version saved as: ${newQuoteId}`
-            : `New version saved locally. Cloud save failed.`;
+        let message;
+        if (skipCloudSave) {
+            message = `Saved LOCALLY as: ${newQuoteId} (Cloud Offline)`;
+        } else {
+            message = cloudSaveSuccess
+                ? `New version saved as: ${newQuoteId}`
+                : `New version saved locally. Cloud save failed.`;
+        }
 
         this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
             message: message,

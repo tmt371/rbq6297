@@ -1,5 +1,6 @@
 // File: 04-core-code/main.js
-// [MODIFIED] (v6297 瘦身) 階段 2：將 quotePersistenceService 注入 appController。
+// [MODIFIED] (v6297 ?身) ?段 2：å? quotePersistenceService 注入 appController??
+// [MODIFIED] (第 11 次編修) Handle Re-Login UI logic.
 
 import { AppContext } from './app-context.js';
 import { MigrationService } from './services/migration-service.js';
@@ -24,23 +25,23 @@ class App {
         // [NEW] (v6298-fix-3) Store listener reference
         this.stateChangeListener = null;
 
-        // [NEW] (v6298-fix-4) Store references to components that need destruction
+        // [NEW] (v6298-fix-4) Store references for component destruction
         this.appController = null;
         this.k1TabInputHandler = null;
         this.k2TabInputHandler = null;
         this.k3TabInputHandler = null;
         this.k4TabInputHandler = null;
         this.k5TabInputHandler = null;
-        // [NEW] (v6298-F4-Search) Store search dialog component
         this.searchDialogComponent = null;
+        // [NEW] (第 11 次編修) Store bound handler
+        this.reloginHandler = null;
     }
 
     async _loadPartials() {
         const eventAggregator = this.appContext.get('eventAggregator');
         const loadPartial = async (url, targetElement, injectionMethod = 'append') => {
             try {
-                const
-                    response = await fetch(url);
+                const response = await fetch(url);
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status} for ${url}`);
                 }
@@ -85,8 +86,7 @@ class App {
         }
 
         // --- [NEW] Load K1 Tab Bundle ---
-        const k1ContentContainer =
-            document.getElementById('k1-content');
+        const k1ContentContainer = document.getElementById('k1-content');
         if (k1ContentContainer) {
             await loadPartial(paths.tabs.k1.html, k1ContentContainer, 'innerHTML');
             loadCss(paths.tabs.k1.css);
@@ -188,15 +188,17 @@ class App {
         );
 
         // Step 1: Load all HTML templates into the DOM.
-        // This now loads the login-component.html as well.
         await this._loadPartials();
 
         // [NEW] (v6297) Initialize the login form handler *immediately* after loading partials.
-        // This fixes the bug where the login button did nothing.
         this._initializeLoginHandler(authService, eventAggregator); // [MODIFIED] (v6298) Pass eventAggregator
 
-        // [REMOVED] (v6297) We no longer initialize the UI here.
-        // It will be initialized by the auth observer callback.
+        // [NEW] (第 11 次編修) Listen for Re-Login requests
+        this.reloginHandler = () => {
+            document.getElementById('login-container')?.classList.remove('is-hidden');
+            // We do NOT hide the app, so the context is preserved in the background
+        };
+        eventAggregator.subscribe(EVENTS.USER_REQUESTED_RELOGIN, this.reloginHandler);
 
         console.log("Application running. Waiting for auth state...");
         document.body.classList.add('app-is-ready');
@@ -298,8 +300,15 @@ class App {
             const result = await authService.login(email, password);
 
             if (result.success) {
-                // Success! The onAuthStateChanged listener will now
-                // fire and call _initializeAppUI() to show the main app.
+                // Success! The onAuthStateChanged listener will now fire.
+                // [NEW] (第 11 次編修) Explicitly hide the login container for the Re-Login case.
+                // In normal login, observeAuthState hides it, but in Re-Login, we need this manual step.
+                document.getElementById('login-container')?.classList.add('is-hidden');
+
+                // Reset button state for next time
+                loginButton.disabled = false;
+                loginButton.textContent = 'Login';
+                loginPassword.value = ''; // Security: Clear password
             } else {
                 // Show error message
                 loginErrorMessage.textContent = result.message;
@@ -352,7 +361,7 @@ class App {
         // [MODIFIED] (v6298-fix-4) Store references
         const calculationService = this.appContext.get('calculationService');
         const configManager = this.appContext.get('configManager');
-        // [NEW] (v6297 瘦身) 階段 2：取得 quotePersistenceService
+        // [NEW] (v6297 ?身) ?段 2：å?¾?quotePersistenceService
         const quotePersistenceService = this.appContext.get('quotePersistenceService');
         this.appController = this.appContext.get('appController');
         const rightPanelComponent = this.appContext.get('rightPanelComponent');
@@ -370,8 +379,6 @@ class App {
         // [NEW] (v6298-F4-Search) Get the search dialog component
         this.searchDialogComponent = this.appContext.get('searchDialogComponent');
 
-        // [REMOVED]
-
         // Step 4: Initialize the main UI manager.
         this.uiManager = new UIManager({
             appElement: document.getElementById(DOM_IDS.APP),
@@ -386,8 +393,6 @@ class App {
             k5TabComponent, // [NEW] Inject K5 component
             // [NEW] (v6298-F4-Search) Inject search dialog component
             searchDialogComponent: this.searchDialogComponent,
-            // [REMOVED] (v6297) authService is no longer needed here
-            // authService: this.appContext.get('authService'),
         });
 
         // Step 5: Continue with the rest of the application startup.
@@ -403,7 +408,7 @@ class App {
         };
         eventAggregator.subscribe(EVENTS.STATE_CHANGED, this.stateChangeListener);
 
-        // [NEW] (v6297 瘦身) 階段 2：將 quotePersistenceService 注入 appController
+        // [NEW] (v6297 ?身) ?段 2：å? quotePersistenceService 注入 appController
         this.appController.quotePersistenceService = quotePersistenceService;
 
         this.appController.publishInitialState(); // [MODIFIED] (v6298-fix-4) Use stored ref

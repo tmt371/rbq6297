@@ -1,6 +1,7 @@
 // File: 04-core-code/services/auth-service.js
 // [NEW] This is a new service to manage Firebase Authentication.
 // [MODIFIED] (第 1 次編修) Added getIdToken import and verifyAuthentication method.
+// [MODIFIED] (第 11 次編修) verifyAuthentication logic updated to distinguish between Auth Expiry and API Blocking.
 
 import { auth } from '../config/firebase-config.js';
 import {
@@ -62,7 +63,8 @@ export class AuthService {
      * [NEW] (第 1 次編修)
      * Verifies if the current user's authentication is still valid by forcing a token refresh.
      * If validation fails (e.g., token expired), it logs the user out.
-     * @returns {Promise<{success: boolean, message: string}>}
+     * [MODIFIED] (第 11 次編修) Added logic to handle API Blocking (403) without logging out.
+     * @returns {Promise<{success: boolean, message: string, reason?: string}>}
      */
     async verifyAuthentication() {
         if (!auth.currentUser) {
@@ -71,7 +73,7 @@ export class AuthService {
             // This case might happen if auth state was lost but app is still open
             // Force logout to sync UI
             await this.logout();
-            return { success: false, message: msg };
+            return { success: false, message: msg, reason: 'no_user' };
         }
 
         try {
@@ -81,14 +83,27 @@ export class AuthService {
             // console.log("Token refreshed, auth verified.");
             return { success: true, message: 'Authentication verified.' };
         } catch (error) {
-            // This block catches errors if the token is expired and cannot be refreshed.
-            console.warn('Authentication verification failed (Token expired or invalid):', error.code);
+            console.warn('Authentication verification failed:', error.code, error.message);
+
+            // [NEW] (第 11 次編修) Check for API Key Blocking / Network Config errors
+            // If the error is due to blocking, we should NOT logout the user, just report failure.
+            if (
+                error.message.includes('blocked') ||
+                error.message.includes('Forbidden') ||
+                error.code === 'auth/network-request-failed' ||
+                error.code === 'auth/internal-error'
+            ) {
+                const msg = 'Cloud connection failed (Network/Config). Proceeding offline.';
+                return { success: false, message: msg, reason: 'blocked' };
+            }
+
+            // If we are here, it's likely a genuine auth issue (token expired, user deleted, etc.)
             const msg = 'Authentication expired. Please log in again.';
 
-            // Since verification failed, force a logout to clear the zombie state.
+            // Since verification failed due to auth reasons, force a logout to clear the zombie state.
             await this.logout();
 
-            return { success: false, message: msg };
+            return { success: false, message: msg, reason: 'expired' };
         }
     }
 
