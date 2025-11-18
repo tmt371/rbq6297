@@ -1,5 +1,6 @@
 /* FILE: 04-core-code/services/quote-persistence-service.js */
-// [NEW] (v6297) 階段 1：建立新的持久化服務
+// [NEW] (v6297) 階段 1：建立新檔案以實現持久化
+// [MODIFIED] (第 1 次編修) 在儲存方法中加入 authService.verifyAuthentication() 驗證
 
 // [MODIFIED] 從 workflow-service.js 移入此處
 import {
@@ -127,7 +128,21 @@ export class QuotePersistenceService {
     }
 
     // [MOVED] 從 workflow-service.js 移入
+    // [MODIFIED] (第 1 次編修) 加入 authService.verifyAuthentication()
     async handleSaveToFile() {
+        // [NEW] (第 1 次編修) 執行任何動作前，先驗證 token
+        const authResult = await this.authService.verifyAuthentication();
+        if (!authResult.success) {
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: authResult.message,
+                type: 'error',
+            });
+            // 驗證失敗 (Token 過期)，強制登出並立即停止儲存
+            await this.authService.logout();
+            return;
+        }
+        // [END] (第 1 次編修)
+
         const dataToSave = this._getQuoteDataWithSnapshots();
 
         // --- [NEW] (v6298-fix-6) Robust Firebase Save ---
@@ -152,7 +167,21 @@ export class QuotePersistenceService {
     }
 
     // [MOVED] 從 workflow-service.js 移入
+    // [MODIFIED] (第 1 次編修) 加入 authService.verifyAuthentication()
     async handleSaveAsNewVersion() {
+        // [NEW] (第 1 次編修) 執行任何動作前，先驗證 token
+        const authResult = await this.authService.verifyAuthentication();
+        if (!authResult.success) {
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: authResult.message,
+                type: 'error',
+            });
+            // 驗證失敗 (Token 過期)，強制登出並立即停止儲存
+            await this.authService.logout();
+            return;
+        }
+        // [END] (第 1 次編修)
+
         // 1. Get the current data, with all snapshots and a NEW creationDate
         const dataToSave = this._getQuoteDataWithSnapshots();
 

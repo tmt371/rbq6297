@@ -1,5 +1,6 @@
 // File: 04-core-code/services/auth-service.js
 // [NEW] This is a new service to manage Firebase Authentication.
+// [MODIFIED] (第 1 次編修) Added getIdToken import and verifyAuthentication method.
 
 import { auth } from '../config/firebase-config.js';
 import {
@@ -7,7 +8,9 @@ import {
     onAuthStateChanged,
     signOut,
     sendPasswordResetEmail, // [NEW] Import the password reset function
+    getIdToken, // [NEW] (第 1 次編修) Import getIdToken
 } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js';
+import { EVENTS } from '../config/constants.js'; // [NEW] (第 1 次編修)
 
 /**
  * @fileoverview Service for managing user authentication,
@@ -54,6 +57,41 @@ export class AuthService {
             console.error('Logout failed:', error);
         }
     }
+
+    /**
+     * [NEW] (第 1 次編修)
+     * Verifies if the current user's authentication is still valid by forcing a token refresh.
+     * If validation fails (e.g., token expired), it logs the user out.
+     * @returns {Promise<{success: boolean, message: string}>}
+     */
+    async verifyAuthentication() {
+        if (!auth.currentUser) {
+            const msg = 'No active user. Please log in.';
+            console.warn(msg);
+            // This case might happen if auth state was lost but app is still open
+            // Force logout to sync UI
+            await this.logout();
+            return { success: false, message: msg };
+        }
+
+        try {
+            // Passing `true` forces a token refresh.
+            // If this succeeds, the user is authenticated.
+            await getIdToken(auth.currentUser, true);
+            // console.log("Token refreshed, auth verified.");
+            return { success: true, message: 'Authentication verified.' };
+        } catch (error) {
+            // This block catches errors if the token is expired and cannot be refreshed.
+            console.warn('Authentication verification failed (Token expired or invalid):', error.code);
+            const msg = 'Authentication expired. Please log in again.';
+
+            // Since verification failed, force a logout to clear the zombie state.
+            await this.logout();
+
+            return { success: false, message: msg };
+        }
+    }
+
 
     /**
      * [NEW] Sends a password reset email to the provided email address.
