@@ -2,6 +2,7 @@
 // [MODIFIED] (Phase 1) Added new "Generate Work Order" button.
 // [MODIFIED] (Phase 11) Added Re-Login button handler.
 // [MODIFIED] (F4 Status Phase 2) Added logic for status dropdown and update button.
+// [MODIFIED] (F4 Status Phase 3) Bound update button to USER_REQUESTED_UPDATE_STATUS event.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 // [NEW] (F4 Status Phase 2) Import status constants
@@ -101,6 +102,14 @@ export class F4ActionsView {
                 } else {
                     console.error("AuthService not available in F4ActionsView.");
                 }
+            });
+        }
+
+        // [NEW] (F4 Status Phase 3) Bind Status Update Button
+        if (this.f4.statusUpdateButton) {
+            this._addListener(this.f4.statusUpdateButton, 'click', () => {
+                const newStatus = this.f4.statusDropdown.value;
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_UPDATE_STATUS, { newStatus });
             });
         }
     }

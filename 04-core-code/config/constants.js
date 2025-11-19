@@ -1,6 +1,7 @@
 /* FILE: 04-core-code/config/constants.js */
-// [MODIFIED] (?段 1) Added USER_REQUESTED_GENERATE_WORK_ORDER.
-// [MODIFIED] (第 11 次編修) Added USER_REQUESTED_RELOGIN.
+// [MODIFIED] (?®?1) Added USER_REQUESTED_GENERATE_WORK_ORDER.
+// [MODIFIED] (¬?11 次編¿? Added USER_REQUESTED_RELOGIN.
+// [MODIFIED] (F4 Status Phase 3) Added USER_REQUESTED_UPDATE_STATUS.
 
 /**
  * @fileoverview Centralized constants for the application.
@@ -72,7 +73,7 @@ export const EVENTS = {
     USER_CHOSE_LOAD_DIRECTLY: 'userChoseLoadDirectly',
     TRIGGER_FILE_LOAD: 'triggerFileLoad',
     FILE_LOADED: 'fileLoaded',
-    // [NEW] 階段 1 (工單)
+    // [NEW] ?段 1 (工單)
     USER_REQUESTED_GENERATE_WORK_ORDER: 'userRequestedGenerateWorkOrder',
 
     // --- [NEW] v6298 F4 & Auth Events ---
@@ -81,11 +82,14 @@ export const EVENTS = {
     USER_REQUESTED_SEARCH_DIALOG: 'userRequestedSearchDialog',
     // [NEW] (v6298-F4-Search) New event for the advanced dialog
     SHOW_SEARCH_DIALOG: 'showSearchDialog',
-    // --- [NEW] 階段 3：S1/S2 互動事件 ---
+    // --- [NEW] ?段 3：S1/S2 互å?事件 ---
     USER_REQUESTED_EXECUTE_SEARCH: 'userRequestedExecuteSearch',
     SEARCH_RESULTS_SUCCESSFUL: 'searchResultsSuccessful',
-    USER_REQUESTED_CLOSE_SEARCH_DIALOG: 'userRequestedCloseSearchDialog', // [NEW] 階段 3 S2View 請求
-    USER_REQUESTED_RELOGIN: 'userRequestedRelogin', // [NEW] (第 11 次編修)
+    USER_REQUESTED_CLOSE_SEARCH_DIALOG: 'userRequestedCloseSearchDialog', // [NEW] ?段 3 S2View 請æ?
+    USER_REQUESTED_RELOGIN: 'userRequestedRelogin', // [NEW] (¬?11 次編¿?
+
+    // [NEW] (F4 Status Phase 3)
+    USER_REQUESTED_UPDATE_STATUS: 'userRequestedUpdateStatus',
 
     // --- User Actions: F1/F2 Panels ---
     F1_TAB_ACTIVATED: 'f1TabActivated',
@@ -161,7 +165,7 @@ export const DOM_IDS = {
     // --- [NEW] v6298 F4 Panel Elements ---
     F4_BTN_SEARCH_DIALOG: 'f4-key-search-dialog',
     F4_BTN_LOGOUT: 'f4-key-logout',
-    F4_BTN_RELOGIN: 'f4-key-relogin', // [NEW] (第 11 次編修)
+    F4_BTN_RELOGIN: 'f4-key-relogin', // [NEW] (¬?11 次編¿?
 
     // --- [NEW] v6298 Search Dialog Elements ---
     SEARCH_DIALOG_CONTAINER: 'search-dialog-container',

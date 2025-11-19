@@ -1,9 +1,10 @@
 /* FILE: 04-core-code/services/quote-persistence-service.js */
-// [NEW] (v6297) 階段 1：建立新檔案以實現持久化
-// [MODIFIED] (第 1 次編修) 在儲存方法中加入 authService.verifyAuthentication() 驗證
-// [MODIFIED] (第 11 次編修) 針對 'blocked' 錯誤，降級為警告並繼續執行本地儲存。
+// [NEW] (v6297) ?段 1：建立新檔æ?以實?æ?久å?
+// [MODIFIED] (¬?1 次編¿? ?儲存方法中?入 authService.verifyAuthentication() 驗è?
+// [MODIFIED] (¬?11 次編¿? ?å? 'blocked' ?誤，é?級為警å?並繼續執行本?儲存€?
+// [MODIFIED] (F4 Status Phase 3) Added handleUpdateStatus logic.
 
-// [MODIFIED] 從 workflow-service.js 移入此處
+// [MODIFIED] ¾?workflow-service.js 移入此è?
 import {
     saveQuoteToCloud,
 } from './online-storage-service.js';
@@ -21,7 +22,7 @@ export class QuotePersistenceService {
         stateService,
         fileService,
         authService,
-        // [NEW] 複製 _getQuoteDataWithSnapshots 所需的依賴
+        // [NEW] 複製 _getQuoteDataWithSnapshots ?€?€?ä?³?
         calculationService,
         configManager,
         productFactory
@@ -37,7 +38,8 @@ export class QuotePersistenceService {
         console.log('QuotePersistenceService Initialized.');
     }
 
-    // [MOVED] 從 workflow-service.js 移入
+
+    // [MOVED] ¾?workflow-service.js 移入
     _getQuoteDataWithSnapshots() {
         const { quoteData, ui } = this.stateService.getState();
         // Create a deep copy to avoid mutating the original state
@@ -113,9 +115,6 @@ export class QuotePersistenceService {
         // --- 3. Capture F3 Snapshot (NEW Phase 5) ---
         // [REMOVED] No longer need to read from DOM. All data (quoteId, issueDate, customer, notes)
         // is already present in the `dataWithSnapshot` object because F3 view updates state live.
-        // const getValue = (id) => document.getElementById(id)?.value || '';
-        // dataWithSnapshot.quoteId = getValue('f3-quote-id');
-        // ... (all other getValue calls removed)
 
         // --- 4. [NEW] (v6295) Capture F2 Snapshot ---
         // Save the entire F2 state object
@@ -128,16 +127,16 @@ export class QuotePersistenceService {
         return dataWithSnapshot;
     }
 
-    // [MOVED] 從 workflow-service.js 移入
-    // [MODIFIED] (第 1 次編修) 加入 authService.verifyAuthentication()
-    // [MODIFIED] (第 11 次編修) 針對 'blocked' 錯誤做特殊處理，不中斷本地儲存
+    // [MOVED] ¾?workflow-service.js 移入
+    // [MODIFIED] (¬?1 次編¿? ?入 authService.verifyAuthentication()
+    // [MODIFIED] (¬?11 次編¿? ?å? 'blocked' ?誤?特殊è??ï?不中?本?儲­?
     async handleSaveToFile() {
         const authResult = await this.authService.verifyAuthentication();
         let skipCloudSave = false;
 
         if (!authResult.success) {
             if (authResult.reason === 'blocked') {
-                // [NEW] 如果是被阻擋 (Config/Network Error)，顯示警告但繼續執行本地儲存
+                // [NEW] 如æ??被?æ? (Config/Network Error)，顯示警?ä?繼ç??è??地?å?
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message, // e.g., "Cloud connection failed..."
                     type: 'error', // or warning
@@ -145,7 +144,7 @@ export class QuotePersistenceService {
                 console.warn("Cloud save skipped due to network/config block. Proceeding to local save.");
                 skipCloudSave = true;
             } else {
-                // [NEW] 如果是其他原因 (例如 token 過期)，則執行原有的登出與中斷邏輯
+                // [NEW] 如æ??其他å???(例å? token ?æ?)，å??è??æ??登?è?中斷?輯
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message,
                     type: 'error',
@@ -158,7 +157,7 @@ export class QuotePersistenceService {
         const dataToSave = this._getQuoteDataWithSnapshots();
 
         // --- [NEW] (v6298-fix-6) Robust Firebase Save ---
-        // [MODIFIED] (第 11 次編修) 如果被標記為 skipCloudSave，則跳過雲端儲存
+        // [MODIFIED] (¬?11 次編¿? 如æ?被æ?記為 skipCloudSave，å?跳é??端?å?
         if (!skipCloudSave) {
             try {
                 await saveQuoteToCloud(dataToSave);
@@ -176,16 +175,16 @@ export class QuotePersistenceService {
         });
     }
 
-    // [MOVED] 從 workflow-service.js 移入
-    // [MODIFIED] (第 1 次編修) 加入 authService.verifyAuthentication()
-    // [MODIFIED] (第 11 次編修) 針對 'blocked' 錯誤做特殊處理，不中斷本地儲存
+    // [MOVED] ¾?workflow-service.js 移入
+    // [MODIFIED] (¬?1 次編¿? ?入 authService.verifyAuthentication()
+    // [MODIFIED] (¬?11 次編¿? ?å? 'blocked' ?誤?特殊è??ï?不中?本?儲­?
     async handleSaveAsNewVersion() {
         const authResult = await this.authService.verifyAuthentication();
         let skipCloudSave = false;
 
         if (!authResult.success) {
             if (authResult.reason === 'blocked') {
-                // [NEW] 針對 Blocked，顯示警告但繼續
+                // [NEW] ?å? Blocked，顯示警?ä?繼ç?
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message,
                     type: 'error',
@@ -193,7 +192,7 @@ export class QuotePersistenceService {
                 console.warn("Cloud save skipped due to network/config block. Proceeding to local save.");
                 skipCloudSave = true;
             } else {
-                // 針對 Expired，登出並停止
+                // ?å? Expired，登?並?止
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message,
                     type: 'error',
@@ -230,7 +229,7 @@ export class QuotePersistenceService {
 
         // 4. Save to both cloud (new document) and local (new file)
         let cloudSaveSuccess = false;
-        // [MODIFIED] (第 11 次編修) 檢查 skipCloudSave
+        // [MODIFIED] (¬?11 次編¿? 檢查 skipCloudSave
         if (!skipCloudSave) {
             try {
                 await saveQuoteToCloud(dataToSave);
@@ -261,7 +260,7 @@ export class QuotePersistenceService {
         });
     }
 
-    // [MOVED] 從 workflow-service.js 移入
+    // [MOVED] ¾?workflow-service.js 移入
     handleExportCSV() {
         const dataToExport = this._getQuoteDataWithSnapshots();
         const result = this.fileService.exportToCsv(dataToExport);
@@ -270,5 +269,42 @@ export class QuotePersistenceService {
             message: result.message,
             type: notificationType,
         });
+    }
+
+    /**
+     * [NEW] (F4 Status Phase 3) Updates only the status of the quote and saves to cloud.
+     * @param {object} payload
+     * @param {string} payload.newStatus The new status string.
+     */
+    async handleUpdateStatus({ newStatus }) {
+        // 1. 立即更新本地 state，使 UI 保持同步
+        this.stateService.dispatch(quoteActions.updateQuoteProperty('status', newStatus));
+
+        // 2. 獲取包含新 status 和新 creationDate 的快照
+        // Note: _getQuoteDataWithSnapshots() automatically updates 'creationDate' to now.
+        const dataToSave = this._getQuoteDataWithSnapshots();
+
+        try {
+            // 3. 儲存到火店
+            // We explicitly want to save to the cloud here to share the status update.
+            // We do NOT save to local file to avoid annoying download prompts for just a status change.
+            const result = await saveQuoteToCloud(dataToSave);
+
+            if (result.success) {
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: `Status updated to: ${newStatus}`,
+                    type: 'info'
+                });
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            console.error("WorkflowService: Status update save failed.", error);
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: `Status update failed: ${error.message}`,
+                type: 'error'
+            });
+            // Optional: Revert local state if needed, but current flow keeps UI optimistic.
+        }
     }
 }
