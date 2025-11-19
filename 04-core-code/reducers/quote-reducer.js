@@ -65,7 +65,18 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             const newItem = productStrategy.getInitialItemData();
             items.splice(action.payload.selectedIndex + 1, 0, newItem);
             productData = { ...productData, items };
-            return { ...state, products: { ...state.products, [productKey]: productData } };
+
+            // [NEW] (第 14 次編修) Insert row logic needs to shift LF indexes
+            // If we insert at index + 1, any LF index > index should be shifted down
+            const insertIndex = action.payload.selectedIndex + 1;
+            const oldLfIndexes = state.uiMetadata.lfModifiedRowIndexes;
+            const newLfIndexes = oldLfIndexes.map(index => index >= insertIndex ? index + 1 : index);
+
+            return {
+                ...state,
+                products: { ...state.products, [productKey]: productData },
+                uiMetadata: { ...state.uiMetadata, lfModifiedRowIndexes: newLfIndexes }
+            };
         }
 
         case QUOTE_ACTION_TYPES.DELETE_ROW: {
@@ -74,19 +85,40 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             const itemToDelete = items[selectedIndex];
             if (!itemToDelete) return state;
 
-            const isLastPopulatedRow = selectedIndex === items.length - 2 && items.length > 1 && !items[items.length - 1].width && !items[items.length - 1].height;
-
-            if (isLastPopulatedRow || items.length === 1) {
+            // [MODIFIED] (第 14 次編修) Remove constraint on deleting the last populated row.
+            // If there is only 1 item left (which shouldn't happen with 'Clear' button logic guarding the empty row, 
+            // but good for safety), we reset it.
+            if (items.length <= 1) {
                 const productStrategy = productFactory.getProductStrategy(productKey);
                 const newItem = productStrategy.getInitialItemData();
                 newItem.itemId = itemToDelete.itemId;
                 items[selectedIndex] = newItem;
+                // Reset metadata if we are resetting the only row
+                return {
+                    ...state,
+                    products: { ...state.products, [productKey]: { ...productData, items } },
+                    uiMetadata: { ...state.uiMetadata, lfModifiedRowIndexes: [] }
+                };
             } else {
+                // [NEW] (第 14 次編修) Update lfModifiedRowIndexes before splicing
+                // 1. Remove the deleted index from the LF list
+                // 2. Shift down any indexes that were below the deleted row
+                const oldLfIndexes = state.uiMetadata.lfModifiedRowIndexes;
+                const newLfIndexes = oldLfIndexes
+                    .filter(index => index !== selectedIndex)
+                    .map(index => index > selectedIndex ? index - 1 : index);
+
                 items.splice(selectedIndex, 1);
+
+                items = _consolidateEmptyRows(items, productFactory, productKey);
+                productData = { ...productData, items };
+
+                return {
+                    ...state,
+                    products: { ...state.products, [productKey]: productData },
+                    uiMetadata: { ...state.uiMetadata, lfModifiedRowIndexes: newLfIndexes }
+                };
             }
-            items = _consolidateEmptyRows(items, productFactory, productKey);
-            productData = { ...productData, items };
-            return { ...state, products: { ...state.products, [productKey]: productData } };
         }
 
         case QUOTE_ACTION_TYPES.CLEAR_ROW: {
@@ -99,7 +131,16 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
                 newItem.itemId = itemToClear.itemId;
                 items[selectedIndex] = newItem;
                 productData = { ...productData, items };
-                return { ...state, products: { ...state.products, [productKey]: productData } };
+
+                // [NEW] (第 14 次編修) Also clear LF status for this row if cleared
+                // Since the row is reset, it loses its fabric/color, so it shouldn't be pink anymore.
+                const newLfIndexes = state.uiMetadata.lfModifiedRowIndexes.filter(i => i !== selectedIndex);
+
+                return {
+                    ...state,
+                    products: { ...state.products, [productKey]: productData },
+                    uiMetadata: { ...state.uiMetadata, lfModifiedRowIndexes: newLfIndexes }
+                };
             }
             return state;
         }

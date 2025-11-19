@@ -221,7 +221,7 @@ export class UIManager {
         // [NEW] Add modal lock class to the main app container
         this.appElement.classList.toggle('is-modal-active', state.ui.isModalActive);
 
-        // [NEW] (v6294 K5) (æ­¥é? 1) Add class for chain mode focus
+        // [NEW] (v6294 K5) (步é? 1) Add class for chain mode focus
         this.appElement.classList.toggle('chain-mode-active', state.ui.dualChainMode === 'chain');
 
         const currentProductKey = state.quoteData.currentProduct;
@@ -302,8 +302,11 @@ export class UIManager {
         if (isSingleSelection) {
             const selectedIndex = multiSelectSelectedIndexes[0];
             const itemsLength = items.length;
-            // Also disable if it's the last data row or the final empty row
-            if (selectedIndex >= itemsLength - 2) {
+
+            // [MODIFIED] (第 14 次編修) 
+            // Relaxed condition: Only disable 'Clear' if it's the very last (empty) row.
+            // Previously: if (selectedIndex >= itemsLength - 2) { ... }
+            if (selectedIndex === itemsLength - 1) {
                 clearDisabled = true;
             }
         }
