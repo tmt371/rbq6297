@@ -1,15 +1,16 @@
 /* FILE: 04-core-code/config/status-config.js */
 // [NEW] (F4 Status Phase 1) Defines all statuses for the quote lifecycle
+// [MODIFIED] (F4 Status Tweak) Translated to "Hybrid" English version for conciseness.
 
 export const QUOTE_STATUS = {
-    A_ARCHIVED: "A. 已存檔",
-    B_VALID_ORDER: "B. 有效訂單 (待收款)", // (客戶同意報價，等待訂金)
-    C_SENT_TO_FACTORY: "C. 訂單已送工廠", // (收到訂金，轉交工廠)
-    D_IN_PRODUCTION: "D. 工廠生產中",
-    E_READY_FOR_PICKUP: "E. 工廠通知可取貨",
-    F_PICKED_UP: "F. 已取貨",
-    G_COMPLETED: "G. 安裝完工",
-    H_INVOICE_SENT: "H. 尾款帳單已送出",
-    I_INVOICE_OVERDUE: "I. 尾款帳單逾期",
-    J_CLOSED: "J. 結案"
+    A_ARCHIVED: "A. Saved",
+    B_VALID_ORDER: "B. Order Valid",
+    C_SENT_TO_FACTORY: "C. To Factory",
+    D_IN_PRODUCTION: "D. Production",
+    E_READY_FOR_PICKUP: "E. Pickup Ready",
+    F_PICKED_UP: "F. Picked Up",
+    G_COMPLETED: "G. Completed",
+    H_INVOICE_SENT: "H. Bill Sent",
+    I_INVOICE_OVERDUE: "I. Overdue",
+    J_CLOSED: "J. Closed"
 };
