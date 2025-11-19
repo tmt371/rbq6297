@@ -151,5 +151,10 @@ export class RightPanelComponent {
         if (this.activeView && typeof this.activeView.activate === 'function') {
             this.activeView.activate();
         }
+
+        // [NEW] (F4 Status Phase 2) Ensure F4 view renders its status UI when activated
+        if (tabId === 'f4-tab' && this.activeView && typeof this.activeView.render === 'function' && this.state) {
+            this.activeView.render(this.state);
+        }
     }
 }
