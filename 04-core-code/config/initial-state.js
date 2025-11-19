@@ -1,4 +1,7 @@
-// File: 04-core-code/config/initial-state.js
+/* FILE: 04-core-code/config/initial-state.js */
+// [MODIFIED] (F4 Status Phase 1) Import QUOTE_STATUS
+
+import { QUOTE_STATUS } from './status-config.js';
 
 /**
  * @fileoverview Defines the initial state of the application.
@@ -154,8 +157,8 @@ export const initialState = {
         issueDate: null,
         dueDate: null,
         ownerUid: null, // [NEW] (v6297) Add field to store the owner's UID
-        // [FIX] Reverted to string literal to fix 404 error (status-config.js not implemented yet)
-        status: "Configuring",
+        // [MODIFIED] (F4 Status Phase 1) Use constant for default status
+        status: QUOTE_STATUS.A_ARCHIVED,
         costDiscountPercentage: 0,
         customer: {
             name: "",
