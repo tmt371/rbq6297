@@ -1,5 +1,8 @@
 // File: 04-core-code/config/initial-state.js
 
+// [MODIFIED] (Accounting V2 Phase 1) Imported QUOTE_STATUS
+import { QUOTE_STATUS } from './status-config.js';
+
 /**
  * @fileoverview Defines the initial state of the application.
  * This structure serves as the default blueprint for the entire app's data.
@@ -97,7 +100,10 @@ export const initialState = {
             sumPrice: null,
             grandTotal: null,
 
-            gstExcluded: false // [NEW] (Phase 2)
+            gstExcluded: false, // [NEW] (Phase 2)
+
+            // [NEW] (Accounting V2 Phase 2) Store tax exclusive total for XERO
+            taxExclusiveTotal: null
         },
 
         // --- Global UI State ---
@@ -151,10 +157,14 @@ export const initialState = {
         issueDate: null,
         dueDate: null,
         ownerUid: null, // [NEW] (v6297) Add field to store the owner's UID
-        status: "Configuring",
+        // [MODIFIED] (F4 Status Phase 1) Use constant
+        status: QUOTE_STATUS.A_ARCHIVED,
         costDiscountPercentage: 0,
         customer: {
             name: "",
+            // [NEW] (Accounting V2 Phase 1) Split fields
+            firstName: "",
+            lastName: "",
             address: "",
             phone: "",
             email: "",
@@ -173,7 +183,8 @@ export const initialState = {
             dual_combo_qty: null,
             dual_slim_qty: null,
             // Financial values (from ui.f1)
-            discountPercentage: null
+            discountPercentage: null,
+            wifi_qty: null // [NEW] (v6295)
         },
         // [NEW] (v6295) Add snapshot container for F2 state
         f2Snapshot: {}

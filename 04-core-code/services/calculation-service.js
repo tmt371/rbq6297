@@ -1,6 +1,7 @@
 // /04-core-code/services/calculation-service.js
-// [MODIFIED] (第 7 次編修) 新增 calculateF1Costs，並修改 getQuoteTemplateData 以使用 F1 成本
-// [MODIFIED] (第 8 次編修) 擴充 getQuoteTemplateData，傳遞 F1 成本明細 (RB, Acce, Total) 以供工單新表格使用
+// [MODIFIED] (Phase 7) Added calculateF1Costs, and updated getQuoteTemplateData to use F1 costs
+// [MODIFIED] (Phase 8) Updated getQuoteTemplateData, passing F1 cost details (RB, Acce, Total) for work order usage
+// [MODIFIED] (Accounting V2 Phase 2) Added taxExclusiveTotal calculation in calculateF2Summary
 
 /**
  * @fileoverview Service for handling all price and sum calculations.
@@ -158,7 +159,7 @@ export class CalculationService {
     /**
      * [REFACTORED] Calculates the total price for a given F1 panel component based on its quantity.
      * It now fetches mappings from the ConfigManager.
-     * [MODIFIED] (第 7 次編修) 此方法已更名為 calculateF1ComponentPrice
+     * [MODIFIED] (Phase 7) This method has been renamed to calculateF1ComponentPrice
      */
     calculateF1ComponentPrice(componentKey, quantity) {
         if (typeof quantity !== 'number' || quantity < 0) {
@@ -192,9 +193,9 @@ export class CalculationService {
     }
 
     /**
-     * [NEW] (第 7 次編修)
-     * 從 f1-cost-view.js 移轉至此，集中計算 F1 的*成本*。
-     * 這是 F1 面板和工單的成本計算的唯一真實來源。
+     * [NEW] (Phase 7)
+     * Moved logic from f1-cost-view.js to here, centrally calculating F1 *Costs*.
+     * This is the single source of truth for F1 panel cost calculations.
      */
     calculateF1Costs(quoteData, uiState) {
         const items = quoteData.products[quoteData.currentProduct].items;
@@ -210,7 +211,7 @@ export class CalculationService {
         const motorQty = items.filter(item => !!item.motor).length;
         componentPrices.motor = this.calculateF1ComponentPrice('motor', motorQty);
 
-        // Remotes (使用 F1 分配的數量)
+        // Remotes (Use F1 UI state quantities)
         const totalRemoteCount = ui.driveRemoteCount || 0;
         let remote1chQty = ui.f1.remote_1ch_qty || 0;
         let remote16chQty = ui.f1.remote_16ch_qty || 0;
@@ -223,29 +224,29 @@ export class CalculationService {
         componentPrices['remote-1ch'] = this.calculateF1ComponentPrice('remote-1ch', remote1chQty);
         componentPrices['remote-16ch'] = this.calculateF1ComponentPrice('remote-16ch', remote16chQty);
 
-        // Charger (使用 K4 的數量)
+        // Charger (Use K4 UI state quantities)
         const chargerQty = ui.driveChargerCount || 0;
         componentPrices.charger = this.calculateF1ComponentPrice('charger', chargerQty);
 
-        // 3M Cord (使用 K4 的數量)
+        // 3M Cord (Use K4 UI state quantities)
         const cordQty = ui.driveCordCount || 0;
         componentPrices['3m-cord'] = this.calculateF1ComponentPrice('3m-cord', cordQty);
 
-        // Dual (使用 F1 分配的數量)
+        // Dual (Use F1 UI state quantities)
         const totalDualPairs = Math.floor(items.filter(item => item.dual === 'D').length / 2);
         const comboQty = (ui.f1.dual_combo_qty === null) ? totalDualPairs : ui.f1.dual_combo_qty;
         const slimQty = (ui.f1.dual_slim_qty === null) ? 0 : ui.f1.dual_slim_qty;
         componentPrices['dual-combo'] = this.calculateF1ComponentPrice('dual-combo', comboQty);
         componentPrices.slim = this.calculateF1ComponentPrice('slim', slimQty);
 
-        // Wifi (使用 F1 的數量)
+        // Wifi (Use F1 UI state quantities)
         const wifiQty = ui.f1.wifi_qty || 0;
         componentPrices.wifihub = this.calculateF1ComponentPrice('wifihub', wifiQty);
 
-        // 總成本
+        // Total Sum
         const componentTotal = Object.values(componentPrices).reduce((sum, price) => sum + price, 0);
 
-        // 返回一個包含所有成本的物件
+        // Return an object containing cost details
         return {
             winderCost: componentPrices.winder,
             motorCost: componentPrices.motor,
@@ -257,7 +258,7 @@ export class CalculationService {
             slimCost: componentPrices.slim,
             wifiCost: componentPrices.wifihub,
             componentTotal: componentTotal,
-            // 同時返回計算中使用的 QTY，F1 View 會需要它們
+            // Return QTYs used in calculation for F1 View display
             qtys: {
                 winder: winderQty,
                 motor: motorQty,
@@ -355,6 +356,10 @@ export class CalculationService {
 
         const grandTotal = newOffer + actual_gst; // [MODIFIED] Uses actual_gst
 
+        // [NEW] (Accounting V2 Phase 2) Calculate tax exclusive total for XERO
+        // Logic: f2State.gstExcluded ? newOffer : (newOffer / 1.1)
+        const taxExclusiveTotal = f2State.gstExcluded ? newOffer : (newOffer / 1.1);
+
         // [MODIFIED v6290 Task 1 & 2] netProfit logic now depends on gstExcluded state
         const netProfit = f2State.gstExcluded
             ? grandTotal - f1SubTotal
@@ -385,6 +390,9 @@ export class CalculationService {
             grandTotal: grandTotal,
             netProfit: netProfit, // (new value for f2-b25)
 
+            // [NEW] (Accounting V2 Phase 2)
+            taxExclusiveTotal: taxExclusiveTotal,
+
             mulTimes // [FIX] Add mulTimes to the return object so its value can be persisted.
         };
     }
@@ -398,10 +406,10 @@ export class CalculationService {
      * @returns {object} A comprehensive data object ready for template population.
      */
     getQuoteTemplateData(quoteData, ui, liveQuoteData) {
-        // [MODIFIED] (第 7 次編修) 
-        // 1. 獲取 F2 *銷售* 總結
+        // [MODIFIED] (Phase 7) 
+        // 1. Get F2 *Sales* Total
         const summaryData = this.calculateF2Summary(quoteData, ui);
-        // 2. 獲取 F1 *成本* 總結
+        // 2. Get F1 *Cost* Total
         const f1Costs = this.calculateF1Costs(quoteData, ui);
 
         // [MODIFIED] (Phase 4) Grand total is now derived from F2's newOffer state, not F3.
@@ -418,41 +426,39 @@ export class CalculationService {
         const items = quoteData.products.rollerBlind.items;
         const formatPrice = (price) => (typeof price === 'number' && price > 0) ? `$${price.toFixed(2)}` : '';
 
-        // [REMOVED] (第 7 次編修) 移除所有舊的、重複的價格計算
-        // const motorQty = items.filter(item => !!item.motor).length;
-        // const motorPrice = (this.configManager.getAccessoryPrice('motorStandard') || 0) * motorQty;
-        // ... (所有 remote, charger, cord, wifi 的計算都移除)
+        // [REMOVED] (Phase 7) Removed duplicated logic
+        // ...
 
-        // [NEW] (第 7 次編修) 直接使用 F1 成本物件 (f1Costs) 的 QTY 和 Cost
+        // [NEW] (Phase 7) Use F1 cost components (f1Costs) for QTY and Cost
         const motorQty = f1Costs.qtys.motor || '';
-        const motorPrice = f1Costs.motorCost; // 這是 F1 成本
+        const motorPrice = f1Costs.motorCost; // F1 cost
 
         const remote1chQty = f1Costs.qtys.remote1ch || '';
-        const remote1chPrice = f1Costs.remote1chCost; // 這是 F1 成本
+        const remote1chPrice = f1Costs.remote1chCost; // F1 cost
 
         const remote16chQty = f1Costs.qtys.remote16ch || '';
-        const remote16chPrice = f1Costs.remote16chCost; // 這是 F1 成本
+        const remote16chPrice = f1Costs.remote16chCost; // F1 cost
 
         const chargerQty = f1Costs.qtys.charger || '';
-        const chargerPrice = f1Costs.chargerCost; // 這是 F1 成本
+        const chargerPrice = f1Costs.chargerCost; // F1 cost
 
         const cord3mQty = f1Costs.qtys.cord || '';
-        const cord3mPrice = f1Costs.cordCost; // 這是 F1 成本
+        const cord3mPrice = f1Costs.cordCost; // F1 cost
 
         const wifiHubQty = f1Costs.qtys.wifi || '';
-        const wifiHubPrice = f1Costs.wifiCost; // 這是 F1 成本
+        const wifiHubPrice = f1Costs.wifiCost; // F1 cost
 
-        // [NEW] (第 7 次編修) eAcceSum 現在是 F1 成本的總和
+        // [NEW] (Phase 7) eAcceSum uses F1 Cost Total
         const eAcceSum = motorPrice + remote1chPrice + remote16chPrice + chargerPrice + cord3mPrice + wifiHubPrice;
 
-        // [NEW] (第 8 次編修) 計算工單表格所需的 F1 成本明細
-        // 1. RB 成本
+        // [NEW] (Phase 8) Calculate detailed F1 costs for Work Order table
+        // 1. RB Cost
         const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
         const discountPercentage = ui.f1.discountPercentage || 0;
         const f1_rb_price = retailTotal * (1 - (discountPercentage / 100));
-        // 2. Acce. 成本 (非 E-item)
+        // 2. Acce. Cost (excluding E-item)
         const acce_total = f1Costs.winderCost + f1Costs.dualComboCost + f1Costs.slimCost;
-        // 3. F1 總成本
+        // 3. F1 Total Cost
         const f1_sub_total = f1Costs.componentTotal + f1_rb_price;
 
 
@@ -478,7 +484,7 @@ export class CalculationService {
             gst: `$${gstValue.toFixed(2)}`,
             grandTotal: `$${grandTotal.toFixed(2)}`,
 
-            // [FIX v6291] 步驟 5: 確保 ourOffer 被正確傳遞
+            // [FIX v6291] Step 5: Ensure ourOffer is passed correctly
             ourOffer: `$${newOfferValue.toFixed(2)}`,
 
             // [MODIFIED v6290 Task 3] Use correct values from F2 state
@@ -494,8 +500,8 @@ export class CalculationService {
             items: items,
             mulTimes: summaryData.mulTimes || 1,
 
-            // [MODIFIED] (第 7 次編修) Data for the accessories table (Appendix / Work Order)
-            // 這些變數現在都攜帶 F1 的 *成本* 金額
+            // [MODIFIED] (Phase 7) Data for the accessories table (Appendix / Work Order)
+            // Variables now contain F1 *Costs*
             motorQty: motorQty,
             motorPrice: formatPrice(motorPrice),
             remote1chQty: remote1chQty,
@@ -508,12 +514,12 @@ export class CalculationService {
             cord3mPrice: formatPrice(cord3mPrice),
             wifiHubQty: wifiHubQty, // [NEW] (v6295)
             wifiHubPrice: formatPrice(wifiHubPrice), // [NEW] (v6295)
-            eAcceSum: formatPrice(eAcceSum), // [MODIFIED] 這是 F1 成本總和
+            eAcceSum: formatPrice(eAcceSum), // [MODIFIED] This is F1 Cost Total
 
-            // [NEW] (第 8 次編修) 傳遞工單新表格所需的 F1 成本
+            // [NEW] (Phase 8) F1 costs for Work Order table
             wo_rb_price: formatPrice(f1_rb_price),
             wo_acce_price: formatPrice(acce_total),
-            // 'eAcceSum' (wo_e_item_price) 已經在上面傳遞了
+            // 'eAcceSum' (wo_e_item_price) already passed above
             wo_total_price: formatPrice(f1_sub_total),
 
             // Pass the entire summary for flexibility

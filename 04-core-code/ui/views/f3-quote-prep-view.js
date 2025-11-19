@@ -1,25 +1,27 @@
 /* FILE: 04-core-code/ui/views/f3-quote-prep-view.js */
-// [MODIFIED] (FIX) Fixed "ReferenceError: dueDate is not defined" in render() method.
+// [MODIFIED] (Accounting V2 Phase 1) Refactored to support split FirstName/LastName with auto-sync to Name.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
-import * as quoteActions from '../../actions/quote-actions.js'; // [NEW] Import actions
+import * as quoteActions from '../../actions/quote-actions.js';
 
 /**
  * @fileoverview A dedicated sub-view for handling all logic related to the F3 (Quote Prep) tab.
  */
 export class F3QuotePrepView {
-    constructor({ panelElement, eventAggregator, stateService }) { // [MODIFIED] Added stateService
+    constructor({ panelElement, eventAggregator, stateService }) {
         this.panelElement = panelElement;
         this.eventAggregator = eventAggregator;
-        this.stateService = stateService; // [NEW] Store stateService
-        this.userOverrodeDueDate = false; // [NEW] Mechanism 3 flag
+        this.stateService = stateService;
+        this.userOverrodeDueDate = false;
 
         // [NEW] (v6298-fix-5) Store bound handlers
         this.boundHandlers = [];
         this.focusOrder = [
             'quoteId', 'issueDate', 'dueDate',
-            'customerName', 'customerAddress', 'customerPhone', 'customerEmail',
-            'customerPostcode', // [NEW] (v6298-F4-Search) Add postcode
+            // [MODIFIED] (Accounting V2 Phase 1) Split Name field
+            'customerFirstName', 'customerLastName',
+            'customerAddress', 'customerPhone', 'customerEmail',
+            'customerPostcode',
             'generalNotes', 'termsConditions',
         ];
 
@@ -66,7 +68,6 @@ export class F3QuotePrepView {
     }
 
     // [NEW] Robust helper to parse a "YYYY-MM-DD" string into a Date object at local noon.
-    // This avoids all timezone-related "day-before" issues.
     _parseDateFromYMD(dateString) {
         if (!dateString) return null;
         try {
@@ -85,21 +86,24 @@ export class F3QuotePrepView {
         const query = (id) => this.panelElement.querySelector(id);
         this.f3 = {
             inputs: {
-                quoteId: query('#f3-quote-id'), // [FIXED] Corrected selector from '##' to '#'
+                quoteId: query('#f3-quote-id'),
                 issueDate: query('#f3-issue-date'),
                 dueDate: query('#f3-due-date'),
-                customerName: query('#f3-customer-name'),
+                // [MODIFIED] (Accounting V2 Phase 1) Split selectors
+                customerFirstName: query('#f3-customer-firstname'),
+                customerLastName: query('#f3-customer-lastname'),
+                // customerName: query('#f3-customer-name'), // REMOVED
+
                 customerAddress: query('#f3-customer-address'),
                 customerPhone: query('#f3-customer-phone'),
                 customerEmail: query('#f3-customer-email'),
-                customerPostcode: query('#f3-customer-postcode'), // [NEW] (v6298-F4-Search)
-                // [REMOVED] finalOfferPrice: query('#f3-final-offer-price'),
+                customerPostcode: query('#f3-customer-postcode'),
                 generalNotes: query('#f3-general-notes'),
                 termsConditions: query('#f3-terms-conditions'),
             },
             buttons: {
                 addQuote: query(`#${DOM_IDS.BTN_ADD_QUOTE}`),
-                btnGth: query(`#${DOM_IDS.BTN_GTH}`), // [NEW]
+                btnGth: query(`#${DOM_IDS.BTN_GTH}`),
             },
         };
     }
@@ -144,11 +148,41 @@ export class F3QuotePrepView {
             quoteActions.updateQuoteProperty('termsConditions', value)
         );
 
-        addCustomerUpdateListener(this.f3.inputs.customerName, 'name');
+        // [MODIFIED] (Accounting V2 Phase 1) Name Sync Logic
+        // We need to listen to changes on First/Last name, update their specific fields,
+        // AND update the legacy 'name' field for backward compatibility.
+
+        const handleNameChange = () => {
+            const firstName = this.f3.inputs.customerFirstName.value.trim();
+            const lastName = this.f3.inputs.customerLastName.value.trim();
+            const fullName = `${firstName} ${lastName}`.trim();
+
+            // Dispatch updates for individual fields (already handled by addCustomerUpdateListener below, 
+            // but we need to ensure 'name' is updated whenever these change)
+            this.stateService.dispatch(quoteActions.updateCustomerProperty('name', fullName));
+        };
+
+        // Bind First Name
+        if (this.f3.inputs.customerFirstName) {
+            this._addListener(this.f3.inputs.customerFirstName, 'change', (event) => {
+                this.stateService.dispatch(quoteActions.updateCustomerProperty('firstName', event.target.value));
+                handleNameChange();
+            });
+        }
+
+        // Bind Last Name
+        if (this.f3.inputs.customerLastName) {
+            this._addListener(this.f3.inputs.customerLastName, 'change', (event) => {
+                this.stateService.dispatch(quoteActions.updateCustomerProperty('lastName', event.target.value));
+                handleNameChange();
+            });
+        }
+
+        // [REMOVED] Old customerName listener
         addCustomerUpdateListener(this.f3.inputs.customerAddress, 'address');
         addCustomerUpdateListener(this.f3.inputs.customerPhone, 'phone');
         addCustomerUpdateListener(this.f3.inputs.customerEmail, 'email');
-        addCustomerUpdateListener(this.f3.inputs.customerPostcode, 'postcode'); // [NEW] (v6298-F4-Search)
+        addCustomerUpdateListener(this.f3.inputs.customerPostcode, 'postcode');
 
         // --- [NEW] Mechanism 3: Listen for manual override on Due Date ---
         if (this.f3.inputs.dueDate) {
@@ -336,15 +370,13 @@ export class F3QuotePrepView {
             const dayOfWeek = dueDateObj.getDay(); // 0 = Sun, 6 = Sat
             if (dayOfWeek === 6) {
                 // Saturday
-                // [FIX] ReferenceError: dueDate is not defined. Should be dueDateObj.
                 dueDateObj.setDate(dueDateObj.getDate() + 2);
             } else if (dayOfWeek === 0) {
                 // Sunday
-                // [FIX] ReferenceError: dueDate is not defined. Should be dueDateObj.
                 dueDateObj.setDate(dueDateObj.getDate() + 1);
             }
 
-            const dueDateString = this._formatDateToYMD(dueDateObj); // [FIX] This var was missing, causing ReferenceError
+            const dueDateString = this._formatDateToYMD(dueDateObj);
 
             // [MODIFIED] (v6298-F3-Fix-2) Only auto-update if not overridden
             if (!this.userOverrodeDueDate) {
@@ -368,11 +400,14 @@ export class F3QuotePrepView {
         updateInput(this.f3.inputs.issueDate, issueDateStr);
         updateInput(this.f3.inputs.dueDate, dueDateStr);
 
-        updateInput(this.f3.inputs.customerName, customer.name);
+        // [MODIFIED] (Accounting V2 Phase 1) Sync FirstName and LastName
+        updateInput(this.f3.inputs.customerFirstName, customer.firstName);
+        updateInput(this.f3.inputs.customerLastName, customer.lastName);
+
         updateInput(this.f3.inputs.customerAddress, customer.address);
         updateInput(this.f3.inputs.customerPhone, customer.phone);
         updateInput(this.f3.inputs.customerEmail, customer.email);
-        updateInput(this.f3.inputs.customerPostcode, customer.postcode); // [NEW] (v6298-F4-Search)
+        updateInput(this.f3.inputs.customerPostcode, customer.postcode);
 
         // [NEW] Sync textareas from state
         updateInput(this.f3.inputs.generalNotes, quoteData.generalNotes);

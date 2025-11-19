@@ -1,5 +1,6 @@
 /* FILE: 04-core-code/ui/views/f2-summary-view.js */
 // [MODIFIED] (Tweak 1) Implemented forced ceiling rounding for f2-balance.
+// [MODIFIED] (Accounting V2 Phase 2) Dispatch taxExclusiveTotal to state.
 
 import { EVENTS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -232,7 +233,7 @@ export class F2SummaryView {
             this.f2.deposit.value = formatValue(f2State.deposit);
         }
         // Balance is read-only, so no need to check activeElement
-        // [MODIFIED] Tweak 1: 使用 toFixed(2) 確保顯示兩位小數
+        // [MODIFIED] Tweak 1: 使用 toFixed(2) 確ä?顯示?ä?小數
         if (this.f2.balance) this.f2.balance.value = (f2State.balance !== null && f2State.balance !== undefined) ? f2State.balance.toFixed(2) : '';
 
 
@@ -347,6 +348,9 @@ export class F2SummaryView {
 
         this.stateService.dispatch(uiActions.setF2Value('grandTotal', summaryValues.grandTotal));
         this.stateService.dispatch(uiActions.setF2Value('netProfit', summaryValues.netProfit));
+
+        // [NEW] (Accounting V2 Phase 2) Dispatch taxExclusiveTotal
+        this.stateService.dispatch(uiActions.setF2Value('taxExclusiveTotal', summaryValues.taxExclusiveTotal));
 
         // [NEW] v6290 Calculate and dispatch Deposit and Balance
         const currentGrandTotal = summaryValues.grandTotal || 0;
