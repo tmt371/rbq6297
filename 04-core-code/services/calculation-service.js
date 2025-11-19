@@ -2,6 +2,7 @@
 // [MODIFIED] (Phase 7) Added calculateF1Costs, and updated getQuoteTemplateData to use F1 costs
 // [MODIFIED] (Phase 8) Updated getQuoteTemplateData, passing F1 cost details (RB, Acce, Total) for work order usage
 // [MODIFIED] (Accounting V2 Phase 2) Added taxExclusiveTotal calculation in calculateF2Summary
+// [MODIFIED] (Accounting V2 Phase 2 Fix) taxExclusiveTotal is now always equal to newOffer
 
 /**
  * @fileoverview Service for handling all price and sum calculations.
@@ -357,8 +358,8 @@ export class CalculationService {
         const grandTotal = newOffer + actual_gst; // [MODIFIED] Uses actual_gst
 
         // [NEW] (Accounting V2 Phase 2) Calculate tax exclusive total for XERO
-        // Logic: f2State.gstExcluded ? newOffer : (newOffer / 1.1)
-        const taxExclusiveTotal = f2State.gstExcluded ? newOffer : (newOffer / 1.1);
+        // [FIX] Definition update: "Our Offer" IS the Tax Exclusive Amount.
+        const taxExclusiveTotal = newOffer;
 
         // [MODIFIED v6290 Task 1 & 2] netProfit logic now depends on gstExcluded state
         const netProfit = f2State.gstExcluded
