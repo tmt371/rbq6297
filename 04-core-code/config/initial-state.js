@@ -1,8 +1,5 @@
 // File: 04-core-code/config/initial-state.js
 
-// [MODIFIED] (Accounting V2 Phase 1) Imported QUOTE_STATUS
-import { QUOTE_STATUS } from './status-config.js';
-
 /**
  * @fileoverview Defines the initial state of the application.
  * This structure serves as the default blueprint for the entire app's data.
@@ -157,8 +154,8 @@ export const initialState = {
         issueDate: null,
         dueDate: null,
         ownerUid: null, // [NEW] (v6297) Add field to store the owner's UID
-        // [MODIFIED] (F4 Status Phase 1) Use constant
-        status: QUOTE_STATUS.A_ARCHIVED,
+        // [FIX] Reverted to string literal to fix 404 error (status-config.js not implemented yet)
+        status: "Configuring",
         costDiscountPercentage: 0,
         customer: {
             name: "",
