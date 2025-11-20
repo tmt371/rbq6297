@@ -1,6 +1,7 @@
 /* FILE: 04-core-code/config/status-config.js */
 // [NEW] (F4 Status Phase 1) Defines all statuses for the quote lifecycle
 // [MODIFIED] (F4 Status Tweak) Translated to "Hybrid" English version for conciseness.
+// [MODIFIED] (Correction Flow Phase 1) Added X_CANCELLED status.
 
 export const QUOTE_STATUS = {
     A_ARCHIVED: "A. Saved",
@@ -12,5 +13,8 @@ export const QUOTE_STATUS = {
     G_COMPLETED: "G. Completed",
     H_INVOICE_SENT: "H. Bill Sent",
     I_INVOICE_OVERDUE: "I. Overdue",
-    J_CLOSED: "J. Closed"
+    J_CLOSED: "J. Closed",
+
+    // [NEW] (Correction Flow)
+    X_CANCELLED: "X. Order Cancelled"
 };

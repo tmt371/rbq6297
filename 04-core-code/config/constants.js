@@ -2,6 +2,7 @@
 // [MODIFIED] (?®?1) Added USER_REQUESTED_GENERATE_WORK_ORDER.
 // [MODIFIED] (¬?11 次編¿? Added USER_REQUESTED_RELOGIN.
 // [MODIFIED] (F4 Status Phase 3) Added USER_REQUESTED_UPDATE_STATUS.
+// [MODIFIED] (Correction Flow Phase 1) Added USER_REQUESTED_CANCEL_CORRECT.
 
 /**
  * @fileoverview Centralized constants for the application.
@@ -90,6 +91,9 @@ export const EVENTS = {
 
     // [NEW] (F4 Status Phase 3)
     USER_REQUESTED_UPDATE_STATUS: 'userRequestedUpdateStatus',
+
+    // [NEW] (Correction Flow Phase 1)
+    USER_REQUESTED_CANCEL_CORRECT: 'userRequestedCancelCorrect',
 
     // --- User Actions: F1/F2 Panels ---
     F1_TAB_ACTIVATED: 'f1TabActivated',

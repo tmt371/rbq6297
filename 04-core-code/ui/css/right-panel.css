@@ -240,6 +240,28 @@
     background-color: #dc2626;
 }
 
+/* [NEW] (Correction Flow Phase 1) Danger button style (Darker Red) */
+.f4-button.btn-danger {
+    background-color: #b91c1c;
+    /* Darker Red than btn-red */
+    color: white;
+    font-weight: bold;
+    border-color: #991b1b;
+}
+
+.f4-button.btn-danger:hover {
+    background-color: #991b1b;
+}
+
+.f4-button.btn-danger:disabled {
+    background-color: #fca5a5;
+    /* Disabled look same as pink/red families */
+    border-color: #fca5a5;
+    color: #fee2e2;
+    opacity: 0.6;
+}
+
+
 /* [MODIFIED] (F4 Status Tweak) Status styles integrated into tools group */
 
 /* [REMOVED] .f4-status-group selector (layout handled by f4-group-tools) */
