@@ -1,0 +1,418 @@
+﻿
+v6297 階段七 交接文檔
+
+
+文件 001：協作框架與黃金準則 (v6297_dev)
+
+本文件是所有參與本專案開發者必須遵守的最高指導原則與基礎手冊。它合併了不可動搖的「黃金準則」、專案快速啟動指南，以及一套為 AI 協作特別制定的「自動化測試規範」。本文件確認程式碼提交方式為高效的「單一快照審查 (codebase_snapshot.txt)」模式。
+
+第一部分：黃金準則 (The Golden Rules)
+
+
+1.1 溝通與協作規則 (不可更動)
+
+● 規則一：編修宣告
+當你要進行編碼或修訂時，必須先宣告這是第幾次編修，以及本次必須處理的檔案總數。AI 開發者的編修序數應在每次接手任務時重置，從「第 1 次編修」開始計數。
+● 規則二 (修訂)：連動背景審核報告
+在修改任何檔案前，你必須先提交一份「連動背景審核報告」，分析本次修改是否會牽動 other 檔案，並**必須包含「視覺影響評估」**章節，明確說明修改前與預期修改後的行為差異。根據最新指示，此報告內容務求精簡，僅列出重點即可。
+● 規則三：逐檔執行流程
+○ 檔案路徑宣告：在提供任何程式碼區塊之前，必須先單獨一行、清晰宣告其完整的檔案路徑與檔名。
+○ 新增檔案標示：若為新增檔案，則需在檔案路徑宣告後，明確標示「(這是新增的檔案)」。
+○ 檔案標頭：在提供第一個檔案（含）之後的所有檔案，你必須在「檔案路徑宣告」的上方，增加「這是第 N 次編修的第 X 個檔案」的標頭。
+○ 多檔案任務：
+■ 對於第一個檔案，在提交「編修宣告」與「連動背景審核報告」後，應立即提供該檔案的標頭、路徑宣告與完整程式碼，無需等待我方回覆「000」。
+■ 從第二個檔案起（直到倒數第二個檔案），在我方回覆「000」後，你必須先提供該檔案的路徑標頭、路徑宣告與完整程式碼，然後在程式碼區塊結束之後，附上「程式碼結束，给我『000，给我第 N 次編修的第 X+1 次檔案』」的固定格式文字。
+○ 提供完整程式碼：除非我方特別要求，否則你一律提供完整的程式碼，而非僅列出修改片段。
+● 規則四：結束指令與驗證指南
+○ 最終檔案提交：當你提供了該次編修的最後一個檔案後，必須在程式碼區塊後註明「本次任務結束。」，無需再請求「000」。
+○ 提供 Git 指令 (Git Desktop 適用)：在提供完最後一份程式碼的末端，你必須分別提供 Summary 和 Description 的提交訊息文字。
+○ 提供測試驗證指南：在提供 Git 指令之後，你必須緊接著提供一份清晰的「測試與驗證指南」，詳細說明我方應如何操作 UI、預期看到什麼結果，以驗證本次編修的正確性，這部份也只要簡明。
+● 規則五：Git 指令與訊息規則
+○ 操作工具：所有 Git 操作均透過積踏 (Git Desktop) 完成。
+○ 檔案刪除：若編修任務包含檔案刪除，你需明確指示我方在檔案總管中手動刪除檔案，然後在積踏 (Git Desktop) 中確認變更。你禁止提供 git rm 等終terminal機指令。
+○ 提交訊息格式：所有 commit 訊息必須使用中文撰寫，提供的 Summary 和 Description 文字。
+● 規則六：語言規則
+○ 溝通語言：無論如何，你只能用正體中文跟我方溝通，嚴禁使用簡體中文或英文。
+○ 使用者介面語言：所有面向使用者（End-User）的介面元素，包括但不限於對話方塊、提示訊息、警示文字等，必須全部使用英文。
+● 規則七：命名與路徑格式
+当編碼中涉及檔案命名或路徑時，必須嚴格遵守「全小寫」與「減號連接」的格式 (kebab-case)。
+● 規則八：計畫修訂與作廢宣告
+如果你仍在編修過程中，發現tuning的「連動背景審核報告」存在缺陷或遺漏，你必須：
+1. 立即停止當前的編修流程。
+2. 明確宣告「先前的編修計畫作廢」。
+3. 提交一份全新的、修正後的「連動背景審核報告」，並重新宣告正確的編修次數與檔案總數。
+4. 根據新計畫從頭開始執行。
+● 規則九：自我校正與版本確認
+○ 檔案變更確認：在提供任何檔案的程式碼之前，你必須在內部確認你將提供的版本與專案的既有版本確實存在差異。如果沒有差異，你必須明確告知，並解釋為何該檔案無需修改。
+○ 記憶連貫性：你必須時刻保持對當前任務階段與歷程的記憶。如果我方指出你的記憶發生錯置（例如，重複執行已完成的任務、遺漏關鍵檔案、或提供了錯誤的舊版程式碼），你必須立即停止，並根據我方的指正重新进行狀態同步，然後才能繼續執行任務。
+● 規則十：簡易錯誤修正流程
+如果我方回報的錯誤肇因於「單一檔案的簡單拼寫錯誤、單行指令 TYPO」等，你可以：
+1. 在「連動背景審核報告」中，明確列出錯誤的程式碼位置與內容（前後共五行）。
+2. 明確列出修正後的程式碼內容（前後共五行）。
+3. 詢問我方：「您是否需要我提供該檔案的完整程式碼？」
+4. 在我方確認後，再提供完整程式碼。此規則旨在加速修復小型錯誤。
+
+1.2 視覺鎖定框架法則 (不可更動)
+
+● 法則一：HTML 結構完整性法則
+除非獲得明確許可，否則禁止對 index.html 中所有帶有 id 屬性的元素進行任何結構性變更。
+● 法則二：CSS 樣式唯一性法則
+所有視覺樣式必須且只能在 .css 檔案中定義。嚴禁在 .js 檔案中直接修改樣式屬性。
+● 法則三：Class 狀態驅動法則
+JavaScript 與 CSS 唯一的互動方式，是透過新增或移除一組預先在 .css 中定義好的「狀態 Class」來實現。
+
+1.3 自動化測試規範 (不可更動)
+
+● 原則：測試職責分離
+為根除測試不穩定的問題，必須嚴格區分「邏輯層測試」與「端到端流程測試」。
+● 規範一：邏輯測試的實作
+當驗證功能邏輯時，測試必須直接呼叫 JavaScript 的方法來進行。嚴禁透過模擬點擊虛擬鍵盤等脆弱的 UI 操作來測試後端邏輯。
+● 規範二：新的工作流程
+對於功能開發或 Bug 修復任務，你只需專注於程式碼修改，無需，也禁止被任何端到端的 UI 驗證腳本（如 Playwright）所阻塞。UI 自動化測試腳本的編寫與修復，將會作為獨立的任務類型指派。
+
+第二部分：專案簡稱列表
+
+● 第一表：主畫面上方的「快速估價報表」(results-table)。
+● 第二表：進入左盤後，在 K1 到 K5 各分頁內部的「細節設定表格」。
+● 左盤：左側的功能鍵盤區塊 (#left-panel)。
+● 右盤：右側的功能鍵盤區塊 (#function-panel)。
+● 數字盤：指航列下方的數字鍵盤區塊 (#numeric-keyboard-panel)。
+● 積踏 (Git Desktop)：指 Github Desktop 桌面應用程式。
+● 積哈 (Github)：指 Github 網站倉庫。
+● 居表 (GTH)：指由 "GTH" 按鈕產生的「GTH 簡約報價單」。
+● 原表 (AQ)：指由 "Add Quote"（簡稱 AQ 按鍵）按鈕產生的「原始 PDF/列印報價單」。
+● 工單 (Work Order)：指由 "Gen-Order" 按鈕產生的工廠製作單。
+● 紅錯：指瀏覽器開發者工具主控台裡出現的紅色錯誤訊息。
+● 主控台：指瀏覽器開發者工具主控台。
+● L3：指 http://localhost:3000 本機測試環境。
+● VL：指 Vercel 線上生產環境 (.vercel.app)。
+● 火店：指 Google Firebase / Firestore 雲端資料庫。
+
+第三部分：專案快速啟動與程式碼審查指南
+
+
+3.1 專案啟動 (v6297 階段四 更新)
+
+● 前置需求：本地需安裝 Node.js 及 npm。
+● 步驟一：在專案根目錄下，執行 npm install 安裝依賴。
+● 步驟二 (本機金鑰設定)：
+1. 複製 04-core-code/config/firebase-config.example.js 並將其重新命名為 firebase-config.js。
+2. 打開 firebase-config.js，將 apiKey 欄位的 placeholder 替換為專案主持人提供的真實 Google Firebase API 金鑰 (需包含 Token Service API 權限)。
+3. （附註：firebase-config.js 已被 .gitignore 忽略，此操作是安全的。）
+● 步驟三 (啟動 L3 測試環境)：
+1. （僅需執行一次）在終端機執行 npm install -g serve。
+2. 在專案根目錄下，執行 serve .。（serve 會在 http://localhost:3000 啟動一個用於測試的伺服器）。
+● 步驟四：在專案根目錄下，執行 npm test 運行單元測試。
+
+3.2 程式碼審查流程
+
+● 審查標的：所有程式碼審查將基於我方提供的單一檔案：codebase_snapshot.txt。
+● 審查方式：你必須完整檢視、分析完這個快照檔案，在你的記憶體中建立起對專案程式碼的完整認知，然後才能根據我方的開發指令，著手進行程式檔案的編修或撰寫。
+● 審查內容準則：為確保審查效率，codebase_snapshot.txt 檔案必須僅包含專案的原始碼與設定檔。它絕對不能包含 node_modules 資料夾的內容。專案的依賴關係應完全由 package.json 及 package-lock.json 檔案定義。
+
+文件 002：架構與模組詳解 (v6297 階段六 更新)
+
+
+文件目的
+
+本文件旨在為開發者提供一份宏觀的技術藍圖與微觀的模組詳解。它闡述了專案的核心設計哲學、架構原則，並提供了一份精確的檔案結構總覽與程式碼學習路徑。
+
+第一部分：分層模組詳解 (v6297 階段六 更新)
+
+
+啟動層 (Startup Layer)
+
+● main.js：應用程式的唯一進入點與「組裝廠」。
+○ 負責載入 HTML 範本。
+○ 檢查 Firebase 登入狀態：
+■ 若未登入：顯示登入畫面 (login-component.html) 並初始化登入邏輯。
+■ 若已登入：實例化 UIManager，並將所有由 app-context 建立的元件實例注入其中，顯示估價 App。
+○ [v6297 階段六 新增] 支援 USER_REQUESTED_RELOGIN 事件，允許在不重置 App 狀態的情況下喚起登入視窗，以支援無縫重登。
+● app-context.js：依賴注入容器 (DI Container)。負責建立所有非 UI 的服務 (Services) 以及所有核心 UI 元件 (Components, Views, Managers, Handlers)。
+
+控制層 (Control Layer)
+
+● app-controller.js：應用程式的「純粹事件路由器」。監聽語意化事件，並將其委派給 View、WorkflowService（處理 UI 流程）或 QuotePersistenceService（處理儲存）。
+● ui/input-handler.js：監聽主鍵盤與數字盤的原始 DOM 事件。
+● ui/left-panel-tab-manager.js：負責處理左盤「導航拉桿 (Toggle)」和「K1-K5 分頁按鈕」的點擊事件。
+● ui/tabs/k*-tab/k*-tab-input-handler.js：負責處理 K1~K5 各分頁內部的專屬事件。
+
+視圖層 (View Layer)
+
+● ui-manager.js：UI 總指揮。接收由 main.js 注入的所有 UI 元件實例，並在收到 stateChanged 事件時，負責將新狀態分發給所有子元件進行渲染。
+● ui/left-panel-tab-manager.js：負責渲染左盤的「分頁 active 狀態」和「面板背景顏色切換」。
+● ui/tabs/k*-tab/k*-tab-component.js：負責 K1~K5 各分頁的 UI 渲染邏輯。
+● ui/views/detail-config-view.js：管理者/容器，負責協調 K1-K5 的 view 邏輯。
+● ui/views/k*-view.js：邏輯處理器 (如 K1LocationView, K2FabricView)，負責接收 detail-config-view.js 的委派，並呼叫 stateService.dispatch()。
+● ui/views/f1-cost-view.js：[v6297 階段六 更新] 渲染邏輯已更新，現在呼叫 calculationService.calculateF1Costs 來獲取精確的成本與數量，確保與工單數據一致。
+● ui/views/f4-actions-view.js：[v6297 階段六 更新] 新增了 "Re-Login" 按鈕的事件綁定。
+
+服務層 (Service Layer)
+
+● services/：應用程式的「核心器官」，包含：
+○ auth-service.js：[v6297 階段六 更新] verifyAuthentication 方法已增強，能區分「Token 過期」(回傳失敗並登出) 與「API 阻擋/網絡錯誤」(回傳 reason: 'blocked' 但不登出)。
+○ state-service.js：唯一狀態容器。
+○ workflow-service.js：UI 流程協調器。處理頁面導航、功能啟動、載入檔案等非持久化流程。
+○ quote-persistence-service.js：[v6297 階段六 更新] 資料持久化服務。新增了「離線保護機制」：當遇到 API 阻擋時，會發出警告並繼續執行本地檔案儲存 (saveToJson)，僅跳過雲端備份，防止資料遺失。
+○ calculation-service.js：計算引擎。[v6297 階段六 新增] 新增 calculateF1Costs 方法，集中處理 F1 成本計算邏輯，並透過 getQuoteTemplateData 將成本數據傳遞給工單。
+○ quote-generator-service.js：報價單「核心調度中心」。
+○ services/generators/：包含所有 HTML 產生策略：
+■ work-order-strategy.js：[v6297 階段六 更新] 工單產生器。新增了複雜排序 (B>SN>LF)、價格欄位整合、以及底部的「統計行 (Summary)」產生邏輯。
+■ original-quote-strategy.js：原表 (AQ) 產生器。
+■ gth-quote-strategy.js：居表 (GTH) 產生器。
+○ online-storage-service.js：處理與 Firestore 的互動。
+
+Actions & Reducers 層
+
+● actions/：包含所有的 Action Creators。
+● reducers/：包含 root-reducer.js、ui-reducer.js 和 quote-reducer.js。[v6297 階段六 更新] quote-reducer.js 中的 DELETE_ROW 已修改，移除了對最後一筆資料的刪除限制，並包含 LF 標記同步邏輯。
+
+業務規則與資料層
+
+● strategies/, config/, 03-data-models/：依賴鏈源頭。
+● utils/template-utils.js：通用模板工具。
+
+第二部分：檔案結構總覽 (v6297 階段六 更新)
+.
+├── .eslintrc.json
+├── .gitattributes
+├── .gitignore
+├── .prettierrc.json
+├── babel.config.js
+├── index.html
+├── jest.config.js
+├── package-lock.json
+├── package.json
+├── style.css
+├── 03-data-models/
+│   └── price-matrix-v1.0.json
+└── 04-core-code/
+    ├── app-context.js
+    ├── app-controller.js
+    ├── config-manager.js
+    ├── event-aggregator.js
+    ├── main.js
+    ├── actions/
+    │   ├── quote-actions.js
+    │   └── ui-actions.js
+    ├── config/
+    │   ├── action-types.js
+    │   ├── constants.js
+    │   ├── f2-config.js
+    │   ├── firebase-config.example.js
+    │   ├── initial-state.js
+    │   └── paths.js
+    ├── reducers/
+    │   ├── quote-reducer.js
+    │   ├── root-reducer.js
+    │   └── ui-reducer.js
+    ├── services/
+    │   ├── auth-service.js
+    │   ├── calculation-service.js
+    │   ├── calculation-service.spec.js
+    │   ├── file-service.js
+    │   ├── file-service.spec.js
+    │   ├── focus-service.js
+    │   ├── migration-service.js
+    │   ├── online-storage-service.js
+    │   ├── quote-generator-service.js
+    │   ├── quote-persistence-service.js
+    │   ├── state-service.js
+    │   ├── workflow-service.js
+    │   ├── workflow-service.spec.js
+    │   └── generators/
+    │       ├── gth-quote-strategy.js
+    │       ├── original-quote-strategy.js
+    │       └── work-order-strategy.js
+    ├── strategies/
+    │   ├── product-factory.js
+    │   └── roller-blind-strategy.js
+    ├── ui/
+    │   ├── dialog-component.js
+    │   ├── input-handler.js
+    │   ├── left-panel-tab-manager.js
+    │   ├── notification-component.js
+    │   ├── panel-component.js
+    │   ├── right-panel-component.js
+    │   ├── search-dialog-component.js
+    │   ├── summary-component.js
+    │   ├── table-component.js
+    │   ├── ui-manager.js
+    │   ├── css/
+    │   │   ├── dialog.css
+    │   │   ├── f1-grid.css
+    │   │   ├── f2-summary-table.css
+    │   │   ├── f3-adjustments.css
+    │   │   ├── login-component.css
+    │   │   ├── results-table.css
+    │   │   ├── right-panel.css
+    │   │   ├── search-dialog.css
+    │   │   ├── toast-notification.css
+    │   │   ├── virtual-keyboard.css
+    │   │   └── work-order.css
+    │   ├── partials/
+    │   │   ├── detailed-item-list-final.html
+    │   │   ├── detailed-item-list-row.html
+    │   │   ├── gmail-template-card.html
+    │   │   ├── gmail-template-client.js
+    │   │   ├── gmail-template-simple.html
+    │   │   ├── left-panel.html
+    │   │   ├── login-component.html
+    │   │   ├── quote-template-client.js
+    │   │   ├── quote-template-final.html
+    │   │   ├── quote-template-row.html
+    │   │   ├── right-panel.html
+    │   │   ├── search-dialog.html
+    │   │   ├── work-order-template-row.html
+    │   │   └── work-order-template.html
+    │   ├── tabs/
+    │   │   ├── k1-tab/
+    │   │   │   ├── k1-tab-component.js
+    │   │   │   ├── k1-tab-input-handler.js
+    │   │   │   ├── k1-tab.css
+    │   │   │   └── k1-tab.html
+    │   │   ├── k2-tab/
+    │   │   │   ├── k2-tab-component.js
+    │   │   │   ├── k2-tab-input-handler.js
+    │   │   │   ├── k2-tab.css
+    │   │   │   └── k2-tab.html
+    │   │   ├── k3-tab/
+    │   │   │   ├── k3-tab-component.js
+    │   │   │   ├── k3-tab-input-handler.js
+    │   │   │   ├── k3-tab.css
+    │   │   │   └── k3-tab.html
+    │   │   ├── k4-tab/
+    │   │   │   ├── k4-tab-component.js
+    │   │   │   ├── k4-tab-input-handler.js
+    │   │   │   ├── k4-tab.css
+    │   │   │   └── k4-tab.html
+    │   │   └── k5-tab/
+    │   │       ├── k5-tab-component.js
+    │   │       ├── k5-tab-input-handler.js
+    │   │       ├── k5-tab.css
+    │   │       └── k5-tab.html
+    │   └── views/
+    │       ├── detail-config-view.js
+    │       ├── drive-accessories-view.js
+    │       ├── dual-chain-view.js
+    │       ├── f1-cost-view.js
+    │       ├── f2-summary-view.js
+    │       ├── f3-quote-prep-view.js
+    │       ├── f4-actions-view.js
+    │       ├── k1-location-view.js
+    │       ├── k2-fabric-view.js
+    │       ├── k3-options-view.js
+    │       ├── quick-quote-view.js
+    │       ├── quick-quote-view.spec.js
+    │       ├── search-tab-s1-view.js
+    │       └── search-tab-s2-view.js
+    └── utils/
+        ├── csv-parser.js
+        └── template-utils.js
+
+
+文件 003：產品規格與路線圖 (v6297 階段六 更新)
+
+
+文件目的
+
+本文件專注於「產品本身」，作為「功能規格 (Specs)」與「開發日誌 (Changelog)」的唯一事實來源。
+
+第一部分：UI/UX 設計哲學 (維持不變)
+
+核心設計哲學是「效率優先，零阻礙操作」。目標包含：減少點擊次數、即時反饋、情境感知介面、容錯性。
+
+第二部分：詳細工作流程 (v6297 階段六 更新)
+
+1. 登入 (v6297)：使用者開啟 Vercel 網址，需通過 Firebase 登入。[v6297 階段六 新增] 若使用中遇到連線問題或 Token 過期，可透過 F4 面板的「Re-Login」按鈕進行無縫重登，不遺失當前工作。
+2. 快速估價 (第一表)：輸入寬、高、布料。
+3. 細節模式 (左盤)：配置位置、布料、選項。
+4. 成本與利潤 (右盤 F1/F2)：
+○ F1：成本統計。
+○ F2：利潤分析與最終報價 (Our Offer)。
+5. 生成報價單 (F3)：填寫客戶資料，生成 AQ 或 GTH 報價單。
+6. 儲存與工單 (F4)：
+○ 儲存：支援雲端同步。[v6297 階段六 新增] 若雲端被阻擋 (403)，自動降級為本地儲存模式。
+○ 搜尋：雲端搜尋舊報價單。
+○ 工單：生成工廠製作單 (含成本統計)。
+
+第三部分：功能規格定義書 (v6297 階段六 更新)
+
+
+主估價表 (第一表)
+
+● [v6297 階段六 更新] 刪除限制解除：使用者現在可以刪除表格中的最後一筆資料行 (非空白參照行)，不再受防呆機制阻擋。
+● [v6297 階段六 更新] LF 連動：刪除資料列時，該行的 LF (Light-Filter/粉紅) 標記會正確連動移除，後續行數的標記會自動上移。
+
+左盤細節配置
+
+(功能維持 v6294 重構後狀態：K1 Location, K2 Fabric (N&C/LF/SSet), K3 Options, K5 Chain)
+
+右盤功能面板 (v6297 階段六 更新)
+
+● F1 (Cost)：
+○ [v6297 階段六 更新] 成本計算邏輯已集中至 CalculationService，確保 F1 面板顯示的成本與工單上的成本完全一致。
+● F2 (Summary)：
+○ 財務總覽、New Offer、GST 開關、Deposit/Balance (小數點三位進位)、Enter 鍵 7 步驟跳轉等功能維持。
+● F3 (Quote Prep)：
+○ 生成報價單功能。[v6297 階段六 修復] GTH (Gmail) 報價單中的「Our Offer」欄位已修正，現在正確對應 F2 的 new-offer 數值，而非總價。
+● F4 (Actions)：
+○ [v6297 階段六 新增] 離線保護機制：當按下 Save/Save as 時，若 Google API 回傳 403 (Blocked) 錯誤，系統不會登出，而是顯示黃色警告並繼續執行本地檔案下載 (.json)。
+○ [v6297 階段六 新增] Re-Login 按鈕：新增「Re-Login」按鈕，允許使用者在不重置 App 狀態下重新驗證身分，以恢復雲端連線能力。
+○ [v6297 階段六 更新] 工單 (Generate Work Order)：
+■ 排序：依照 (B > SN > LF) -> (Fcolor 數量) -> (B-Type 數量) 排序。
+■ 資料修復：解決了 filter/map 順序導致的索引錯位與資料遺失 (Bug A/B)。
+■ 價格顯示：新增 PRICE 欄位，顯示第一表的單項價格。
+■ 統計行 (Summary Row)：表格底部新增統計行，顯示 Dual 數量 (/2)、HD 數量、Motor 折扣率 (顯示為 XX %off，小寫縮小字體) 以及折扣後的總價。
+■ 成本總結表：右下角 Legend 區塊重構為雙欄，左側為縮寫說明 (含色標)，右側為全新的成本總結表 (RB, Acce., E-item, Total)，數據嚴格對應 F1 成本。
+○ [v6297 階段六 更新] 搜尋彈窗 (Search)：搜尋彈窗高度調整為 85dvh，解決手機瀏覽器工具列遮擋底部按鈕的問題。
+
+第四部分：核心任務與歷史沿革 (The Roadmap)
+
+
+v6297 以前歷程總結
+
+專案初期奠定了 DI 容器、Action/Reducer 單向資料流架構。陸續完成 F1-F4 功能、K1-K5 元件拆分、F2 財務重構 (GTH/New Offer/GST/Deposit)、F3 狀態綁定、K2 流程重構 (N&C/LF/SSet) 及模組動態載入。後續整合 Firebase 雲端儲存，完成金鑰修復與 Vercel 遷移。
+
+v6297 (階段 19-27) 重點摘要
+
+● Auth：整合 Firebase Auth，實作登入介面與權限控管。
+● F4 除錯：修復殭屍監聽器，實作 destroy 銷毀鏈。
+● F4 搜尋：實作進階搜尋 (Search Dialog)，支援 7 種條件複合查詢，並優化為 S1/S2 手機混合佈局。
+● 版本控制：實作 Save as New Version (-vX) 與時間戳同步。
+● 工單系統：實作 Work Order 產生器。
+● 瘦身優化：重構 quote-generator-service.js，分離 HTML 產生策略。
+
+(已完成) v6297 (階段六)：核心重構 (Workflow 瘦身)
+
+● Workflow 瘦身：將持久化邏輯分離至 quote-persistence-service.js。
+● UI 微調：F4 按鈕網格化，修正搜尋彈窗註解。
+
+(已完成) v6297 (階段六)：功能增強與修復 (本次編修)
+
+● [已修復] Auth Token 機制：修正了 auth-service.js，將 API 阻擋 (403) 與 Token 過期區分開來，解決了「一存檔就登出」的無限迴圈問題。
+● [已實現] 智慧離線模式：在 API 被阻擋時，系統自動降級為離線模式，允許本地儲存，保護使用者資料。
+● [已實現] 無縫重登 (Re-Login)：在 F4 新增 Re-Login 功能，支援在保留當前編輯狀態下重新登入。
+● [已修復] 工單資料錯位：修正了 work-order-strategy.js 中的過濾邏輯，解決了項目遺失與索引錯誤導致的 Dual/HD 標記錯亂。
+● [已實現] 工單價格與統計：工單現在包含 Price 欄位，底部新增統計行 (Summary Row) 顯示折扣資訊與總價。
+● [已重構] 工單版面與成本表：重構工單 Legend 區塊，加入 F1 成本總結表 (RB/Acce/E-item/Total) 並恢復色標顯示。
+● [已重構] F1 成本計算：將 F1 成本計算邏輯移至 Service 層，確保工單與 F1 面板數據來源單一且正確。
+● [已修復] GTH 報價單：修正 gmail-template-simple.html，使「Our Offer」正確顯示 F2 設定的數值。
+● [已修復] 手機版搜尋 UI：使用 dvh 單位解決了手機瀏覽器工具列遮擋 F4 搜尋彈窗按鈕的問題。
+● [已解除] 刪除限制：修改了 ui-manager 和 quote-reducer，允許使用者刪除最後一筆資料行，並確保 LF 標記同步更新。
+
+第五部分：未來展望與交接事項 (Next Steps)
+
+
+1. F4 狀態追蹤系統 (進行中)
+
+目前 F4 的相關功能（如報價單狀態標記、追蹤等）仍在持續開發中，這是下一階段的首要任務。請參考隨後提供的「詳細開發方案」。
+
+2. 工廠與會計操作系統 (規劃中)
+
+基於目前的工單與 F2/F1 數據，未來將延伸開發後端的工廠生產管理與會計對帳系統。
+
+3. 待辦事項 (TODO)
+
+● 確認 Google Cloud Platform (GCP) 的 API 金鑰設定，務必啟用 Token Service API，以解決 403 阻擋問題，恢復完全雲端功能。
+● 繼續優化 F4 的搜尋與管理介面。
