@@ -4,12 +4,15 @@
 // [MODIFIED] (¬?11 次編¿? ?å? 'blocked' ?誤，é?級為警å?並繼續執行本?儲存€?
 // [MODIFIED] (F4 Status Phase 3) Added handleUpdateStatus logic.
 // [MODIFIED] (Correction Flow Phase 3) Implemented Locking Logic and Atomic Correction Save.
+// [FIX] (Correction Flow Phase 3 Fix) Corrected 'db' import path.
 
 // [MODIFIED] ¾?workflow-service.js 移入此è?
 import {
-    saveQuoteToCloud,
-    db // [NEW] Import db for batch operations
+    saveQuoteToCloud
 } from './online-storage-service.js';
+// [FIX] Import db from the correct config file
+import { db } from '../config/firebase-config.js';
+
 // [NEW] Import Firestore batch functions
 import { writeBatch, doc, collection } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js';
 import { EVENTS } from '../config/constants.js';
