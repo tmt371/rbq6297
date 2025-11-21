@@ -11,7 +11,7 @@
 @import url('./04-core-code/ui/css/login-component.css');
 /* [NEW] (v6298-F4-Search) Import the new search dialog CSS */
 @import url('./04-core-code/ui/css/search-dialog.css');
-/* [NEW] (階段 1) Import the new work order CSS */
+/* [NEW] (?段 1) Import the new work order CSS */
 @import url('./04-core-code/ui/css/work-order.css');
 
 /* --- Global Variables --- */
@@ -60,6 +60,29 @@ body {
     background-color: var(--app-bg-color);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
+
+/* [NEW] (Correction Flow Phase 2) Correction Banner Styles */
+.correction-banner {
+    background-color: #fff3cd;
+    /* Yellow warning background */
+    color: #856404;
+    /* Dark yellow text */
+    border-bottom: 1px solid #ffeeba;
+    padding: 10px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.9em;
+    z-index: 100;
+    /* Ensure it stays on top of table */
+    flex-shrink: 0;
+    /* Prevent shrinking */
+}
+
+.correction-banner.is-hidden {
+    display: none;
+}
+
+/* --- End Correction Banner --- */
 
 .results-panel {
     flex-grow: 1;

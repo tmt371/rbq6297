@@ -1,4 +1,5 @@
 // File: 04-core-code/ui/ui-manager.js
+// [MODIFIED] (Correction Flow Phase 2) Added logic to render the correction mode banner.
 
 import { TableComponent } from './table-component.js';
 import { SummaryComponent } from './summary-component.js';
@@ -37,6 +38,9 @@ export class UIManager {
         this.clearButton = document.getElementById('key-clear');
 
         this.leftPanelElement = document.getElementById(DOM_IDS.LEFT_PANEL);
+
+        // [NEW] (Correction Flow Phase 2) Cache banner element
+        this.correctionBanner = document.getElementById('correction-mode-banner');
 
         const tableElement = document.getElementById(DOM_IDS.RESULTS_TABLE);
         this.tableComponent = new TableComponent(tableElement);
@@ -221,6 +225,11 @@ export class UIManager {
         // [NEW] Add modal lock class to the main app container
         this.appElement.classList.toggle('is-modal-active', state.ui.isModalActive);
 
+        // [NEW] (Correction Flow Phase 2) Show/Hide Correction Banner
+        if (this.correctionBanner) {
+            this.correctionBanner.classList.toggle('is-hidden', !state.ui.isCorrectionMode);
+        }
+
         // [NEW] (v6294 K5) (步é? 1) Add class for chain mode focus
         this.appElement.classList.toggle('chain-mode-active', state.ui.dualChainMode === 'chain');
 
@@ -303,7 +312,7 @@ export class UIManager {
             const selectedIndex = multiSelectSelectedIndexes[0];
             const itemsLength = items.length;
 
-            // [MODIFIED] (第 14 次編修) 
+            // [MODIFIED] (¬?14 次編¿? 
             // Relaxed condition: Only disable 'Clear' if it's the very last (empty) row.
             // Previously: if (selectedIndex >= itemsLength - 2) { ... }
             if (selectedIndex === itemsLength - 1) {

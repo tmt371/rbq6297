@@ -1,4 +1,6 @@
 // File: 04-core-code/reducers/ui-reducer.js
+// [MODIFIED] (Correction Flow Phase 2) Added SET_CORRECTION_MODE handler.
+
 import { UI_ACTION_TYPES } from '../config/action-types.js';
 import { initialState } from '../config/initial-state.js';
 
@@ -163,6 +165,10 @@ export function uiReducer(state, action) {
             }
             return { ...state, isModalActive: action.payload.isActive };
 
+        // [NEW] (Correction Flow Phase 2) Set correction mode
+        case UI_ACTION_TYPES.SET_CORRECTION_MODE:
+            return { ...state, isCorrectionMode: action.payload.isCorrectionMode };
+
         // [NEW v6285 Phase 4] Restore F1 state from snapshot
         case UI_ACTION_TYPES.RESTORE_F1_SNAPSHOT: {
             const snapshot = action.payload;
@@ -199,6 +205,7 @@ export function uiReducer(state, action) {
             if (snapshot.cord_qty !== null && snapshot.cord_qty !== undefined) {
                 newState.driveCordCount = snapshot.cord_qty;
             }
+
 
             // Restore total remote count for K4 display
             // We must use the values we just set in newF1State

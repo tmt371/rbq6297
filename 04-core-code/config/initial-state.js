@@ -1,5 +1,6 @@
 /* FILE: 04-core-code/config/initial-state.js */
 // [MODIFIED] (F4 Status Phase 1) Import QUOTE_STATUS
+// [MODIFIED] (Correction Flow Phase 2) Added isCorrectionMode to UI state.
 
 import { QUOTE_STATUS } from './status-config.js';
 
@@ -110,6 +111,9 @@ export const initialState = {
         isSumOutdated: false,
         welcomeDialogShown: false,
         isModalActive: false, // [NEW] Add modal lock state
+
+        // [NEW] (Correction Flow Phase 2) Indicates if we are correcting an existing order
+        isCorrectionMode: false
     },
     quoteData: {
         currentProduct: 'rollerBlind',

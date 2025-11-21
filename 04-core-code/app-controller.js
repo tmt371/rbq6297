@@ -1,6 +1,7 @@
 /* FILE: 04-core-code/app-controller.js */
 // [MODIFIED] (v6297 ?身) ?段 2：注??quotePersistenceService 並é??路??F4 事件??
 // [MODIFIED] (F4 Status Phase 3) Subscribe to USER_REQUESTED_UPDATE_STATUS.
+// [MODIFIED] (Correction Flow Phase 2) Subscribe to USER_REQUESTED_CANCEL_CORRECT.
 
 import { EVENTS, STORAGE_KEYS } from './config/constants.js';
 import * as uiActions from './actions/ui-actions.js';
@@ -289,6 +290,11 @@ export class AppController {
         // [NEW] (F4 Status Phase 3) Subscribe to status update requests
         this._subscribe(EVENTS.USER_REQUESTED_UPDATE_STATUS, (payload) =>
             this.quotePersistenceService.handleUpdateStatus(payload)
+        );
+
+        // [NEW] (Correction Flow Phase 2) Subscribe to Cancel/Correct requests
+        this._subscribe(EVENTS.USER_REQUESTED_CANCEL_CORRECT, () =>
+            this.workflowService.handleCancelCorrectRequest()
         );
     }
 

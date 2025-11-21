@@ -1,4 +1,5 @@
 // File: 04-core-code/config/action-types.js
+// [MODIFIED] (Correction Flow Phase 2) Added SET_CORRECTION_MODE.
 
 /**
  * @fileoverview Defines all action types for the strict state management pattern.
@@ -69,6 +70,9 @@ export const UI_ACTION_TYPES = {
     SET_SUM_OUTDATED: 'ui/setSumOutdated',
     RESET_UI: 'ui/reset',
     SET_MODAL_ACTIVE: 'ui/setModalActive', // [NEW] Add modal lock action
+
+    // [NEW] (Correction Flow Phase 2) Set correction mode state
+    SET_CORRECTION_MODE: 'ui/setCorrectionMode',
 
     // [NEW v6285 Phase 4] Action for restoring F1 state from a loaded file
     RESTORE_F1_SNAPSHOT: 'ui/restoreF1Snapshot',

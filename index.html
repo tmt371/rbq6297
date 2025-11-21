@@ -13,6 +13,9 @@
     <link rel="stylesheet" href="./04-core-code/ui/css/virtual-keyboard.css">
     <link rel="stylesheet" href="./04-core-code/ui/css/results-table.css">
     <link rel="stylesheet" href="./04-core-code/ui/css/toast-notification.css">
+    <link rel="stylesheet" href="./04-core-code/ui/css/login-component.css">
+    <link rel="stylesheet" href="./04-core-code/ui/css/search-dialog.css">
+    <link rel="stylesheet" href="./04-core-code/ui/css/work-order.css">
 
     <script type="module" src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js"></script>
     <script type="module" src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js"></script>
@@ -25,6 +28,10 @@
     </div>
 
     <div id="app" class="app-container is-hidden">
+        <div id="correction-mode-banner" class="correction-banner is-hidden">
+            ⚠️ CORRECTION MODE: You are creating a corrected version. The original order will be CANCELLED upon saving.
+        </div>
+
         <div class="results-panel">
             <table class="results-table" id="results-table">
                 <tbody></tbody>

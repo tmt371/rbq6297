@@ -1,7 +1,8 @@
 /* FILE: 04-core-code/services/workflow-service.js */
-// [MODIFIED] (v6297 瘦身) 移除了 4 個持久化函式。
-// [FIX] (v6297 瘦身) 修正了 handleFileLoad 函式中的崩潰錯誤。
+// [MODIFIED] (v6297 瘦身) 移除了持久化邏輯
+// [FIX] (v6297 瘦身) 修正了 handleFileLoad 崩潰錯誤
 // [FIX] (v6297 瘦身) 保留了 fileService 依賴，因為 handleFileLoad 仍需使用它。
+// [MODIFIED] (Correction Flow Phase 2) Added handleCancelCorrectRequest.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
@@ -22,7 +23,7 @@ export class WorkflowService {
     constructor({
         eventAggregator,
         stateService,
-        fileService, // [MODIFIED] (v6297 瘦身) 自我修正：保留 fileService
+        fileService, // [MODIFIED] (v6297 瘦身) 架構修正：保留 fileService
         calculationService,
         productFactory,
         detailConfigView,
@@ -31,7 +32,7 @@ export class WorkflowService {
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
-        this.fileService = fileService; // [MODIFIED] (v6297 瘦身) 自我修正：保留 fileService
+        this.fileService = fileService; // [MODIFIED] (v6297 瘦身) 架構修正：保留 fileService
         this.calculationService = calculationService;
         this.productFactory = productFactory;
         this.detailConfigView = detailConfigView;
@@ -46,13 +47,13 @@ export class WorkflowService {
         this.quotePreviewComponent = component;
     }
 
-    // [NEW] ?段 1: 建ç?工單?工作æ?¨?
+    // [NEW] 階段 1: 建立工單流程
     async handleGenerateWorkOrder() {
         try {
             const { quoteData, ui } = this.stateService.getState();
 
-            // 1. (?ä?) ?叫 quoteGeneratorService ?ç? HTML
-            // ?此?段，此?å??æ??傳?ç?模板
+            // 1. (非同步) 請求 quoteGeneratorService 產生 HTML
+            // 此階段，這會確保載入模板
             const finalHtml =
                 await this.quoteGeneratorService.generateWorkOrderHtml(
                     quoteData,
@@ -60,7 +61,7 @@ export class WorkflowService {
                 );
 
             if (finalHtml) {
-                // 2. (?ä?) ?新視ç?中é???
+                // 2. (同步) 開啟新分頁
                 const blob = new Blob([finalHtml], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 window.open(url, '_blank');
@@ -324,5 +325,60 @@ export class WorkflowService {
         this.stateService.dispatch(
             uiActions.setF1DiscountPercentage(percentage)
         );
+    }
+
+    // [NEW] (Correction Flow Phase 2) Handles the Cancel/Correct button click
+    handleCancelCorrectRequest() {
+        this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
+            message: 'Please select an action for this active order:',
+            gridTemplateColumns: '1fr 1fr', // Set 2 columns layout
+            layout: [
+                [
+                    {
+                        type: 'button',
+                        text: 'A. Cancel Order',
+                        className: 'secondary',
+                        callback: () => {
+                            // Placeholder for Phase 3 Cancel logic
+                            this._handleCancelOrderFlow();
+                            return true; // Close dialog
+                        }
+                    },
+                    {
+                        type: 'button',
+                        text: 'B. Correct Data',
+                        className: 'primary-confirm-button',
+                        callback: () => {
+                            // Enter Correction Mode
+                            this.stateService.dispatch(uiActions.setCorrectionMode(true));
+                            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                                message: 'Correction Mode Enabled. Edit data and click Save to create a new version.',
+                                type: 'info'
+                            });
+                            return true; // Close dialog
+                        }
+                    }
+                ],
+                [
+                    {
+                        type: 'button',
+                        text: 'Exit',
+                        className: 'secondary',
+                        colspan: 2,
+                        callback: () => { return true; }
+                    }
+                ]
+            ]
+        });
+    }
+
+    // [NEW] (Correction Flow Phase 2) Placeholder for Cancel logic
+    _handleCancelOrderFlow() {
+        // In Phase 3, this will show an input dialog for the reason.
+        // For now, just a placeholder notification.
+        this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+            message: 'Order Cancellation logic will be implemented in Phase 3.',
+            type: 'warning'
+        });
     }
 }

@@ -1,4 +1,5 @@
 // File: 04-core-code/actions/ui-actions.js
+// [MODIFIED] (Correction Flow Phase 2) Added setCorrectionMode.
 
 /**
  * @fileoverview Action creators for all UI-related state changes.
@@ -90,14 +91,8 @@ export const clearLFSelection = () => ({
 });
 
 // [REMOVED] (Phase 3) K2 (SSet) State
-// export const toggleSSetSelection = (rowIndex) => ({
-//     type: UI_ACTION_TYPES.TOGGLE_SSET_SELECTION,
-//     payload: { rowIndex },
-// });
-// 
-// export const clearSSetSelection = () => ({
-//     type: UI_ACTION_TYPES.CLEAR_SSET_SELECTION,
-// });
+// export const toggleSSetSelection = (rowIndex) => ({ ... });
+// export const clearSSetSelection = () => ({ ... });
 
 
 // --- K4 & K5 State ---
@@ -229,6 +224,12 @@ export
 export const setModalActive = (isActive) => ({
     type: UI_ACTION_TYPES.SET_MODAL_ACTIVE,
     payload: { isActive },
+});
+
+// [NEW] (Correction Flow Phase 2) Set correction mode
+export const setCorrectionMode = (isCorrectionMode) => ({
+    type: UI_ACTION_TYPES.SET_CORRECTION_MODE,
+    payload: { isCorrectionMode },
 });
 
 // [NEW v6285 Phase 4] Action creator for restoring F1 state
