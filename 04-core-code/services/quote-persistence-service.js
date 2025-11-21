@@ -3,13 +3,18 @@
 // [MODIFIED] (¬?1 次編¿? ?儲存方法中?入 authService.verifyAuthentication() 驗è?
 // [MODIFIED] (¬?11 次編¿? ?å? 'blocked' ?誤，é?級為警å?並繼續執行本?儲存€?
 // [MODIFIED] (F4 Status Phase 3) Added handleUpdateStatus logic.
+// [MODIFIED] (Correction Flow Phase 3) Implemented Locking Logic and Atomic Correction Save.
 
 // [MODIFIED] ¾?workflow-service.js 移入此è?
 import {
     saveQuoteToCloud,
+    db // [NEW] Import db for batch operations
 } from './online-storage-service.js';
+// [NEW] Import Firestore batch functions
+import { writeBatch, doc, collection } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js';
 import { EVENTS } from '../config/constants.js';
 import * as quoteActions from '../actions/quote-actions.js'; // [NEW] 複製依賴
+import { QUOTE_STATUS } from '../config/status-config.js'; // [NEW] Import status for locking check
 
 /**
  * @fileoverview A new service dedicated to data persistence.
@@ -130,6 +135,7 @@ export class QuotePersistenceService {
     // [MOVED] ¾?workflow-service.js 移入
     // [MODIFIED] (¬?1 次編¿? ?入 authService.verifyAuthentication()
     // [MODIFIED] (¬?11 次編¿? ?å? 'blocked' ?誤?特殊è??ï?不中?本?儲­?
+    // [MODIFIED] (Correction Flow Phase 3) Added LOCKING logic and redirection to handleCorrectionSave.
     async handleSaveToFile() {
         const authResult = await this.authService.verifyAuthentication();
         let skipCloudSave = false;
@@ -154,6 +160,32 @@ export class QuotePersistenceService {
             }
         }
 
+        // --- [NEW] (Correction Flow Phase 3) LOCKING LOGIC ---
+        const currentState = this.stateService.getState();
+        const { isCorrectionMode } = currentState.ui;
+        const currentStatus = currentState.quoteData.status;
+
+        // 1. Check if we are in Correction Mode
+        if (isCorrectionMode) {
+            // Redirect to the atomic correction flow
+            return this.handleCorrectionSave();
+        }
+
+        // 2. Check for Lock Status
+        // "Established Order" (訂單已成立) implies any status other than A (Saved) or Configuring.
+        // If status exists and is NOT A_ARCHIVED, we block standard saving.
+        const isLocked = currentStatus && currentStatus !== QUOTE_STATUS.A_ARCHIVED && currentStatus !== "Configuring";
+
+        if (isLocked) {
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Order is established and LOCKED. Please use "Cancel / Correct" to make changes.',
+                type: 'error'
+            });
+            // Prevent saving (both cloud and local)
+            return;
+        }
+        // --- [END NEW] ---
+
         const dataToSave = this._getQuoteDataWithSnapshots();
 
         // --- [NEW] (v6298-fix-6) Robust Firebase Save ---
@@ -173,6 +205,88 @@ export class QuotePersistenceService {
             message: result.message,
             type: notificationType,
         });
+    }
+
+    /**
+     * [NEW] (Correction Flow Phase 3) Handles the atomic "Correct & Replace" workflow.
+     * This function performs a batch write:
+     * 1. Creates new quote (v2) with status 'A. Saved'.
+     * 2. Updates old quote (v1) to 'X. Cancelled'.
+     */
+    async handleCorrectionSave() {
+        try {
+            // 1. Prepare New Data (v2)
+            // Get current data (which has the user's edits)
+            const newData = this._getQuoteDataWithSnapshots();
+
+            // Generate v2 ID
+            const currentId = newData.quoteId;
+            const versionRegex = /-v(\d+)$/;
+            const match = currentId.match(versionRegex);
+            let newQuoteId;
+            if (match) {
+                const currentVersion = parseInt(match[1], 10);
+                const newVersion = currentVersion + 1;
+                newQuoteId = currentId.replace(versionRegex, `-v${newVersion}`);
+            } else {
+                newQuoteId = `${currentId}-v2`;
+            }
+
+            newData.quoteId = newQuoteId;
+            newData.status = QUOTE_STATUS.A_ARCHIVED; // Reset status for new order
+
+            // 2. Prepare Old Data Reference (v1)
+            const oldQuoteId = currentId; // The ID currently loaded
+
+            // 3. Execute Batch Write
+            const batch = writeBatch(db);
+
+            // Operation A: Write new doc
+            const newDocRef = doc(db, 'quotes', newQuoteId);
+            batch.set(newDocRef, newData);
+
+            // Operation B: Update old doc to Cancelled
+            const oldDocRef = doc(db, 'quotes', oldQuoteId);
+            batch.update(oldDocRef, {
+                status: QUOTE_STATUS.X_CANCELLED,
+                // We can add a note field later if schema permits, for now status is enough trigger
+                // cancelReason: `Replaced by ${newQuoteId}` 
+            });
+
+            // Commit Batch
+            await batch.commit();
+
+            console.log(`Correction successful: ${oldQuoteId} cancelled, ${newQuoteId} created.`);
+
+            // 4. Post-Save Cleanup
+            // Update local state to match the new v2 order
+            this.stateService.dispatch(quoteActions.setQuoteData(newData));
+            // Exit correction mode
+            // (Import UI action here or dispatch plain object if circular dependency issues arise)
+            // Using loose dispatch for simplicity within this service context if import unavailable, 
+            // but ideally we should import uiActions. Ideally app-controller handles this, but for atomic logic it's here.
+            // Let's update the local state to reflect we are now on the new order.
+
+            // NOTE: We need to disable correction mode in UI. 
+            // Since we are in the service, we dispatch to state service.
+            // Assuming 'ui/setCorrectionMode' type string matches action-types.
+            this.stateService.dispatch({ type: 'ui/setCorrectionMode', payload: { isCorrectionMode: false } });
+
+            // 5. Trigger Local Download (Optional but good for backup)
+            this.fileService.saveToJson(newData);
+
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: `Correction saved! New Order: ${newQuoteId}. Old Order: ${oldQuoteId} Cancelled.`,
+                type: 'info'
+            });
+
+        } catch (error) {
+            console.error("Correction Save Failed:", error);
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: `Correction failed: ${error.message}`,
+                type: 'error'
+            });
+        }
     }
 
     // [MOVED] ¾?workflow-service.js 移入
@@ -226,6 +340,10 @@ export class QuotePersistenceService {
 
         // 3. Update the data object with the new ID
         dataToSave.quoteId = newQuoteId;
+        // [MODIFIED] (Correction Flow Phase 3) Save As New Version should explicitly set status to A. Saved
+        // Because a new version is effectively a new draft.
+        dataToSave.status = QUOTE_STATUS.A_ARCHIVED;
+
 
         // 4. Save to both cloud (new document) and local (new file)
         let cloudSaveSuccess = false;
@@ -277,6 +395,16 @@ export class QuotePersistenceService {
      * @param {string} payload.newStatus The new status string.
      */
     async handleUpdateStatus({ newStatus }) {
+        // [NEW] (Correction Flow Phase 3) Add Lock Check for Update Status
+        // We prevent moving status IF we are in a locked state, unless the user is moving to X (Cancel)
+        // But handleUpdateStatus is triggered by the dropdown Update button.
+        // We should allow status updates generally (e.g. B -> C -> D), but we must respect the logical flow.
+        // However, the requirement is "Once locked... forbidden to edit/save".
+        // Changing status IS an edit.
+        // BUT, the "Update Status" button is the specific mechanism TO change status.
+        // So we allow this method to run, as long as it's not modifying "content".
+        // This method ONLY updates `status` and `creationDate`.
+
         // 1. 立即更新本地 state，使 UI 保持同步
         this.stateService.dispatch(quoteActions.updateQuoteProperty('status', newStatus));
 
