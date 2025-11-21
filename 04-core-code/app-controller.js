@@ -1,7 +1,8 @@
 /* FILE: 04-core-code/app-controller.js */
-// [MODIFIED] (v6297 ?身) ?段 2：注??quotePersistenceService 並é??路??F4 事件??
+// [MODIFIED] (v6297 瘦身) 階段 2：注入 quotePersistenceService 並重定向 F4 事件。
 // [MODIFIED] (F4 Status Phase 3) Subscribe to USER_REQUESTED_UPDATE_STATUS.
 // [MODIFIED] (Correction Flow Phase 2) Subscribe to USER_REQUESTED_CANCEL_CORRECT.
+// [MODIFIED] (Correction Flow Phase 4) Subscribe to USER_REQUESTED_EXECUTE_CANCELLATION.
 
 import { EVENTS, STORAGE_KEYS } from './config/constants.js';
 import * as uiActions from './actions/ui-actions.js';
@@ -14,14 +15,14 @@ export class AppController {
         quickQuoteView,
         detailConfigView,
         workflowService,
-        quotePersistenceService // [NEW] (v6297 ?身) 注入?æ???
+        quotePersistenceService // [NEW] (v6297 瘦身) 注入服務
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService; // Still needed for _getFullState and _handleAutoSave
         this.quickQuoteView = quickQuoteView;
         this.detailConfigView = detailConfigView;
         this.workflowService = workflowService;
-        this.quotePersistenceService = quotePersistenceService; // [NEW] (v6297 ?身) ?å??æ???
+        this.quotePersistenceService = quotePersistenceService; // [NEW] (v6297 瘦身) 儲存服務
 
         this.autoSaveTimerId = null;
         this.subscriptions = []; // [NEW] (v6298-fix-4) Store subscriptions
@@ -252,11 +253,11 @@ export class AppController {
 
     // [NEW] Centralized subscription for all F4 actions, delegating to WorkflowService.
     _subscribeF4Events() {
-        // [MODIFIED] (v6297 ?身) ?段 2：é??路??SAVE 事件
+        // [MODIFIED] (v6297 瘦身) ?段 2：é??路??SAVE 事件
         this._subscribe(EVENTS.USER_REQUESTED_SAVE, () =>
             this.quotePersistenceService.handleSaveToFile()
         );
-        // [MODIFIED] (v6297 ?身) ?段 2：é??路??SAVE_AS_NEW_VERSION 事件
+        // [MODIFIED] (v6297 瘦身) ?段 2：é??路??SAVE_AS_NEW_VERSION 事件
         this._subscribe(EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION, () =>
             this.quotePersistenceService.handleSaveAsNewVersion()
         );
@@ -264,7 +265,7 @@ export class AppController {
         this._subscribe(EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, () =>
             this.workflowService.handleGenerateWorkOrder()
         );
-        // [MODIFIED] (v6297 ?身) ?段 2：é??路??EXPORT_CSV 事件
+        // [MODIFIED] (v6297 瘦身) ?段 2：é??路??EXPORT_CSV 事件
         this._subscribe(EVENTS.USER_REQUESTED_EXPORT_CSV, () =>
             this.quotePersistenceService.handleExportCSV()
         );
@@ -295,6 +296,11 @@ export class AppController {
         // [NEW] (Correction Flow Phase 2) Subscribe to Cancel/Correct requests
         this._subscribe(EVENTS.USER_REQUESTED_CANCEL_CORRECT, () =>
             this.workflowService.handleCancelCorrectRequest()
+        );
+
+        // [NEW] (Correction Flow Phase 4) Subscribe to Execute Cancellation
+        this._subscribe(EVENTS.USER_REQUESTED_EXECUTE_CANCELLATION, (payload) =>
+            this.quotePersistenceService.handleCancelOrder(payload)
         );
     }
 

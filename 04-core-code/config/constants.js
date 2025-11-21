@@ -1,8 +1,6 @@
 /* FILE: 04-core-code/config/constants.js */
-// [MODIFIED] (?®?1) Added USER_REQUESTED_GENERATE_WORK_ORDER.
-// [MODIFIED] (¬?11 次編¿? Added USER_REQUESTED_RELOGIN.
-// [MODIFIED] (F4 Status Phase 3) Added USER_REQUESTED_UPDATE_STATUS.
 // [MODIFIED] (Correction Flow Phase 1) Added USER_REQUESTED_CANCEL_CORRECT.
+// [MODIFIED] (Correction Flow Phase 4) Added USER_REQUESTED_EXECUTE_CANCELLATION.
 
 /**
  * @fileoverview Centralized constants for the application.
@@ -94,6 +92,9 @@ export const EVENTS = {
 
     // [NEW] (Correction Flow Phase 1)
     USER_REQUESTED_CANCEL_CORRECT: 'userRequestedCancelCorrect',
+
+    // [NEW] (Correction Flow Phase 4)
+    USER_REQUESTED_EXECUTE_CANCELLATION: 'userRequestedExecuteCancellation',
 
     // --- User Actions: F1/F2 Panels ---
     F1_TAB_ACTIVATED: 'f1TabActivated',
@@ -197,6 +198,8 @@ export const DOM_IDS = {
     DIALOG_INPUT_16CH: 'dialog-input-16ch',
     DIALOG_INPUT_COMBO: 'dialog-input-combo',
     DIALOG_INPUT_SLIM: 'dialog-input-slim',
+    // [NEW] (Correction Flow Phase 4)
+    DIALOG_INPUT_CANCEL_REASON: 'dialog-input-cancel-reason',
 };
 
 export const STORAGE_KEYS = {

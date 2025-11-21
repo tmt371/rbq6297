@@ -3,6 +3,7 @@
 // [FIX] (v6297 瘦身) 修正了 handleFileLoad 崩潰錯誤
 // [FIX] (v6297 瘦身) 保留了 fileService 依賴，因為 handleFileLoad 仍需使用它。
 // [MODIFIED] (Correction Flow Phase 2) Added handleCancelCorrectRequest.
+// [MODIFIED] (Correction Flow Phase 4) Implemented _handleCancelOrderFlow with input dialog.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
@@ -339,7 +340,7 @@ export class WorkflowService {
                         text: 'A. Cancel Order',
                         className: 'secondary',
                         callback: () => {
-                            // Placeholder for Phase 3 Cancel logic
+                            // [MODIFIED] (Correction Flow Phase 4) Call actual cancel flow
                             this._handleCancelOrderFlow();
                             return true; // Close dialog
                         }
@@ -372,13 +373,48 @@ export class WorkflowService {
         });
     }
 
-    // [NEW] (Correction Flow Phase 2) Placeholder for Cancel logic
+    // [NEW] (Correction Flow Phase 4) Implemented Cancel logic
     _handleCancelOrderFlow() {
-        // In Phase 3, this will show an input dialog for the reason.
-        // For now, just a placeholder notification.
-        this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-            message: 'Order Cancellation logic will be implemented in Phase 3.',
-            type: 'warning'
+        this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
+            message: 'Are you sure you want to CANCEL this order? This action is irreversible.',
+            layout: [
+                [
+                    { type: 'text', text: 'Reason:', className: 'dialog-label' },
+                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_CANCEL_REASON, placeholder: 'e.g., Customer changed mind' }
+                ],
+                [
+                    {
+                        type: 'button',
+                        text: 'Confirm Cancellation',
+                        className: 'primary-confirm-button btn-danger', // Use danger style if available, else default
+                        colspan: 2,
+                        callback: () => {
+                            const reasonInput = document.getElementById(DOM_IDS.DIALOG_INPUT_CANCEL_REASON);
+                            const reason = reasonInput ? reasonInput.value.trim() : '';
+
+                            if (!reason) {
+                                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                                    message: 'Cancellation reason is required.',
+                                    type: 'error'
+                                });
+                                return false; // Keep dialog open
+                            }
+
+                            // Trigger the actual cancellation logic in QuotePersistenceService
+                            this.eventAggregator.publish(EVENTS.USER_REQUESTED_EXECUTE_CANCELLATION, { cancelReason: reason });
+                            return true;
+                        }
+                    },
+                    { type: 'button', text: 'Back', className: 'secondary', colspan: 2, callback: () => { return true; } }
+                ]
+            ],
+            onOpen: () => {
+                // Focus the input field when dialog opens
+                setTimeout(() => {
+                    const input = document.getElementById(DOM_IDS.DIALOG_INPUT_CANCEL_REASON);
+                    if (input) input.focus();
+                }, 50);
+            }
         });
     }
 }

@@ -5,6 +5,7 @@
 // [MODIFIED] (F4 Status Phase 3) Added handleUpdateStatus logic.
 // [MODIFIED] (Correction Flow Phase 3) Implemented Locking Logic and Atomic Correction Save.
 // [FIX] (Correction Flow Phase 3 Fix) Corrected 'db' import path.
+// [MODIFIED] (Correction Flow Phase 4) Added handleCancelOrder.
 
 // [MODIFIED] ¾?workflow-service.js 移入此è?
 import {
@@ -400,13 +401,6 @@ export class QuotePersistenceService {
     async handleUpdateStatus({ newStatus }) {
         // [NEW] (Correction Flow Phase 3) Add Lock Check for Update Status
         // We prevent moving status IF we are in a locked state, unless the user is moving to X (Cancel)
-        // But handleUpdateStatus is triggered by the dropdown Update button.
-        // We should allow status updates generally (e.g. B -> C -> D), but we must respect the logical flow.
-        // However, the requirement is "Once locked... forbidden to edit/save".
-        // Changing status IS an edit.
-        // BUT, the "Update Status" button is the specific mechanism TO change status.
-        // So we allow this method to run, as long as it's not modifying "content".
-        // This method ONLY updates `status` and `creationDate`.
 
         // 1. 立即更新本地 state，使 UI 保持同步
         this.stateService.dispatch(quoteActions.updateQuoteProperty('status', newStatus));
@@ -436,6 +430,45 @@ export class QuotePersistenceService {
                 type: 'error'
             });
             // Optional: Revert local state if needed, but current flow keeps UI optimistic.
+        }
+    }
+
+    /**
+     * [NEW] (Correction Flow Phase 4) Handles the immediate cancellation of an order.
+     * @param {object} payload
+     * @param {string} payload.cancelReason
+     */
+    async handleCancelOrder({ cancelReason }) {
+        // 1. Update status in local state
+        this.stateService.dispatch(quoteActions.updateQuoteProperty('status', QUOTE_STATUS.X_CANCELLED));
+
+        // 2. Update metadata with reason
+        const currentMetadata = this.stateService.getState().quoteData.metadata || {};
+        const newMetadata = { ...currentMetadata, cancelReason: cancelReason };
+        this.stateService.dispatch(quoteActions.updateQuoteProperty('metadata', newMetadata));
+
+        // 3. Get snapshot for cloud save
+        const dataToSave = this._getQuoteDataWithSnapshots();
+
+        try {
+            // 4. Save to cloud
+            // Direct cloud save for status changes, no local file download needed
+            const result = await saveQuoteToCloud(dataToSave);
+
+            if (result.success) {
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: 'Order has been CANCELLED.',
+                    type: 'info'
+                });
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            console.error("WorkflowService: Cancel order save failed.", error);
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: `Cancellation failed: ${error.message}`,
+                type: 'error'
+            });
         }
     }
 }
