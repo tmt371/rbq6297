@@ -4,6 +4,7 @@
 // [FIX] (v6297 瘦身) 保留了 fileService 依賴，因為 handleFileLoad 仍需使用它。
 // [MODIFIED] (Correction Flow Phase 2) Added handleCancelCorrectRequest.
 // [MODIFIED] (Correction Flow Phase 4) Implemented _handleCancelOrderFlow with input dialog.
+// [FIX] (Correction Flow Fix) Added setTimeout to _handleCancelOrderFlow to prevent dialog conflict.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
@@ -353,7 +354,7 @@ export class WorkflowService {
                             // Enter Correction Mode
                             this.stateService.dispatch(uiActions.setCorrectionMode(true));
                             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                                message: 'Correction Mode Enabled. Edit data and click Save to create a new version.',
+                                message: 'Correction Mode Enabled. Edit data and click SET to finalize changes.',
                                 type: 'info'
                             });
                             return true; // Close dialog
@@ -373,48 +374,52 @@ export class WorkflowService {
         });
     }
 
-    // [NEW] (Correction Flow Phase 4) Implemented Cancel logic
+    // [NEW] (Correction Flow Phase 4) Implemented Cancel logic with delay fix
     _handleCancelOrderFlow() {
-        this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
-            message: 'Are you sure you want to CANCEL this order? This action is irreversible.',
-            layout: [
-                [
-                    { type: 'text', text: 'Reason:', className: 'dialog-label' },
-                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_CANCEL_REASON, placeholder: 'e.g., Customer changed mind' }
-                ],
-                [
-                    {
-                        type: 'button',
-                        text: 'Confirm Cancellation',
-                        className: 'primary-confirm-button btn-danger', // Use danger style if available, else default
-                        colspan: 2,
-                        callback: () => {
-                            const reasonInput = document.getElementById(DOM_IDS.DIALOG_INPUT_CANCEL_REASON);
-                            const reason = reasonInput ? reasonInput.value.trim() : '';
+        // [FIX] Use setTimeout to ensure the previous dialog is fully closed and DOM is cleared
+        // before attempting to open the new confirmation dialog.
+        setTimeout(() => {
+            this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
+                message: 'Are you sure you want to CANCEL this order? This action is irreversible.',
+                layout: [
+                    [
+                        { type: 'text', text: 'Reason:', className: 'dialog-label' },
+                        { type: 'input', id: DOM_IDS.DIALOG_INPUT_CANCEL_REASON, placeholder: 'e.g., Customer changed mind' }
+                    ],
+                    [
+                        {
+                            type: 'button',
+                            text: 'Confirm Cancellation',
+                            className: 'primary-confirm-button btn-danger', // Use danger style if available, else default
+                            colspan: 2,
+                            callback: () => {
+                                const reasonInput = document.getElementById(DOM_IDS.DIALOG_INPUT_CANCEL_REASON);
+                                const reason = reasonInput ? reasonInput.value.trim() : '';
 
-                            if (!reason) {
-                                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                                    message: 'Cancellation reason is required.',
-                                    type: 'error'
-                                });
-                                return false; // Keep dialog open
+                                if (!reason) {
+                                    this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                                        message: 'Cancellation reason is required.',
+                                        type: 'error'
+                                    });
+                                    return false; // Keep dialog open
+                                }
+
+                                // Trigger the actual cancellation logic in QuotePersistenceService
+                                this.eventAggregator.publish(EVENTS.USER_REQUESTED_EXECUTE_CANCELLATION, { cancelReason: reason });
+                                return true;
                             }
-
-                            // Trigger the actual cancellation logic in QuotePersistenceService
-                            this.eventAggregator.publish(EVENTS.USER_REQUESTED_EXECUTE_CANCELLATION, { cancelReason: reason });
-                            return true;
-                        }
-                    },
-                    { type: 'button', text: 'Back', className: 'secondary', colspan: 2, callback: () => { return true; } }
-                ]
-            ],
-            onOpen: () => {
-                // Focus the input field when dialog opens
-                setTimeout(() => {
-                    const input = document.getElementById(DOM_IDS.DIALOG_INPUT_CANCEL_REASON);
-                    if (input) input.focus();
-                }, 50);
-            }
-        });
+                        },
+                        { type: 'button', text: 'Back', className: 'secondary', colspan: 2, callback: () => { return true; } }
+                    ]
+                ],
+                onOpen: () => {
+                    // Focus the input field when dialog opens
+                    setTimeout(() => {
+                        const input = document.getElementById(DOM_IDS.DIALOG_INPUT_CANCEL_REASON);
+                        if (input) input.focus();
+                    }, 50);
+                }
+            });
+        }, 100); // 100ms delay should be sufficient
     }
 }

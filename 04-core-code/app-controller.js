@@ -3,6 +3,7 @@
 // [MODIFIED] (F4 Status Phase 3) Subscribe to USER_REQUESTED_UPDATE_STATUS.
 // [MODIFIED] (Correction Flow Phase 2) Subscribe to USER_REQUESTED_CANCEL_CORRECT.
 // [MODIFIED] (Correction Flow Phase 4) Subscribe to USER_REQUESTED_EXECUTE_CANCELLATION.
+// [MODIFIED] (Correction Flow Fix) Subscribe to USER_REQUESTED_EXIT_CORRECTION_MODE.
 
 import { EVENTS, STORAGE_KEYS } from './config/constants.js';
 import * as uiActions from './actions/ui-actions.js';
@@ -253,23 +254,23 @@ export class AppController {
 
     // [NEW] Centralized subscription for all F4 actions, delegating to WorkflowService.
     _subscribeF4Events() {
-        // [MODIFIED] (v6297 瘦身) ?段 2：é??路??SAVE 事件
+        // [MODIFIED] (v6297 瘦身) 階段 2：重定向 SAVE 事件
         this._subscribe(EVENTS.USER_REQUESTED_SAVE, () =>
             this.quotePersistenceService.handleSaveToFile()
         );
-        // [MODIFIED] (v6297 瘦身) ?段 2：é??路??SAVE_AS_NEW_VERSION 事件
+        // [MODIFIED] (v6297 瘦身) 階段 2：重定向 SAVE_AS_NEW_VERSION 事件
         this._subscribe(EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION, () =>
             this.quotePersistenceService.handleSaveAsNewVersion()
         );
-        // [NEW] ?®?1: 綁Ã?工單事件 (此ä?件ä???workflowService ?ç?)
+        // [NEW] 階段 1: 綁定工單事件 (此事件由 workflowService 處理)
         this._subscribe(EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, () =>
             this.workflowService.handleGenerateWorkOrder()
         );
-        // [MODIFIED] (v6297 瘦身) ?段 2：é??路??EXPORT_CSV 事件
+        // [MODIFIED] (v6297 瘦身) 階段 2：重定向 EXPORT_CSV 事件
         this._subscribe(EVENTS.USER_REQUESTED_EXPORT_CSV, () =>
             this.quotePersistenceService.handleExportCSV()
         );
-        // (此ä?件ä???workflowService ?ç?)
+        // (此事件由 workflowService 處理)
         this._subscribe(EVENTS.USER_REQUESTED_LOAD, () =>
             this.workflowService.handleUserRequestedLoad()
         );
@@ -283,7 +284,7 @@ export class AppController {
             EVENTS.USER_REQUESTED_SEARCH_DIALOG,
             () => this.workflowService.handleSearchDialogRequest()
         );
-        // (此ä?件ä???workflowService ?ç?)
+        // (此事件由 workflowService 處理)
         this._subscribe(EVENTS.USER_REQUESTED_RESET, () =>
             this.workflowService.handleReset()
         );
@@ -302,6 +303,15 @@ export class AppController {
         this._subscribe(EVENTS.USER_REQUESTED_EXECUTE_CANCELLATION, (payload) =>
             this.quotePersistenceService.handleCancelOrder(payload)
         );
+
+        // [NEW] (Correction Flow Fix) Subscribe to Exit Correction Mode
+        this._subscribe(EVENTS.USER_REQUESTED_EXIT_CORRECTION_MODE, () => {
+            this.stateService.dispatch(uiActions.setCorrectionMode(false));
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Exited Correction Mode.',
+                type: 'info'
+            });
+        });
     }
 
     // This is a special method used by AppContext to publish state, it needs access to stateService.

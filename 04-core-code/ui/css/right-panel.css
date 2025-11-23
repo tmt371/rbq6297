@@ -261,6 +261,44 @@
     opacity: 0.6;
 }
 
+/* [NEW] (Correction Flow Fix) Correction Controls Container */
+.f4-correction-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+    /* Spacing from status controls */
+    grid-column: 1 / -1;
+    /* Span full width of the parent grid */
+}
+
+.f4-correction-controls.is-hidden {
+    display: none;
+}
+
+/* [NEW] Button Colors for Correction Mode */
+.f4-button.btn-blue {
+    background-color: #2563eb;
+    /* Blue */
+    color: white;
+    border-color: #1d4ed8;
+}
+
+.f4-button.btn-blue:hover {
+    background-color: #1d4ed8;
+}
+
+.f4-button.btn-gray {
+    background-color: #6b7280;
+    /* Gray */
+    color: white;
+    border-color: #4b5563;
+}
+
+.f4-button.btn-gray:hover {
+    background-color: #4b5563;
+}
+
 
 /* [MODIFIED] (F4 Status Tweak) Status styles integrated into tools group */
 

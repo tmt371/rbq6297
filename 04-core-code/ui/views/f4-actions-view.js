@@ -4,6 +4,7 @@
 // [MODIFIED] (F4 Status Phase 2) Added logic for status dropdown and update button.
 // [MODIFIED] (F4 Status Phase 3) Bound update button to USER_REQUESTED_UPDATE_STATUS event.
 // [MODIFIED] (Correction Flow Phase 1) Added Cancel/Correct button logic.
+// [MODIFIED] (Correction Flow Fix) Added SET/Exit buttons and Correction Mode UI logic.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 // [NEW] (F4 Status Phase 2) Import status constants
@@ -58,6 +59,10 @@ export class F4ActionsView {
             statusUpdateButton: query('#f4-status-update-btn'),
             // [NEW] (Correction Flow Phase 1) Cache Cancel/Correct button
             cancelCorrectButton: query('#f4-btn-cancel-correct'),
+            // [NEW] (Correction Flow Fix) Cache Correction Controls
+            correctionControls: query('#f4-correction-controls'),
+            btnCorrectionSet: query('#f4-btn-correction-set'),
+            btnCorrectionExit: query('#f4-btn-correction-exit'),
 
             buttons: {
                 'f1-key-save': query('#f1-key-save'),
@@ -122,17 +127,98 @@ export class F4ActionsView {
                 this.eventAggregator.publish(EVENTS.USER_REQUESTED_CANCEL_CORRECT);
             });
         }
+
+        // [NEW] (Correction Flow Fix) Bind SET and Exit Buttons
+        if (this.f4.btnCorrectionSet) {
+            // SET triggers the SAVE event. 
+            // The backend (QuotePersistenceService) will detect isCorrectionMode and handle it as atomic correction.
+            this._addListener(this.f4.btnCorrectionSet, 'click', () => {
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_SAVE);
+            });
+        }
+
+        if (this.f4.btnCorrectionExit) {
+            this._addListener(this.f4.btnCorrectionExit, 'click', () => {
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_EXIT_CORRECTION_MODE);
+            });
+        }
     }
 
     /**
      * [NEW] (F4 Status Phase 2) Renders the F4 tab, specifically the status dropdown.
+     * [MODIFIED] (Correction Flow Fix) Handles Correction Mode UI state (Disabling buttons, showing SET/Exit).
      */
     render(state) {
         // Guard clause: if DOM elements aren't cached, return
         if (!this.f4.statusDropdown) return;
 
         const { quoteId, status } = state.quoteData;
+        const { isCorrectionMode } = state.ui; // [NEW] Get correction mode state
         const isNewQuote = !quoteId;
+
+        // --- [NEW] (Correction Flow Fix) Correction Mode UI Logic ---
+        if (isCorrectionMode) {
+            // 1. Show Correction Controls (SET / Exit)
+            if (this.f4.correctionControls) {
+                this.f4.correctionControls.classList.remove('is-hidden');
+            }
+
+            // 2. Disable Standard File Operations
+            const forbiddenButtons = [
+                'f1-key-save',
+                'f4-key-save-as-new',
+                'f1-key-export',
+                'f1-key-load',
+                'f4-key-load-cloud' // Search
+            ];
+            forbiddenButtons.forEach(btnId => {
+                const btn = this.f4.buttons[btnId];
+                if (btn) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.3'; // Visual cue for disabled
+                }
+            });
+
+            // 3. Disable Status Controls
+            this.f4.statusDropdown.disabled = true;
+            this.f4.statusUpdateButton.disabled = true;
+            if (this.f4.cancelCorrectButton) {
+                this.f4.cancelCorrectButton.disabled = true;
+                this.f4.cancelCorrectButton.style.opacity = '0.3';
+            }
+
+            // Early return or skip standard rendering logic if needed, 
+            // but we might want to keep the dropdown showing the current status.
+            // So we just let the execution fall through but override disabled states.
+
+            // Ensure dropdown shows current status (likely D or similar)
+            this.f4.statusDropdown.value = status || QUOTE_STATUS.A_ARCHIVED;
+
+            return; // Exit render here as Correction Mode overrides normal state logic
+        } else {
+            // Not in Correction Mode: Ensure controls are hidden and standard buttons are enabled (if valid)
+            if (this.f4.correctionControls) {
+                this.f4.correctionControls.classList.add('is-hidden');
+            }
+
+            // Re-enable standard buttons
+            const standardButtons = [
+                'f1-key-save',
+                'f4-key-save-as-new',
+                'f1-key-export',
+                'f1-key-load',
+                'f4-key-load-cloud'
+            ];
+            standardButtons.forEach(btnId => {
+                const btn = this.f4.buttons[btnId];
+                if (btn) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                }
+            });
+        }
+        // --- [END NEW] ---
+
 
         // (Tweak 2) Check for non-Sales states (ReadOnly for Sales)
         const nonSalesStates = [

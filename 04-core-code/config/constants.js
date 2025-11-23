@@ -1,6 +1,7 @@
 /* FILE: 04-core-code/config/constants.js */
 // [MODIFIED] (Correction Flow Phase 1) Added USER_REQUESTED_CANCEL_CORRECT.
 // [MODIFIED] (Correction Flow Phase 4) Added USER_REQUESTED_EXECUTE_CANCELLATION.
+// [MODIFIED] (Correction Flow Fix) Added USER_REQUESTED_EXIT_CORRECTION_MODE.
 
 /**
  * @fileoverview Centralized constants for the application.
@@ -95,6 +96,9 @@ export const EVENTS = {
 
     // [NEW] (Correction Flow Phase 4)
     USER_REQUESTED_EXECUTE_CANCELLATION: 'userRequestedExecuteCancellation',
+
+    // [NEW] (Correction Flow Fix)
+    USER_REQUESTED_EXIT_CORRECTION_MODE: 'userRequestedExitCorrectionMode',
 
     // --- User Actions: F1/F2 Panels ---
     F1_TAB_ACTIVATED: 'f1TabActivated',
