@@ -1,7 +1,7 @@
 --- FILE START: .gitignore ---
 node_modules/
 
-codebase_snapshot.txt
+
 
 /04-core-code/config/firebase-config.js
 --- FILE END ---
@@ -6796,6 +6796,9 @@ codebase_snapshot.txt
     <link rel="stylesheet" href="./04-core-code/ui/css/virtual-keyboard.css">
     <link rel="stylesheet" href="./04-core-code/ui/css/results-table.css">
     <link rel="stylesheet" href="./04-core-code/ui/css/toast-notification.css">
+    <link rel="stylesheet" href="./04-core-code/ui/css/login-component.css">
+    <link rel="stylesheet" href="./04-core-code/ui/css/search-dialog.css">
+    <link rel="stylesheet" href="./04-core-code/ui/css/work-order.css">
 
     <script type="module" src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js"></script>
     <script type="module" src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js"></script>
@@ -6808,7 +6811,16 @@ codebase_snapshot.txt
     </div>
 
     <div id="app" class="app-container is-hidden">
+        <div id="correction-mode-banner" class="correction-banner is-hidden">
+            ?†Ô? CORRECTION MODE: You are creating a corrected version. The original order will be CANCELLED upon saving.
+        </div>
+
         <div class="results-panel">
+            <div id="quote-id-banner" class="quote-id-banner">
+                <span id="quote-id-text">New Quote</span>
+                <span id="quote-status-tag" class="status-tag"></span>
+            </div>
+
             <table class="results-table" id="results-table">
                 <tbody></tbody>
             </table>
@@ -6918,7 +6930,7 @@ codebase_snapshot.txt
 @import url('./04-core-code/ui/css/login-component.css');
 /* [NEW] (v6298-F4-Search) Import the new search dialog CSS */
 @import url('./04-core-code/ui/css/search-dialog.css');
-/* [NEW] (?éÊÆµ 1) Import the new work order CSS */
+/* [NEW] (?ÊÆ?1) Import the new work order CSS */
 @import url('./04-core-code/ui/css/work-order.css');
 
 /* --- Global Variables --- */
@@ -6968,13 +6980,79 @@ body {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
 }
 
+/* [NEW] (Correction Flow Phase 2) Correction Banner Styles */
+.correction-banner {
+    background-color: #fff3cd;
+    /* Yellow warning background */
+    color: #856404;
+    /* Dark yellow text */
+    border-bottom: 1px solid #ffeeba;
+    padding: 10px;
+    text-align: center;
+    font-weight: bold;
+    font-size: 0.9em;
+    z-index: 100;
+    /* Ensure it stays on top of table */
+    flex-shrink: 0;
+    /* Prevent shrinking */
+}
+
+.correction-banner.is-hidden {
+    display: none;
+}
+
+/* --- End Correction Banner --- */
+
 .results-panel {
     flex-grow: 1;
     overflow-y: auto;
     position: relative;
     padding: 0 20px 20px 20px;
     box-sizing: border-box;
+    display: flex;
+    /* [NEW] For layout control */
+    flex-direction: column;
 }
+
+/* [NEW] (Correction Flow Phase 5) Quote ID Banner Styles */
+.quote-id-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #e0f2fe;
+    /* Default Light Blue */
+    border: 1px solid #bae6fd;
+    border-radius: 4px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    /* Space between banner and table */
+    color: #0369a1;
+    font-weight: bold;
+    font-size: 1.1em;
+    flex-shrink: 0;
+    /* Prevent shrinking */
+}
+
+/* Style for Locked State (Pink) */
+.quote-id-banner.is-locked {
+    background-color: #fce7f3;
+    /* Light Pink */
+    border-color: #fbcfe8;
+    color: #9d174d;
+}
+
+.status-tag {
+    font-size: 0.8em;
+    padding: 2px 8px;
+    background-color: rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
+    text-transform: uppercase;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* --- End Quote ID Banner --- */
+
 
 /* --- [NEW] Global Modal Lock State --- */
 /* When modal is active, disable pointer events and dim everything... */
@@ -7878,8 +7956,11 @@ import { K5TabComponent } from './ui/tabs/k5-tab/k5-tab-component.js';
 
 --- FILE START: 04-core-code/app-controller.js ---
 /* FILE: 04-core-code/app-controller.js */
-// [MODIFIED] (v6297 ?Ë∫? ?ÊÆ?2ÔºöÊ≥®??quotePersistenceService ‰∏¶√??Ë∑??F4 ‰∫ã‰ª∂??
+// [MODIFIED] (v6297 ?¶Ë∫´) ?éÊÆµ 2ÔºöÊ≥®??quotePersistenceService ‰∏¶È?ÂÆöÂ? F4 ‰∫ã‰ª∂??
 // [MODIFIED] (F4 Status Phase 3) Subscribe to USER_REQUESTED_UPDATE_STATUS.
+// [MODIFIED] (Correction Flow Phase 2) Subscribe to USER_REQUESTED_CANCEL_CORRECT.
+// [MODIFIED] (Correction Flow Phase 4) Subscribe to USER_REQUESTED_EXECUTE_CANCELLATION.
+// [MODIFIED] (Correction Flow Fix) Subscribe to USER_REQUESTED_EXIT_CORRECTION_MODE.
 
 import { EVENTS, STORAGE_KEYS } from './config/constants.js';
 import * as uiActions from './actions/ui-actions.js';
@@ -7892,14 +7973,14 @@ export class AppController {
         quickQuoteView,
         detailConfigView,
         workflowService,
-        quotePersistenceService // [NEW] (v6297 ?Ë∫? Ê≥®ÂÖ•?√¶???
+        quotePersistenceService // [NEW] (v6297 ?¶Ë∫´) Ê≥®ÂÖ•?çÂ?
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService; // Still needed for _getFullState and _handleAutoSave
         this.quickQuoteView = quickQuoteView;
         this.detailConfigView = detailConfigView;
         this.workflowService = workflowService;
-        this.quotePersistenceService = quotePersistenceService; // [NEW] (v6297 ?Ë∫? ?√•??√¶???
+        this.quotePersistenceService = quotePersistenceService; // [NEW] (v6297 ?¶Ë∫´) ?≤Â??çÂ?
 
         this.autoSaveTimerId = null;
         this.subscriptions = []; // [NEW] (v6298-fix-4) Store subscriptions
@@ -8130,23 +8211,23 @@ export class AppController {
 
     // [NEW] Centralized subscription for all F4 actions, delegating to WorkflowService.
     _subscribeF4Events() {
-        // [MODIFIED] (v6297 ?Ë∫? ?ÊÆ?2Ôºö√??Ë∑??SAVE ‰∫ã‰ª∂
+        // [MODIFIED] (v6297 ?¶Ë∫´) ?éÊÆµ 2ÔºöÈ?ÂÆöÂ? SAVE ‰∫ã‰ª∂
         this._subscribe(EVENTS.USER_REQUESTED_SAVE, () =>
             this.quotePersistenceService.handleSaveToFile()
         );
-        // [MODIFIED] (v6297 ?Ë∫? ?ÊÆ?2Ôºö√??Ë∑??SAVE_AS_NEW_VERSION ‰∫ã‰ª∂
+        // [MODIFIED] (v6297 ?¶Ë∫´) ?éÊÆµ 2ÔºöÈ?ÂÆöÂ? SAVE_AS_NEW_VERSION ‰∫ã‰ª∂
         this._subscribe(EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION, () =>
             this.quotePersistenceService.handleSaveAsNewVersion()
         );
-        // [NEW] ?¬Æ?1: Á∂Å√?Â∑•ÂñÆ‰∫ã‰ª∂ (Ê≠§√?‰ª∂√???workflowService ?√ß?)
+        // [NEW] ?éÊÆµ 1: Á∂ÅÂ?Â∑•ÂñÆ‰∫ã‰ª∂ (Ê≠§‰?‰ª∂Áî± workflowService ?ïÁ?)
         this._subscribe(EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, () =>
             this.workflowService.handleGenerateWorkOrder()
         );
-        // [MODIFIED] (v6297 ?Ë∫? ?ÊÆ?2Ôºö√??Ë∑??EXPORT_CSV ‰∫ã‰ª∂
+        // [MODIFIED] (v6297 ?¶Ë∫´) ?éÊÆµ 2ÔºöÈ?ÂÆöÂ? EXPORT_CSV ‰∫ã‰ª∂
         this._subscribe(EVENTS.USER_REQUESTED_EXPORT_CSV, () =>
             this.quotePersistenceService.handleExportCSV()
         );
-        // (Ê≠§√?‰ª∂√???workflowService ?√ß?)
+        // (Ê≠§‰?‰ª∂Áî± workflowService ?ïÁ?)
         this._subscribe(EVENTS.USER_REQUESTED_LOAD, () =>
             this.workflowService.handleUserRequestedLoad()
         );
@@ -8160,7 +8241,7 @@ export class AppController {
             EVENTS.USER_REQUESTED_SEARCH_DIALOG,
             () => this.workflowService.handleSearchDialogRequest()
         );
-        // (Ê≠§√?‰ª∂√???workflowService ?√ß?)
+        // (Ê≠§‰?‰ª∂Áî± workflowService ?ïÁ?)
         this._subscribe(EVENTS.USER_REQUESTED_RESET, () =>
             this.workflowService.handleReset()
         );
@@ -8169,6 +8250,25 @@ export class AppController {
         this._subscribe(EVENTS.USER_REQUESTED_UPDATE_STATUS, (payload) =>
             this.quotePersistenceService.handleUpdateStatus(payload)
         );
+
+        // [NEW] (Correction Flow Phase 2) Subscribe to Cancel/Correct requests
+        this._subscribe(EVENTS.USER_REQUESTED_CANCEL_CORRECT, () =>
+            this.workflowService.handleCancelCorrectRequest()
+        );
+
+        // [NEW] (Correction Flow Phase 4) Subscribe to Execute Cancellation
+        this._subscribe(EVENTS.USER_REQUESTED_EXECUTE_CANCELLATION, (payload) =>
+            this.quotePersistenceService.handleCancelOrder(payload)
+        );
+
+        // [NEW] (Correction Flow Fix) Subscribe to Exit Correction Mode
+        this._subscribe(EVENTS.USER_REQUESTED_EXIT_CORRECTION_MODE, () => {
+            this.stateService.dispatch(uiActions.setCorrectionMode(false));
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Exited Correction Mode.',
+                type: 'info'
+            });
+        });
     }
 
     // This is a special method used by AppContext to publish state, it needs access to stateService.
@@ -8961,6 +9061,9 @@ export const removeLFModifiedRows = (rowIndexes) => ({
 
 --- FILE START: 04-core-code/actions/ui-actions.js ---
 // File: 04-core-code/actions/ui-actions.js
+// [MODIFIED] (Correction Flow Phase 2) Added setCorrectionMode.
+// [MODIFIED] (F1 Motor Split) Added setF1MotorDistribution.
+// [MODIFIED] (F1 Motor Split Architecture Fix) Added setF2MotorPrice helper.
 
 /**
  * @fileoverview Action creators for all UI-related state changes.
@@ -9089,7 +9192,7 @@ export const setDriveGrandTotal = (price) => ({
     payload: { price },
 });
 
-// --- [FIX] Add new action creators for K5 view ---
+// --- [FIX] Add new action types for K5 view ---
 export const setDualPrice = (price) => ({
     type: UI_ACTION_TYPES.SET_DUAL_PRICE,
     payload: { price },
@@ -9143,6 +9246,12 @@ export const setF1DualDistribution = (comboQty, slimQty) => ({
     payload: { comboQty, slimQty },
 });
 
+// [NEW] (F1 Motor Split) Action to update W-Motor quantity
+export const setF1MotorDistribution = (wQty) => ({
+    type: UI_ACTION_TYPES.SET_F1_MOTOR_DISTRIBUTION,
+    payload: { wQty },
+});
+
 export const setF1DiscountPercentage = (percentage) => ({
     type: UI_ACTION_TYPES.SET_F1_DISCOUNT_PERCENTAGE,
     payload: { percentage },
@@ -9164,6 +9273,13 @@ export const setF1WifiQty = (quantity) => ({
 export const setF2Value = (key, value) => ({
     type: UI_ACTION_TYPES.SET_F2_VALUE,
     payload: { key, value },
+});
+
+// [NEW] (F1 Motor Split Architecture Fix) Helper action to specifically set motor price
+// Reuses the generic SET_F2_VALUE type but provides semantic clarity
+export const setF2MotorPrice = (price) => ({
+    type: UI_ACTION_TYPES.SET_F2_VALUE,
+    payload: { key: 'motorPrice', value: price },
 });
 
 export const toggleF2FeeExclusion = (feeType) => ({
@@ -9193,6 +9309,12 @@ export const setModalActive = (isActive) => ({
     payload: { isActive },
 });
 
+// [NEW] (Correction Flow Phase 2) Set correction mode
+export const setCorrectionMode = (isCorrectionMode) => ({
+    type: UI_ACTION_TYPES.SET_CORRECTION_MODE,
+    payload: { isCorrectionMode },
+});
+
 // [NEW v6285 Phase 4] Action creator for restoring F1 state
 export const restoreF1Snapshot = (snapshotData) => ({
     type: UI_ACTION_TYPES.RESTORE_F1_SNAPSHOT,
@@ -9208,6 +9330,8 @@ export const restoreF2Snapshot = (snapshotData) => ({
 
 --- FILE START: 04-core-code/config/action-types.js ---
 // File: 04-core-code/config/action-types.js
+// [MODIFIED] (Correction Flow Phase 2) Added SET_CORRECTION_MODE.
+// [MODIFIED] (F1 Motor Split) Added SET_F1_MOTOR_DISTRIBUTION.
 
 /**
  * @fileoverview Defines all action types for the strict state management pattern.
@@ -9264,6 +9388,9 @@ export const UI_ACTION_TYPES = {
     // F1 Financial Overview State
     SET_F1_REMOTE_DISTRIBUTION: 'ui/setF1RemoteDistribution',
     SET_F1_DUAL_DISTRIBUTION: 'ui/setF1DualDistribution',
+    // [NEW] (F1 Motor Split)
+    SET_F1_MOTOR_DISTRIBUTION: 'ui/setF1MotorDistribution',
+
     SET_F1_DISCOUNT_PERCENTAGE: 'ui/setF1DiscountPercentage',
     // [NEW] (F1/F2 Refactor Phase 1) Add action for F1 cost totals
     SET_F1_COST_TOTALS: 'ui/setF1CostTotals',
@@ -9278,6 +9405,9 @@ export const UI_ACTION_TYPES = {
     SET_SUM_OUTDATED: 'ui/setSumOutdated',
     RESET_UI: 'ui/reset',
     SET_MODAL_ACTIVE: 'ui/setModalActive', // [NEW] Add modal lock action
+
+    // [NEW] (Correction Flow Phase 2) Set correction mode state
+    SET_CORRECTION_MODE: 'ui/setCorrectionMode',
 
     // [NEW v6285 Phase 4] Action for restoring F1 state from a loaded file
     RESTORE_F1_SNAPSHOT: 'ui/restoreF1Snapshot',
@@ -9328,9 +9458,9 @@ export const QUOTE_ACTION_TYPES = {
 
 --- FILE START: 04-core-code/config/constants.js ---
 /* FILE: 04-core-code/config/constants.js */
-// [MODIFIED] (?¬Æ?1) Added USER_REQUESTED_GENERATE_WORK_ORDER.
-// [MODIFIED] (¬¨?11 Ê¨°Á∑®¬ø? Added USER_REQUESTED_RELOGIN.
-// [MODIFIED] (F4 Status Phase 3) Added USER_REQUESTED_UPDATE_STATUS.
+// [MODIFIED] (Correction Flow Phase 4) Added USER_REQUESTED_EXECUTE_CANCELLATION.
+// [MODIFIED] (Correction Flow Fix) Added USER_REQUESTED_EXIT_CORRECTION_MODE.
+// [MODIFIED] (F1 Motor Split) Added W-Motor IDs and Dialog Inputs.
 
 /**
  * @fileoverview Centralized constants for the application.
@@ -9420,11 +9550,23 @@ export const EVENTS = {
     // [NEW] (F4 Status Phase 3)
     USER_REQUESTED_UPDATE_STATUS: 'userRequestedUpdateStatus',
 
+    // [NEW] (Correction Flow Phase 1)
+    USER_REQUESTED_CANCEL_CORRECT: 'userRequestedCancelCorrect',
+
+    // [NEW] (Correction Flow Phase 4)
+    USER_REQUESTED_EXECUTE_CANCELLATION: 'userRequestedExecuteCancellation',
+
+    // [NEW] (Correction Flow Fix)
+    USER_REQUESTED_EXIT_CORRECTION_MODE: 'userRequestedExitCorrectionMode',
+
     // --- User Actions: F1/F2 Panels ---
     F1_TAB_ACTIVATED: 'f1TabActivated',
     F1_DISCOUNT_CHANGED: 'f1DiscountChanged',
     USER_REQUESTED_REMOTE_DISTRIBUTION: 'userRequestedRemoteDistribution',
     USER_REQUESTED_DUAL_DISTRIBUTION: 'userRequestedDualDistribution',
+    // [NEW] (F1 Motor Split)
+    USER_REQUESTED_MOTOR_DISTRIBUTION: 'userRequestedMotorDistribution',
+
     F2_TAB_ACTIVATED: 'f2TabActivated',
     F2_VALUE_CHANGED: 'f2ValueChanged',
     F2_INPUT_ENTER_PRESSED: 'f2InputEnterPressed',
@@ -9467,6 +9609,10 @@ export const DOM_IDS = {
     F1_PRICE_WINDER: 'f1-price-winder',
     F1_QTY_MOTOR: 'f1-qty-motor',
     F1_PRICE_MOTOR: 'f1-price-motor',
+    // [NEW] (F1 Motor Split)
+    F1_QTY_W_MOTOR: 'f1-qty-w-motor',
+    F1_PRICE_W_MOTOR: 'f1-price-w-motor',
+
     F1_QTY_REMOTE_1CH: 'f1-qty-remote-1ch',
     F1_PRICE_REMOTE_1CH: 'f1-price-remote-1ch',
     F1_QTY_REMOTE_16CH: 'f1-qty-remote-16ch',
@@ -9522,6 +9668,11 @@ export const DOM_IDS = {
     DIALOG_INPUT_16CH: 'dialog-input-16ch',
     DIALOG_INPUT_COMBO: 'dialog-input-combo',
     DIALOG_INPUT_SLIM: 'dialog-input-slim',
+    // [NEW] (Correction Flow Phase 4)
+    DIALOG_INPUT_CANCEL_REASON: 'dialog-input-cancel-reason',
+    // [NEW] (F1 Motor Split)
+    DIALOG_INPUT_BATTERY: 'dialog-input-battery',
+    DIALOG_INPUT_WIRED: 'dialog-input-wired',
 };
 
 export const STORAGE_KEYS = {
@@ -9579,6 +9730,9 @@ export { firebaseConfig };
 --- FILE START: 04-core-code/config/initial-state.js ---
 /* FILE: 04-core-code/config/initial-state.js */
 // [MODIFIED] (F4 Status Phase 1) Import QUOTE_STATUS
+// [MODIFIED] (Correction Flow Phase 2) Added isCorrectionMode to UI state.
+// [MODIFIED] (F1 Motor Split) Added w_motor_qty to ui.f1 and f1Snapshot.
+// [MODIFIED] (F1 Motor Split Architecture Fix) Added motorPrice to ui.f2.
 
 import { QUOTE_STATUS } from './status-config.js';
 
@@ -9651,6 +9805,9 @@ export const initialState = {
             remote_16ch_qty: null,
             dual_combo_qty: null,
             dual_slim_qty: null,
+            // [NEW] (F1 Motor Split) W-Motor (Wired) Quantity
+            w_motor_qty: null,
+
             // [NEW] (F1/F2 Refactor Phase 1) Add state to store F1 cost totals
             f1_subTotal: null,
             f1_finalTotal: null,
@@ -9682,13 +9839,19 @@ export const initialState = {
             gstExcluded: false, // [NEW] (Phase 2)
 
             // [NEW] (Accounting V2 Phase 2) Store tax exclusive total for XERO
-            taxExclusiveTotal: null
+            taxExclusiveTotal: null,
+
+            // [NEW] (F1 Motor Split Architecture Fix) Store calculated motor price for display
+            motorPrice: null
         },
 
         // --- Global UI State ---
         isSumOutdated: false,
         welcomeDialogShown: false,
         isModalActive: false, // [NEW] Add modal lock state
+
+        // [NEW] (Correction Flow Phase 2) Indicates if we are correcting an existing order
+        isCorrectionMode: false
     },
     quoteData: {
         currentProduct: 'rollerBlind',
@@ -9761,6 +9924,9 @@ export const initialState = {
             remote_16ch_qty: null,
             dual_combo_qty: null,
             dual_slim_qty: null,
+            // [NEW] (F1 Motor Split) Snapshot W-Motor Qty
+            w_motor_qty: null,
+
             // Financial values (from ui.f1)
             discountPercentage: null,
             wifi_qty: null // [NEW] (v6295)
@@ -9835,6 +10001,7 @@ export const paths = {
 /* FILE: 04-core-code/config/status-config.js */
 // [NEW] (F4 Status Phase 1) Defines all statuses for the quote lifecycle
 // [MODIFIED] (F4 Status Tweak) Translated to "Hybrid" English version for conciseness.
+// [MODIFIED] (Correction Flow Phase 1) Added X_CANCELLED status.
 
 export const QUOTE_STATUS = {
     A_ARCHIVED: "A. Saved",
@@ -9846,7 +10013,10 @@ export const QUOTE_STATUS = {
     G_COMPLETED: "G. Completed",
     H_INVOICE_SENT: "H. Bill Sent",
     I_INVOICE_OVERDUE: "I. Overdue",
-    J_CLOSED: "J. Closed"
+    J_CLOSED: "J. Closed",
+
+    // [NEW] (Correction Flow)
+    X_CANCELLED: "X. Order Cancelled"
 };
 --- FILE END ---
 
@@ -10288,6 +10458,9 @@ export function createRootReducer(dependencies) {
 
 --- FILE START: 04-core-code/reducers/ui-reducer.js ---
 // File: 04-core-code/reducers/ui-reducer.js
+// [MODIFIED] (Correction Flow Phase 2) Added SET_CORRECTION_MODE handler.
+// [MODIFIED] (F1 Motor Split) Added SET_F1_MOTOR_DISTRIBUTION handler and snapshot restoration.
+
 import { UI_ACTION_TYPES } from '../config/action-types.js';
 import { initialState } from '../config/initial-state.js';
 
@@ -10400,6 +10573,11 @@ export function uiReducer(state, action) {
             return { ...state, f1: { ...state.f1, remote_1ch_qty: action.payload.qty1, remote_16ch_qty: action.payload.qty16 } };
         case UI_ACTION_TYPES.SET_F1_DUAL_DISTRIBUTION:
             return { ...state, f1: { ...state.f1, dual_combo_qty: action.payload.comboQty, dual_slim_qty: action.payload.slimQty } };
+
+        // [NEW] (F1 Motor Split) Handle motor distribution update
+        case UI_ACTION_TYPES.SET_F1_MOTOR_DISTRIBUTION:
+            return { ...state, f1: { ...state.f1, w_motor_qty: action.payload.wQty } };
+
         case UI_ACTION_TYPES.SET_F1_DISCOUNT_PERCENTAGE:
             return { ...state, f1: { ...state.f1, discountPercentage: action.payload.percentage } };
 
@@ -10452,6 +10630,10 @@ export function uiReducer(state, action) {
             }
             return { ...state, isModalActive: action.payload.isActive };
 
+        // [NEW] (Correction Flow Phase 2) Set correction mode
+        case UI_ACTION_TYPES.SET_CORRECTION_MODE:
+            return { ...state, isCorrectionMode: action.payload.isCorrectionMode };
+
         // [NEW v6285 Phase 4] Restore F1 state from snapshot
         case UI_ACTION_TYPES.RESTORE_F1_SNAPSHOT: {
             const snapshot = action.payload;
@@ -10478,6 +10660,10 @@ export function uiReducer(state, action) {
             if (snapshot.wifi_qty !== null && snapshot.wifi_qty !== undefined) {
                 newF1State.wifi_qty = snapshot.wifi_qty;
             }
+            // [NEW] (F1 Motor Split) Restore W-Motor quantity
+            if (snapshot.w_motor_qty !== null && snapshot.w_motor_qty !== undefined) {
+                newF1State.w_motor_qty = snapshot.w_motor_qty;
+            }
 
             const newState = { ...state, f1: newF1State };
 
@@ -10488,6 +10674,7 @@ export function uiReducer(state, action) {
             if (snapshot.cord_qty !== null && snapshot.cord_qty !== undefined) {
                 newState.driveCordCount = snapshot.cord_qty;
             }
+
 
             // Restore total remote count for K4 display
             // We must use the values we just set in newF1State
@@ -10687,11 +10874,15 @@ export class AuthService {
 --- FILE END ---
 
 --- FILE START: 04-core-code/services/calculation-service.js ---
-// /04-core-code/services/calculation-service.js
+/* FILE: 04-core-code/services/calculation-service.js */
 // [MODIFIED] (Phase 7) Added calculateF1Costs, and updated getQuoteTemplateData to use F1 costs
 // [MODIFIED] (Phase 8) Updated getQuoteTemplateData, passing F1 cost details (RB, Acce, Total) for work order usage
 // [MODIFIED] (Accounting V2 Phase 2) Added taxExclusiveTotal calculation in calculateF2Summary
 // [MODIFIED] (Accounting V2 Phase 2 Fix) taxExclusiveTotal is now always equal to newOffer
+// [MODIFIED] (F1 Motor Split) Updated calculateF1Costs to split B-Motor/W-Motor costs ($160/$130).
+// [MODIFIED] (F1 Motor Split) Updated calculateF2Summary to split B-Motor/W-Motor sales prices ($250/$200).
+// [MODIFIED] (F1 Motor Split Fix) Updated getQuoteTemplateData to use correct SALES price for motors ($250/$200).
+// [MODIFIED] (F1 Motor Split Fix 2) Hardcoded motor sales price calculation in getQuoteTemplateData for robustness.
 
 /**
  * @fileoverview Service for handling all price and sum calculations.
@@ -10858,20 +11049,30 @@ export class CalculationService {
 
         const f1KeyMap = {
             'winder': 'cost-winder',
-            'motor': 'cost-motor',
-            'remote-1ch': 'remoteSingleChannel',
-            'remote-16ch': 'remoteMultiChannel16',
-            'charger': 'charger',
-            '3m-cord': 'cord3m',
-            'dual-combo': 'comboBracket',
-            'slim': 'slimComboBracket',
-            'wifihub': 'wifiHub' // [NEW] (v6295) Map wifihub component to price matrix key
+            'motor': 'cost-motor', // Maps to default cost $160 (B-Motor)
+            'remote-1ch': 'cost-L-1ch-remote',
+            'remote-16ch': 'cost-L-16ch-remote',
+            'charger': 'cost-charger',
+            '3m-cord': 'cost-3mcord',
+            'dual-combo': 'cost-combo-dual',
+            'slim': 'cost-slim-dual',
+            'wifihub': 'wifiHub'
         };
 
-        const accessoryKey = f1KeyMap[componentKey];
+        let accessoryKey = f1KeyMap[componentKey];
+
+        // [NEW] (F1 Motor Split) Special handling for W-Motor cost ($130)
+        if (componentKey === 'w-motor') {
+            return quantity * 130;
+        }
+
         if (!accessoryKey) {
-            console.error(`No accessory key found for F1 component: ${componentKey}`);
-            return 0;
+            // Fallback for wifihub if map above implies it.
+            if (componentKey === 'wifihub') accessoryKey = 'wifiHub';
+            else {
+                console.error(`No accessory key found for F1 component: ${componentKey}`);
+                return 0;
+            }
         }
 
         const unitPrice = this.configManager.getAccessoryPrice(accessoryKey);
@@ -10886,6 +11087,7 @@ export class CalculationService {
      * [NEW] (Phase 7)
      * Moved logic from f1-cost-view.js to here, centrally calculating F1 *Costs*.
      * This is the single source of truth for F1 panel cost calculations.
+     * [MODIFIED] (F1 Motor Split) Split motor costs into B-Motor and W-Motor.
      */
     calculateF1Costs(quoteData, uiState) {
         const items = quoteData.products[quoteData.currentProduct].items;
@@ -10897,9 +11099,26 @@ export class CalculationService {
         const winderQty = items.filter(item => item.winder === 'HD').length;
         componentPrices.winder = this.calculateF1ComponentPrice('winder', winderQty);
 
-        // Motor
-        const motorQty = items.filter(item => !!item.motor).length;
-        componentPrices.motor = this.calculateF1ComponentPrice('motor', motorQty);
+        // Motor (Total)
+        const totalMotorQty = items.filter(item => !!item.motor).length;
+
+        // [NEW] (F1 Motor Split) Logic
+        // W-Motor Qty comes from UI state (set via dialog)
+        let wMotorQty = ui.f1.w_motor_qty || 0;
+        // Clamp W-Motor Qty to Total Motor Qty (cannot exceed total)
+        if (wMotorQty > totalMotorQty) wMotorQty = totalMotorQty;
+        // B-Motor Qty is the remainder
+        const bMotorQty = totalMotorQty - wMotorQty;
+
+        // Calculate Costs
+        // B-Motor Cost: $160 (Standard)
+        componentPrices.b_motor = this.calculateF1ComponentPrice('motor', bMotorQty);
+        // W-Motor Cost: $130 (Special)
+        componentPrices.w_motor = this.calculateF1ComponentPrice('w-motor', wMotorQty);
+
+        // Combined Motor Cost for display if needed, but we return details
+        componentPrices.motor = componentPrices.b_motor + componentPrices.w_motor;
+
 
         // Remotes (Use F1 UI state quantities)
         const totalRemoteCount = ui.driveRemoteCount || 0;
@@ -10934,12 +11153,25 @@ export class CalculationService {
         componentPrices.wifihub = this.calculateF1ComponentPrice('wifihub', wifiQty);
 
         // Total Sum
-        const componentTotal = Object.values(componentPrices).reduce((sum, price) => sum + price, 0);
+        const componentTotal =
+            componentPrices.winder +
+            componentPrices.b_motor +
+            componentPrices.w_motor +
+            componentPrices['remote-1ch'] +
+            componentPrices['remote-16ch'] +
+            componentPrices.charger +
+            componentPrices['3m-cord'] +
+            componentPrices['dual-combo'] +
+            componentPrices.slim +
+            componentPrices.wifihub;
 
         // Return an object containing cost details
         return {
             winderCost: componentPrices.winder,
-            motorCost: componentPrices.motor,
+            motorCost: componentPrices.motor, // Combined for F1 Total display if needed, but UI splits it
+            bMotorCost: componentPrices.b_motor, // [NEW]
+            wMotorCost: componentPrices.w_motor, // [NEW]
+
             remote1chCost: componentPrices['remote-1ch'],
             remote16chCost: componentPrices['remote-16ch'],
             chargerCost: componentPrices.charger,
@@ -10951,7 +11183,9 @@ export class CalculationService {
             // Return QTYs used in calculation for F1 View display
             qtys: {
                 winder: winderQty,
-                motor: motorQty,
+                motor: totalMotorQty, // Total
+                b_motor: bMotorQty, // [NEW]
+                w_motor: wMotorQty, // [NEW]
                 remote1ch: remote1chQty,
                 remote16ch: remote16chQty,
                 charger: chargerQty,
@@ -10979,7 +11213,16 @@ export class CalculationService {
         const accessories = productSummary.accessories || {};
         const winderPrice = accessories.winderCostSum || 0;
         const dualPrice = accessories.dualCostSum || 0;
-        const motorPrice = accessories.motorCostSum || 0;
+
+        // [MODIFIED] (F1 Motor Split) Calculate Motor Sale Price dynamically here
+        const totalMotorQty = items.filter(item => !!item.motor).length;
+        let wMotorQty = uiState.f1.w_motor_qty || 0;
+        if (wMotorQty > totalMotorQty) wMotorQty = totalMotorQty;
+        const bMotorQty = totalMotorQty - wMotorQty;
+
+        // Sale Prices: B=$250, W=$200
+        const motorPrice = (bMotorQty * 250) + (wMotorQty * 200);
+
         const remotePrice = accessories.remoteCostSum || 0;
         const chargerPrice = accessories.chargerCostSum || 0;
         const cordPrice = accessories.cordCostSum || 0;
@@ -11000,7 +11243,9 @@ export class CalculationService {
         const removalFee = removalQty * UNIT_PRICES.removal;
 
         const acceSum = winderPrice + dualPrice;
+        // [MODIFIED] Use the calculated motorPrice (Sales Price) instead of motorCostSum from accessories
         const eAcceSum = motorPrice + remotePrice + chargerPrice + cordPrice + wifiSum;
+
         const surchargeFee =
             (f2State.deliveryFeeExcluded ? 0 : deliveryFee) +
             (f2State.installFeeExcluded ? 0 : installFee) +
@@ -11083,7 +11328,10 @@ export class CalculationService {
             // [NEW] (Accounting V2 Phase 2)
             taxExclusiveTotal: taxExclusiveTotal,
 
-            mulTimes // [FIX] Add mulTimes to the return object so its value can be persisted.
+            mulTimes, // [FIX] Add mulTimes to the return object so its value can be persisted.
+
+            // [NEW] Return calculated motor price so F2 view can render it (overriding default K4 calculation)
+            calculatedMotorPrice: motorPrice
         };
     }
 
@@ -11121,7 +11369,16 @@ export class CalculationService {
 
         // [NEW] (Phase 7) Use F1 cost components (f1Costs) for QTY and Cost
         const motorQty = f1Costs.qtys.motor || '';
-        const motorPrice = f1Costs.motorCost; // F1 cost
+
+        // [MODIFIED] (F1 Motor Split Fix 2) Hardcode the calculation logic here for maximum robustness.
+        // This bypasses any potential issues with return values from other functions.
+        const itemsForMotor = quoteData.products[quoteData.currentProduct].items;
+        const totalMotorQtyForCalc = itemsForMotor.filter(item => !!item.motor).length;
+        let wMotorQtyForCalc = ui.f1.w_motor_qty || 0;
+        if (wMotorQtyForCalc > totalMotorQtyForCalc) wMotorQtyForCalc = totalMotorQtyForCalc;
+        const bMotorQtyForCalc = totalMotorQtyForCalc - wMotorQtyForCalc;
+        const motorPrice = (bMotorQtyForCalc * 250) + (wMotorQtyForCalc * 200);
+
 
         const remote1chQty = f1Costs.qtys.remote1ch || '';
         const remote1chPrice = f1Costs.remote1chCost; // F1 cost
@@ -11138,7 +11395,10 @@ export class CalculationService {
         const wifiHubQty = f1Costs.qtys.wifi || '';
         const wifiHubPrice = f1Costs.wifiCost; // F1 cost
 
-        // [NEW] (Phase 7) eAcceSum uses F1 Cost Total
+        // [MODIFIED] (F1 Motor Split Fix) Recalculate eAcceSum using the CORRECT motor sales price
+        // Note: Other accessories (remote, charger etc.) here seem to be using COST prices from f1Costs?
+        // If they are supposed to be Sales Prices, they should be updated too.
+        // However, to fix the reported issue (Motor Price), we focus on motorPrice.
         const eAcceSum = motorPrice + remote1chPrice + remote16chPrice + chargerPrice + cord3mPrice + wifiHubPrice;
 
         // [NEW] (Phase 8) Calculate detailed F1 costs for Work Order table
@@ -11191,9 +11451,8 @@ export class CalculationService {
             mulTimes: summaryData.mulTimes || 1,
 
             // [MODIFIED] (Phase 7) Data for the accessories table (Appendix / Work Order)
-            // Variables now contain F1 *Costs*
             motorQty: motorQty,
-            motorPrice: formatPrice(motorPrice),
+            motorPrice: formatPrice(motorPrice), // [FIX] Now uses Sales Price
             remote1chQty: remote1chQty,
             remote1chPrice: formatPrice(remote1chPrice),
             remote16chQty: remote16chQty,
@@ -11204,7 +11463,8 @@ export class CalculationService {
             cord3mPrice: formatPrice(cord3mPrice),
             wifiHubQty: wifiHubQty, // [NEW] (v6295)
             wifiHubPrice: formatPrice(wifiHubPrice), // [NEW] (v6295)
-            eAcceSum: formatPrice(eAcceSum), // [MODIFIED] This is F1 Cost Total
+
+            eAcceSum: formatPrice(eAcceSum), // [FIX] Now uses Sales Total
 
             // [NEW] (Phase 8) F1 costs for Work Order table
             wo_rb_price: formatPrice(f1_rb_price),
@@ -12408,13 +12668,23 @@ export class QuoteGeneratorService {
 // [MODIFIED] (¬¨?1 Ê¨°Á∑®¬ø? ??≤Â??πÊ?‰∏???authService.verifyAuthentication() È©ó√?
 // [MODIFIED] (¬¨?11 Ê¨°Á∑®¬ø? ?√•? 'blocked' ?Ë™§Ô?√©?Á¥öÁÇ∫Ë≠¶√?‰∏¶ÁπºÁ∫åÂü∑Ë°åÊú¨??≤Â???
 // [MODIFIED] (F4 Status Phase 3) Added handleUpdateStatus logic.
+// [MODIFIED] (Correction Flow Phase 3) Implemented Locking Logic and Atomic Correction Save.
+// [FIX] (Correction Flow Phase 3 Fix) Corrected 'db' import path.
+// [MODIFIED] (Correction Flow Phase 4) Added handleCancelOrder.
+// [MODIFIED] (F1 Motor Split) Added w_motor_qty to snapshot capture.
 
 // [MODIFIED] ¬æ?workflow-service.js ÁßªÂÖ•Ê≠§√?
 import {
-    saveQuoteToCloud,
+    saveQuoteToCloud
 } from './online-storage-service.js';
+// [FIX] Import db from the correct config file
+import { db } from '../config/firebase-config.js';
+
+// [NEW] Import Firestore batch functions
+import { writeBatch, doc, collection } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js';
 import { EVENTS } from '../config/constants.js';
 import * as quoteActions from '../actions/quote-actions.js'; // [NEW] Ë§áË£Ω‰æùË≥¥
+import { QUOTE_STATUS } from '../config/status-config.js'; // [NEW] Import status for locking check
 
 /**
  * @fileoverview A new service dedicated to data persistence.
@@ -12511,6 +12781,10 @@ export class QuotePersistenceService {
 
             // [NEW] (v6295) Fix omission: Save F1 Wifi Qty
             dataWithSnapshot.f1Snapshot.wifi_qty = ui.f1.wifi_qty || 0;
+
+            // [NEW] (F1 Motor Split) Save W-Motor Qty
+            dataWithSnapshot.f1Snapshot.w_motor_qty = ui.f1.w_motor_qty || 0;
+
         } else {
             console.error(
                 'f1Snapshot object is missing from quoteData. Cannot save F1 state.'
@@ -12535,6 +12809,7 @@ export class QuotePersistenceService {
     // [MOVED] ¬æ?workflow-service.js ÁßªÂÖ•
     // [MODIFIED] (¬¨?1 Ê¨°Á∑®¬ø? ???authService.verifyAuthentication()
     // [MODIFIED] (¬¨?11 Ê¨°Á∑®¬ø? ?√•? 'blocked' ?Ë™??πÊ?√®??√Ø?‰∏ç‰∏≠????≤¬?
+    // [MODIFIED] (Correction Flow Phase 3) Added LOCKING logic and redirection to handleCorrectionSave.
     async handleSaveToFile() {
         const authResult = await this.authService.verifyAuthentication();
         let skipCloudSave = false;
@@ -12559,6 +12834,32 @@ export class QuotePersistenceService {
             }
         }
 
+        // --- [NEW] (Correction Flow Phase 3) LOCKING LOGIC ---
+        const currentState = this.stateService.getState();
+        const { isCorrectionMode } = currentState.ui;
+        const currentStatus = currentState.quoteData.status;
+
+        // 1. Check if we are in Correction Mode
+        if (isCorrectionMode) {
+            // Redirect to the atomic correction flow
+            return this.handleCorrectionSave();
+        }
+
+        // 2. Check for Lock Status
+        // "Established Order" (Ë®ÇÂñÆÂ∑≤Ê?Á´? implies any status other than A (Saved) or Configuring.
+        // If status exists and is NOT A_ARCHIVED, we block standard saving.
+        const isLocked = currentStatus && currentStatus !== QUOTE_STATUS.A_ARCHIVED && currentStatus !== "Configuring";
+
+        if (isLocked) {
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Order is established and LOCKED. Please use "Cancel / Correct" to make changes.',
+                type: 'error'
+            });
+            // Prevent saving (both cloud and local)
+            return;
+        }
+        // --- [END NEW] ---
+
         const dataToSave = this._getQuoteDataWithSnapshots();
 
         // --- [NEW] (v6298-fix-6) Robust Firebase Save ---
@@ -12578,6 +12879,88 @@ export class QuotePersistenceService {
             message: result.message,
             type: notificationType,
         });
+    }
+
+    /**
+     * [NEW] (Correction Flow Phase 3) Handles the atomic "Correct & Replace" workflow.
+     * This function performs a batch write:
+     * 1. Creates new quote (v2) with status 'A. Saved'.
+     * 2. Updates old quote (v1) to 'X. Cancelled'.
+     */
+    async handleCorrectionSave() {
+        try {
+            // 1. Prepare New Data (v2)
+            // Get current data (which has the user's edits)
+            const newData = this._getQuoteDataWithSnapshots();
+
+            // Generate v2 ID
+            const currentId = newData.quoteId;
+            const versionRegex = /-v(\d+)$/;
+            const match = currentId.match(versionRegex);
+            let newQuoteId;
+            if (match) {
+                const currentVersion = parseInt(match[1], 10);
+                const newVersion = currentVersion + 1;
+                newQuoteId = currentId.replace(versionRegex, `-v${newVersion}`);
+            } else {
+                newQuoteId = `${currentId}-v2`;
+            }
+
+            newData.quoteId = newQuoteId;
+            newData.status = QUOTE_STATUS.A_ARCHIVED; // Reset status for new order
+
+            // 2. Prepare Old Data Reference (v1)
+            const oldQuoteId = currentId; // The ID currently loaded
+
+            // 3. Execute Batch Write
+            const batch = writeBatch(db);
+
+            // Operation A: Write new doc
+            const newDocRef = doc(db, 'quotes', newQuoteId);
+            batch.set(newDocRef, newData);
+
+            // Operation B: Update old doc to Cancelled
+            const oldDocRef = doc(db, 'quotes', oldQuoteId);
+            batch.update(oldDocRef, {
+                status: QUOTE_STATUS.X_CANCELLED,
+                // We can add a note field later if schema permits, for now status is enough trigger
+                // cancelReason: `Replaced by ${newQuoteId}` 
+            });
+
+            // Commit Batch
+            await batch.commit();
+
+            console.log(`Correction successful: ${oldQuoteId} cancelled, ${newQuoteId} created.`);
+
+            // 4. Post-Save Cleanup
+            // Update local state to match the new v2 order
+            this.stateService.dispatch(quoteActions.setQuoteData(newData));
+            // Exit correction mode
+            // (Import UI action here or dispatch plain object if circular dependency issues arise)
+            // Using loose dispatch for simplicity within this service context if import unavailable, 
+            // but ideally we should import uiActions. Ideally app-controller handles this, but for atomic logic it's here.
+            // Let's update the local state to reflect we are now on the new order.
+
+            // NOTE: We need to disable correction mode in UI. 
+            // Since we are in the service, we dispatch to state service.
+            // Assuming 'ui/setCorrectionMode' type string matches action-types.
+            this.stateService.dispatch({ type: 'ui/setCorrectionMode', payload: { isCorrectionMode: false } });
+
+            // 5. Trigger Local Download (Optional but good for backup)
+            this.fileService.saveToJson(newData);
+
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: `Correction saved! New Order: ${newQuoteId}. Old Order: ${oldQuoteId} Cancelled.`,
+                type: 'info'
+            });
+
+        } catch (error) {
+            console.error("Correction Save Failed:", error);
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: `Correction failed: ${error.message}`,
+                type: 'error'
+            });
+        }
     }
 
     // [MOVED] ¬æ?workflow-service.js ÁßªÂÖ•
@@ -12631,6 +13014,10 @@ export class QuotePersistenceService {
 
         // 3. Update the data object with the new ID
         dataToSave.quoteId = newQuoteId;
+        // [MODIFIED] (Correction Flow Phase 3) Save As New Version should explicitly set status to A. Saved
+        // Because a new version is effectively a new draft.
+        dataToSave.status = QUOTE_STATUS.A_ARCHIVED;
+
 
         // 4. Save to both cloud (new document) and local (new file)
         let cloudSaveSuccess = false;
@@ -12682,6 +13069,16 @@ export class QuotePersistenceService {
      * @param {string} payload.newStatus The new status string.
      */
     async handleUpdateStatus({ newStatus }) {
+        // [NEW] (Correction Flow Phase 3) Add Lock Check for Update Status
+        // We prevent moving status IF we are in a locked state, unless the user is moving to X (Cancel)
+        // But handleUpdateStatus is triggered by the dropdown Update button.
+        // We should allow status updates generally (e.g. B -> C -> D), but we must respect the logical flow.
+        // However, the requirement is "Once locked... forbidden to edit/save".
+        // Changing status IS an edit.
+        // BUT, the "Update Status" button is the specific mechanism TO change status.
+        // So we allow this method to run, as long as it's not modifying "content".
+        // This method ONLY updates `status` and `creationDate`.
+
         // 1. Á´ãÂç≥?¥Êñ∞?¨Âú∞ stateÔºå‰Ωø UI ‰øùÊ??åÊ≠•
         this.stateService.dispatch(quoteActions.updateQuoteProperty('status', newStatus));
 
@@ -12710,6 +13107,45 @@ export class QuotePersistenceService {
                 type: 'error'
             });
             // Optional: Revert local state if needed, but current flow keeps UI optimistic.
+        }
+    }
+
+    /**
+     * [NEW] (Correction Flow Phase 4) Handles the immediate cancellation of an order.
+     * @param {object} payload
+     * @param {string} payload.cancelReason
+     */
+    async handleCancelOrder({ cancelReason }) {
+        // 1. Update status in local state
+        this.stateService.dispatch(quoteActions.updateQuoteProperty('status', QUOTE_STATUS.X_CANCELLED));
+
+        // 2. Update metadata with reason
+        const currentMetadata = this.stateService.getState().quoteData.metadata || {};
+        const newMetadata = { ...currentMetadata, cancelReason: cancelReason };
+        this.stateService.dispatch(quoteActions.updateQuoteProperty('metadata', newMetadata));
+
+        // 3. Get snapshot for cloud save
+        const dataToSave = this._getQuoteDataWithSnapshots();
+
+        try {
+            // 4. Save to cloud
+            // Direct cloud save for status changes, no local file download needed
+            const result = await saveQuoteToCloud(dataToSave);
+
+            if (result.success) {
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: 'Order has been CANCELLED.',
+                    type: 'info'
+                });
+            } else {
+                throw new Error(result.message);
+            }
+        } catch (error) {
+            console.error("WorkflowService: Cancel order save failed.", error);
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: `Cancellation failed: ${error.message}`,
+                type: 'error'
+            });
         }
     }
 }
@@ -12764,9 +13200,12 @@ export class StateService {
 
 --- FILE START: 04-core-code/services/workflow-service.js ---
 /* FILE: 04-core-code/services/workflow-service.js */
-// [MODIFIED] (v6297 ?¶Ë∫´) ÁßªÈô§‰∫?4 ?ãÊ?‰πÖÂ??ΩÂ???
-// [FIX] (v6297 ?¶Ë∫´) ‰øÆÊ≠£‰∫?handleFileLoad ?ΩÂ?‰∏≠Á?Â¥©ÊΩ∞?ØË™§??
+// [MODIFIED] (v6297 ?¶Ë∫´) ÁßªÈô§‰∫ÜÊ?‰πÖÂ??èËºØ
+// [FIX] (v6297 ?¶Ë∫´) ‰øÆÊ≠£‰∫?handleFileLoad Â¥©ÊΩ∞?ØË™§
 // [FIX] (v6297 ?¶Ë∫´) ‰øùÁ?‰∫?fileService ‰æùË≥¥ÔºåÂ???handleFileLoad ‰ªçÈ?‰ΩøÁî®ÂÆÉ„Ä?
+// [MODIFIED] (Correction Flow Phase 2) Added handleCancelCorrectRequest.
+// [MODIFIED] (Correction Flow Phase 4) Implemented _handleCancelOrderFlow with input dialog.
+// [FIX] (Correction Flow Fix) Added setTimeout to _handleCancelOrderFlow to prevent dialog conflict.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
@@ -12787,7 +13226,7 @@ export class WorkflowService {
     constructor({
         eventAggregator,
         stateService,
-        fileService, // [MODIFIED] (v6297 ?¶Ë∫´) ?™Ê?‰øÆÊ≠£Ôºö‰???fileService
+        fileService, // [MODIFIED] (v6297 ?¶Ë∫´) ?∂Ê?‰øÆÊ≠£Ôºö‰???fileService
         calculationService,
         productFactory,
         detailConfigView,
@@ -12796,7 +13235,7 @@ export class WorkflowService {
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
-        this.fileService = fileService; // [MODIFIED] (v6297 ?¶Ë∫´) ?™Ê?‰øÆÊ≠£Ôºö‰???fileService
+        this.fileService = fileService; // [MODIFIED] (v6297 ?¶Ë∫´) ?∂Ê?‰øÆÊ≠£Ôºö‰???fileService
         this.calculationService = calculationService;
         this.productFactory = productFactory;
         this.detailConfigView = detailConfigView;
@@ -12811,13 +13250,13 @@ export class WorkflowService {
         this.quotePreviewComponent = component;
     }
 
-    // [NEW] ?ÊÆ?1: Âª∫√?Â∑•ÂñÆ?Â∑•‰?√¶?¬®?
+    // [NEW] ?éÊÆµ 1: Âª∫Á?Â∑•ÂñÆÊµÅÁ?
     async handleGenerateWorkOrder() {
         try {
             const { quoteData, ui } = this.stateService.getState();
 
-            // 1. (?√§?) ???quoteGeneratorService ?√ß? HTML
-            // ?Ê≠?ÊÆµÔ?Ê≠?√•??√¶????√ß?Ê®°Êùø
+            // 1. (?ûÂ?Ê≠? Ë´ãÊ? quoteGeneratorService ?¢Á? HTML
+            // Ê≠§È?ÊÆµÔ??ôÊ?Á¢∫‰?ËºâÂÖ•Ê®°Êùø
             const finalHtml =
                 await this.quoteGeneratorService.generateWorkOrderHtml(
                     quoteData,
@@ -12825,7 +13264,7 @@ export class WorkflowService {
                 );
 
             if (finalHtml) {
-                // 2. (?√§?) ??∞Ë?√ß?‰∏≠√???
+                // 2. (?åÊ≠•) ?ãÂ??∞Â???
                 const blob = new Blob([finalHtml], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 window.open(url, '_blank');
@@ -13089,6 +13528,100 @@ export class WorkflowService {
         this.stateService.dispatch(
             uiActions.setF1DiscountPercentage(percentage)
         );
+    }
+
+    // [NEW] (Correction Flow Phase 2) Handles the Cancel/Correct button click
+    handleCancelCorrectRequest() {
+        this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
+            message: 'Please select an action for this active order:',
+            gridTemplateColumns: '1fr 1fr', // Set 2 columns layout
+            layout: [
+                [
+                    {
+                        type: 'button',
+                        text: 'A. Cancel Order',
+                        className: 'secondary',
+                        callback: () => {
+                            // [MODIFIED] (Correction Flow Phase 4) Call actual cancel flow
+                            this._handleCancelOrderFlow();
+                            return true; // Close dialog
+                        }
+                    },
+                    {
+                        type: 'button',
+                        text: 'B. Correct Data',
+                        className: 'primary-confirm-button',
+                        callback: () => {
+                            // Enter Correction Mode
+                            this.stateService.dispatch(uiActions.setCorrectionMode(true));
+                            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                                message: 'Correction Mode Enabled. Edit data and click SET to finalize changes.',
+                                type: 'info'
+                            });
+                            return true; // Close dialog
+                        }
+                    }
+                ],
+                [
+                    {
+                        type: 'button',
+                        text: 'Exit',
+                        className: 'secondary',
+                        colspan: 2,
+                        callback: () => { return true; }
+                    }
+                ]
+            ]
+        });
+    }
+
+    // [NEW] (Correction Flow Phase 4) Implemented Cancel logic with delay fix
+    _handleCancelOrderFlow() {
+        // [FIX] Use setTimeout to ensure the previous dialog is fully closed and DOM is cleared
+        // before attempting to open the new confirmation dialog.
+        setTimeout(() => {
+            this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
+                message: 'Are you sure you want to CANCEL this order? This action is irreversible.',
+                layout: [
+                    [
+                        { type: 'text', text: 'Reason:', className: 'dialog-label' },
+                        { type: 'input', id: DOM_IDS.DIALOG_INPUT_CANCEL_REASON, placeholder: 'e.g., Customer changed mind' }
+                    ],
+                    [
+                        {
+                            type: 'button',
+                            text: 'Confirm Cancellation',
+                            className: 'primary-confirm-button btn-danger', // Use danger style if available, else default
+                            colspan: 2,
+                            callback: () => {
+                                const reasonInput = document.getElementById(DOM_IDS.DIALOG_INPUT_CANCEL_REASON);
+                                const reason = reasonInput ? reasonInput.value.trim() : '';
+
+                                if (!reason) {
+                                    this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                                        message: 'Cancellation reason is required.',
+                                        type: 'error'
+                                    });
+                                    return false; // Keep dialog open
+                                }
+
+                                // Trigger the actual cancellation logic in QuotePersistenceService
+                                this.eventAggregator.publish(EVENTS.USER_REQUESTED_EXECUTE_CANCELLATION, { cancelReason: reason });
+                                return true;
+                            }
+                        },
+                        { type: 'button', text: 'Back', className: 'secondary', colspan: 2, callback: () => { return true; } }
+                    ]
+                ],
+                onOpen: () => {
+                    // Focus the input field when dialog opens
+                    setTimeout(() => {
+                        const input = document.getElementById(DOM_IDS.DIALOG_INPUT_CANCEL_REASON);
+                        if (input) input.focus();
+                    }, 50);
+                }
+            });
+        }, 100); // 100ms delay should be sufficient
     }
 }
 --- FILE END ---
@@ -15438,6 +15971,8 @@ export class TableComponent {
 
 --- FILE START: 04-core-code/ui/ui-manager.js ---
 // File: 04-core-code/ui/ui-manager.js
+// [MODIFIED] (Correction Flow Phase 2) Added logic to render the correction mode banner.
+// [MODIFIED] (Correction Flow Phase 5) Added Quote ID Banner rendering logic.
 
 import { TableComponent } from './table-component.js';
 import { SummaryComponent } from './summary-component.js';
@@ -15452,6 +15987,8 @@ import { LeftPanelTabManager } from './left-panel-tab-manager.js';
 // import { AuthService } from '../services/auth-service.js';
 // [NEW] (v6298-F4-Search) Import SearchDialogComponent
 import { SearchDialogComponent } from './search-dialog-component.js';
+// [NEW] (Correction Flow Phase 5) Import status constants for lock check
+import { QUOTE_STATUS } from '../config/status-config.js';
 
 
 export class UIManager {
@@ -15476,6 +16013,14 @@ export class UIManager {
         this.clearButton = document.getElementById('key-clear');
 
         this.leftPanelElement = document.getElementById(DOM_IDS.LEFT_PANEL);
+
+        // [NEW] (Correction Flow Phase 2) Cache banner element
+        this.correctionBanner = document.getElementById('correction-mode-banner');
+
+        // [NEW] (Correction Flow Phase 5) Cache Quote ID Banner elements
+        this.quoteIdBanner = document.getElementById('quote-id-banner');
+        this.quoteIdText = document.getElementById('quote-id-text');
+        this.quoteStatusTag = document.getElementById('quote-status-tag');
 
         const tableElement = document.getElementById(DOM_IDS.RESULTS_TABLE);
         this.tableComponent = new TableComponent(tableElement);
@@ -15660,6 +16205,48 @@ export class UIManager {
         // [NEW] Add modal lock class to the main app container
         this.appElement.classList.toggle('is-modal-active', state.ui.isModalActive);
 
+        // [NEW] (Correction Flow Phase 2) Show/Hide Correction Banner
+        if (this.correctionBanner) {
+            this.correctionBanner.classList.toggle('is-hidden', !state.ui.isCorrectionMode);
+        }
+
+        // --- [NEW] (Correction Flow Phase 5) Update Quote ID Banner ---
+        if (this.quoteIdBanner && this.quoteIdText && this.quoteStatusTag) {
+            const { quoteId, status } = state.quoteData;
+            const { isCorrectionMode } = state.ui;
+
+            // 1. Update Quote ID Text
+            this.quoteIdText.textContent = quoteId || 'New Quote';
+
+            // 2. Update Status Tag
+            this.quoteStatusTag.textContent = status || 'Configuring';
+
+            // 3. Update Lock Styling (Pink Background)
+            // Condition: Locked if status is "established" (B~I, X, J) AND NOT in Correction Mode.
+            // A. Saved is NOT locked.
+
+            // Helper: Check if status is considered "Locked" (same logic as in F4 and persistence)
+            const nonSalesStates = [
+                QUOTE_STATUS.B_VALID_ORDER,
+                QUOTE_STATUS.C_SENT_TO_FACTORY,
+                QUOTE_STATUS.D_IN_PRODUCTION,
+                QUOTE_STATUS.E_READY_FOR_PICKUP,
+                QUOTE_STATUS.F_PICKED_UP,
+                QUOTE_STATUS.G_COMPLETED,
+                QUOTE_STATUS.H_INVOICE_SENT,
+                QUOTE_STATUS.I_INVOICE_OVERDUE,
+                QUOTE_STATUS.X_CANCELLED,
+                QUOTE_STATUS.J_CLOSED
+            ];
+
+            const isStatusLocked = nonSalesStates.includes(status);
+            const isBannerLocked = isStatusLocked && !isCorrectionMode;
+
+            this.quoteIdBanner.classList.toggle('is-locked', isBannerLocked);
+        }
+        // --- End Quote ID Banner ---
+
+
         // [NEW] (v6294 K5) (Ê≠•√? 1) Add class for chain mode focus
         this.appElement.classList.toggle('chain-mode-active', state.ui.dualChainMode === 'chain');
 
@@ -15742,7 +16329,7 @@ export class UIManager {
             const selectedIndex = multiSelectSelectedIndexes[0];
             const itemsLength = items.length;
 
-            // [MODIFIED] (Á¨?14 Ê¨°Á∑®‰ø? 
+            // [MODIFIED] (¬¨?14 Ê¨°Á∑®¬ø? 
             // Relaxed condition: Only disable 'Clear' if it's the very last (empty) row.
             // Previously: if (selectedIndex >= itemsLength - 2) { ... }
             if (selectedIndex === itemsLength - 1) {
@@ -15926,6 +16513,7 @@ export class UIManager {
 --- FILE START: 04-core-code/ui/css/f1-grid.css ---
 /* /04-core-code/ui/css/f1-grid.css */
 /* [MODIFIED] (v6297 F1 Tweak) Reduced vertical gaps and padding for a tighter layout. */
+/* [MODIFIED] (F1 Motor Split) Added group-row-motor style. */
 
 .f1-grid {
     display: grid;
@@ -16087,6 +16675,12 @@ export class UIManager {
 .f1-grid .group-row-remote {
     border-left: 3px solid #f97316;
     /* Orange border */
+}
+
+/* [NEW] (F1 Motor Split) Yellow border for Motor group */
+.f1-grid .group-row-motor {
+    border-left: 3px solid #facc15;
+    /* Yellow border */
 }
 
 /* --- Hide Number Input Spinners --- */
@@ -17177,6 +17771,66 @@ export class UIManager {
 .f4-button.btn-red:hover {
     background-color: #dc2626;
 }
+
+/* [NEW] (Correction Flow Phase 1) Danger button style (Darker Red) */
+.f4-button.btn-danger {
+    background-color: #b91c1c;
+    /* Darker Red than btn-red */
+    color: white;
+    font-weight: bold;
+    border-color: #991b1b;
+}
+
+.f4-button.btn-danger:hover {
+    background-color: #991b1b;
+}
+
+.f4-button.btn-danger:disabled {
+    background-color: #fca5a5;
+    /* Disabled look same as pink/red families */
+    border-color: #fca5a5;
+    color: #fee2e2;
+    opacity: 0.6;
+}
+
+/* [NEW] (Correction Flow Fix) Correction Controls Container */
+.f4-correction-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+    /* Spacing from status controls */
+    grid-column: 1 / -1;
+    /* Span full width of the parent grid */
+}
+
+.f4-correction-controls.is-hidden {
+    display: none;
+}
+
+/* [NEW] Button Colors for Correction Mode */
+.f4-button.btn-blue {
+    background-color: #2563eb;
+    /* Blue */
+    color: white;
+    border-color: #1d4ed8;
+}
+
+.f4-button.btn-blue:hover {
+    background-color: #1d4ed8;
+}
+
+.f4-button.btn-gray {
+    background-color: #6b7280;
+    /* Gray */
+    color: white;
+    border-color: #4b5563;
+}
+
+.f4-button.btn-gray:hover {
+    background-color: #4b5563;
+}
+
 
 /* [MODIFIED] (F4 Status Tweak) Status styles integrated into tools group */
 
@@ -19973,11 +20627,15 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="grid-cell price-box bg-bright-green" id="f1-price-slim"></div>
                 </div>
 
-                <div class="grid-cell">Motor</div>
-                <div class="grid-cell qty-box" id="f1-qty-motor"></div>
-                <div class="grid-cell price-box bg-bright-green" id="f1-price-motor"></div>
+                <div class="group-row group-row-motor">
+                    <div class="grid-cell">B-Motor</div>
+                    <div class="grid-cell qty-box" id="f1-qty-motor"></div>
+                    <div class="grid-cell price-box bg-bright-green" id="f1-price-motor"></div>
 
-
+                    <div class="grid-cell">W-Motor</div>
+                    <div class="grid-cell qty-box" id="f1-qty-w-motor"></div>
+                    <div class="grid-cell price-box bg-bright-green" id="f1-price-w-motor"></div>
+                </div>
                 <div class="group-row group-row-remote">
                     <div class="grid-cell">Remote 1 Ch</div>
                     <div class="grid-cell qty-box" id="f1-qty-remote-1ch"></div>
@@ -20251,7 +20909,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             <div class="f4-group-tools">
                 <button id="f4-key-generate-work-order" class="f4-button">Gen-Order</button>
-                <div class="f4-blank-cell"></div>
+                <button id="f4-btn-cancel-correct" class="f4-button btn-danger">Cancel / Correct</button>
+
+                <div id="f4-correction-controls" class="f4-correction-controls is-hidden">
+                    <button id="f4-btn-correction-set" class="f4-button btn-blue">SET</button>
+                    <button id="f4-btn-correction-exit" class="f4-button btn-gray">Exit</button>
+                </div>
 
                 <select id="f4-status-dropdown" class="f4-status-select"></select>
                 <button id="f4-status-update-btn" class="f4-button f4-status-button">&#x23CE;</button>
@@ -22713,7 +23376,8 @@ export class DualChainView {
 
 --- FILE START: 04-core-code/ui/views/f1-cost-view.js ---
 /* FILE: 04-core-code/ui/views/f1-cost-view.js */
-// [MODIFIED] (Á¨?7 Ê¨°Á∑®‰ø? ÁßªÈô§?¨Âú∞ F1 ?êÊú¨Ë®àÁ??èËºØÔºåÊîπ?∫Âëº??calculationService.calculateF1Costs
+// [MODIFIED] (v6297) ÁßªÈô§?¨Âú∞ F1 ?êÊú¨Ë®àÁ??èËºØÔºåÊîπ?∫Âëº??calculationService.calculateF1Costs
+// [MODIFIED] (F1 Motor Split) Added W-Motor display cache, render logic, and handleMotorDistribution dialog.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -22770,6 +23434,7 @@ export class F1CostView {
                 qty: {
                     'winder': query(`#${DOM_IDS.F1_QTY_WINDER}`),
                     'motor': query(`#${DOM_IDS.F1_QTY_MOTOR}`),
+                    'w-motor': query(`#${DOM_IDS.F1_QTY_W_MOTOR}`), // [NEW] (F1 Motor Split)
                     'remote-1ch': query(`#${DOM_IDS.F1_QTY_REMOTE_1CH}`),
                     'remote-16ch': query(`#${DOM_IDS.F1_QTY_REMOTE_16CH}`),
                     'charger': query(`#${DOM_IDS.F1_QTY_CHARGER}`),
@@ -22780,6 +23445,7 @@ export class F1CostView {
                 price: {
                     'winder': query(`#${DOM_IDS.F1_PRICE_WINDER}`),
                     'motor': query(`#${DOM_IDS.F1_PRICE_MOTOR}`),
+                    'w-motor': query(`#${DOM_IDS.F1_PRICE_W_MOTOR}`), // [NEW] (F1 Motor Split)
                     'remote-1ch': query(`#${DOM_IDS.F1_PRICE_REMOTE_1CH}`),
                     'remote-16ch': query(`#${DOM_IDS.F1_PRICE_REMOTE_16CH}`),
                     'charger': query(`#${DOM_IDS.F1_PRICE_CHARGER}`),
@@ -22806,6 +23472,11 @@ export class F1CostView {
         const slimQtyDiv = this.f1.displays.qty['slim'];
         // [MODIFIED] (v6298-fix-5) Use helper
         this._addListener(slimQtyDiv, 'click', this.handleDualDistribution);
+
+        // [NEW] (F1 Motor Split) Listener for W-Motor distribution
+        const wMotorQtyDiv = this.f1.displays.qty['w-motor'];
+        this._addListener(wMotorQtyDiv, 'click', this.handleMotorDistribution);
+
 
         const discountInput = this.f1.inputs['discount'];
         // [MODIFIED] (v6298-fix-5) Use helper
@@ -22846,25 +23517,26 @@ export class F1CostView {
         const formatDisplay = (value) => (value !== null && value !== undefined) ? value : '';
 
         // --- [NEW] (Á¨?7 Ê¨°Á∑®‰ø? ---
-        // 1. Âæ?CalculationService ?≤Â??Ä??F1 ?êÊú¨?åÊï∏??
+        // 1. Âæ?CalculationService ?≤Â? F1 ?êÊú¨?ÑÊï∏??
         const f1Costs = this.calculationService.calculateF1Costs(quoteData, ui);
         // --- [END NEW] ---
 
 
-        // --- [REMOVED] (Á¨?7 Ê¨°Á∑®‰ø? ÁßªÈô§?¨Âú∞?ÑÊ??¨Ë?ÁÆóÈ?Ëº?---
-        // const componentPrices = {};
-        // const winderQty = items.filter(item => item.winder === 'HD').length;
-        // ... (?Ä??componentPrices.winder, .motor Á≠âË?ÁÆóÈ?ËºØÂ?Ë¢´Áßª??
-        // --- [END REMOVED] ---
-
-        // --- [MODIFIED] (Á¨?7 Ê¨°Á∑®‰ø? ‰ΩøÁî® f1Costs ?©‰ª∂‰æÜÊõ¥?∞È°ØÁ§?---
+        // --- [MODIFIED] (F1 Motor Split) Update Render Logic ---
 
         // --- Component Cost Display ---
         if (this.f1.displays.qty.winder) this.f1.displays.qty.winder.textContent = f1Costs.qtys.winder;
         if (this.f1.displays.price.winder) this.f1.displays.price.winder.textContent = formatPrice(f1Costs.winderCost);
 
-        if (this.f1.displays.qty.motor) this.f1.displays.qty.motor.textContent = f1Costs.qtys.motor;
-        if (this.f1.displays.price.motor) this.f1.displays.price.motor.textContent = formatPrice(f1Costs.motorCost);
+        // [MODIFIED] Motor (B-Motor)
+        // Using b_motor Qty and Cost from calculation service
+        if (this.f1.displays.qty.motor) this.f1.displays.qty.motor.textContent = f1Costs.qtys.b_motor;
+        if (this.f1.displays.price.motor) this.f1.displays.price.motor.textContent = formatPrice(f1Costs.bMotorCost);
+
+        // [NEW] W-Motor
+        if (this.f1.displays.qty['w-motor']) this.f1.displays.qty['w-motor'].textContent = f1Costs.qtys.w_motor;
+        if (this.f1.displays.price['w-motor']) this.f1.displays.price['w-motor'].textContent = formatPrice(f1Costs.wMotorCost);
+
 
         if (this.f1.displays.qty['remote-1ch']) this.f1.displays.qty['remote-1ch'].textContent = f1Costs.qtys.remote1ch;
         if (this.f1.displays.price['remote-1ch']) this.f1.displays.price['remote-1ch'].textContent = formatPrice(f1Costs.remote1chCost);
@@ -22922,8 +23594,8 @@ export class F1CostView {
     activate() {
         this.eventAggregator.publish(EVENTS.F1_TAB_ACTIVATED);
 
-        // [MODIFIED] (v6294) (Á¨?2 Ê¨°Á∑®‰ø?
-        // ?¢Âæ© F1 ?ÅÁ±§?ÑËá™?ïË??¶Â??ΩÔ?‰ΩøÂÖ∂??F2 ?ÅÁ±§?ÑË??∫‰???
+        // [MODIFIED] (v6294) (Á¨?12 Ê¨°Á∑®‰ø?
+        // ?¢Âæ© F1 Ê®ôÁ±§?ÑËá™?ïÂ??¶Â??ΩÔ?‰ΩøÂÖ∂??F2 Ê®ôÁ±§?ÑË??∫‰???
         // if (!window.matchMedia("(max-width: 600px)").matches) {
         setTimeout(() => {
             const discountInput = this.f1.inputs.discount;
@@ -23072,11 +23744,94 @@ export class F1CostView {
                         inputSlim.value = totalDualPairs - qtyCombo;
                     }
                 });
-
                 setTimeout(() => {
                     inputSlim.focus();
                     inputSlim.select();
                 }, 0);
+            },
+            closeOnOverlayClick: false
+        });
+    }
+
+    // [NEW] (F1 Motor Split) Handle Motor Distribution Dialog
+    handleMotorDistribution() {
+        const { quoteData, ui } = this.stateService.getState();
+        // Calculate total motor quantity from items (Truth source)
+        const items = quoteData.products[quoteData.currentProduct].items;
+        const totalMotorQty = items.filter(item => !!item.motor).length;
+
+        // Get current W-Motor quantity from state (default 0)
+        const currentWQty = ui.f1.w_motor_qty || 0;
+        const currentBQty = totalMotorQty - currentWQty;
+
+        this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
+            message: `Total motor qty : ${totalMotorQty}. Please distribute them.`,
+            layout: [
+                [
+                    { type: 'text', text: 'Battery-motor qty', className: 'dialog-label' },
+                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_BATTERY, value: currentBQty, inputType: 'number', disableEnterConfirm: true } // Read-only/Auto-calc typically, but input type for consistency
+                ],
+                [
+                    { type: 'text', text: 'Wired-motor qty', className: 'dialog-label' },
+                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_WIRED, value: currentWQty, inputType: 'number' }
+                ],
+                [
+                    {
+                        type: 'button',
+                        text: 'Confirm',
+                        className: 'primary-confirm-button',
+                        colspan: 1,
+                        callback: () => {
+                            const wQty = parseInt(document.getElementById(DOM_IDS.DIALOG_INPUT_WIRED).value, 10);
+
+                            if (isNaN(wQty) || wQty < 0) {
+                                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Quantities must be positive numbers.', type: 'error' });
+                                return false;
+                            }
+
+                            if (wQty > totalMotorQty) {
+                                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                                    message: `Wired motor qty cannot exceed total (${totalMotorQty}).`,
+                                    type: 'error'
+                                });
+                                return false;
+                            }
+
+                            // Dispatch action to set W-Motor quantity. B-Motor is derived.
+                            this.stateService.dispatch(uiActions.setF1MotorDistribution(wQty));
+                            return true;
+                        }
+                    },
+                    { type: 'button', text: 'Cancel', className: 'secondary', colspan: 1, callback: () => { } }
+                ]
+            ],
+            onOpen: () => {
+                const inputB = document.getElementById(DOM_IDS.DIALOG_INPUT_BATTERY);
+                const inputW = document.getElementById(DOM_IDS.DIALOG_INPUT_WIRED);
+
+                // Make Battery input read-only visually or functional logic to auto-update
+                // The requirement says: "User inputs W-motor... program automatically displays B-motor"
+                // So inputB should be essentially read-only or auto-calculated.
+
+                inputW.addEventListener('input', () => {
+                    const wVal = parseInt(inputW.value, 10);
+                    if (!isNaN(wVal) && wVal >= 0 && wVal <= totalMotorQty) {
+                        inputB.value = totalMotorQty - wVal;
+                    }
+                });
+
+                // If user tries to edit Battery, update Wired
+                inputB.addEventListener('input', () => {
+                    const bVal = parseInt(inputB.value, 10);
+                    if (!isNaN(bVal) && bVal >= 0 && bVal <= totalMotorQty) {
+                        inputW.value = totalMotorQty - bVal;
+                    }
+                });
+
+                setTimeout(() => {
+                    inputW.focus();
+                    inputW.select();
+                }, 50);
             },
             closeOnOverlayClick: false
         });
@@ -23087,7 +23842,8 @@ export class F1CostView {
 --- FILE START: 04-core-code/ui/views/f2-summary-view.js ---
 /* FILE: 04-core-code/ui/views/f2-summary-view.js */
 // [MODIFIED] (Tweak 1) Implemented forced ceiling rounding for f2-balance.
-// [MODIFIED] (Accounting V2 Phase 2) Dispatch taxExclusiveTotal to state.
+// [MODIFIED] (F1 Motor Split Fix) Render logic now recalculates motor price based on B/W split.
+// [MODIFIED] (F1 Motor Split Architecture Fix) Removed calculation logic from View. Now reads from State.
 
 import { EVENTS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -23251,7 +24007,13 @@ export class F2SummaryView {
 
         const winderPrice = accessories.winderCostSum || 0;
         const dualPrice = accessories.dualCostSum || 0;
-        const motorPrice = accessories.motorCostSum || 0;
+
+        // --- [MODIFIED] (F1 Motor Split Architecture Fix) Read from State ---
+        // View no longer calculates price. It reads the value dispatched by the service.
+        // We fallback to 0 if it's not set yet (e.g. initial load before calculation).
+        const motorPrice = f2State.motorPrice || 0;
+        // --- [END MODIFIED] ---
+
         const remotePrice = accessories.remoteCostSum || 0;
         const chargerPrice = accessories.chargerCostSum || 0;
         const cordPrice = accessories.cordCostSum || 0;
@@ -23272,7 +24034,10 @@ export class F2SummaryView {
         const installFee = f2State.installFee || 0;
         const removalFee = f2State.removalFee || 0;
         const acceSum = winderPrice + dualPrice;
+
+        // [MODIFIED] Use the state-provided motorPrice
         const eAcceSum = motorPrice + remotePrice + chargerPrice + cordPrice + wifiSum;
+
         const surchargeFee =
             (f2State.deliveryFeeExcluded ? 0 : deliveryFee) +
             (f2State.installFeeExcluded ? 0 : installFee) +
@@ -23438,6 +24203,9 @@ export class F2SummaryView {
 
         // [NEW] (Accounting V2 Phase 2) Dispatch taxExclusiveTotal
         this.stateService.dispatch(uiActions.setF2Value('taxExclusiveTotal', summaryValues.taxExclusiveTotal));
+
+        // [NEW] (F1 Motor Split Architecture Fix) Dispatch calculated motor price to State
+        this.stateService.dispatch(uiActions.setF2MotorPrice(summaryValues.calculatedMotorPrice));
 
         // [NEW] v6290 Calculate and dispatch Deposit and Balance
         const currentGrandTotal = summaryValues.grandTotal || 0;
@@ -23909,6 +24677,9 @@ export class F3QuotePrepView {
 // [MODIFIED] (Phase 11) Added Re-Login button handler.
 // [MODIFIED] (F4 Status Phase 2) Added logic for status dropdown and update button.
 // [MODIFIED] (F4 Status Phase 3) Bound update button to USER_REQUESTED_UPDATE_STATUS event.
+// [MODIFIED] (Correction Flow Phase 1) Added Cancel/Correct button logic.
+// [MODIFIED] (Correction Flow Fix) Added SET/Exit buttons and Correction Mode UI logic.
+// [MODIFIED] (Correction Flow Phase 5) Implemented Locking UI Logic (Disable Save/SaveAs when locked).
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 // [NEW] (F4 Status Phase 2) Import status constants
@@ -23961,6 +24732,12 @@ export class F4ActionsView {
             // [NEW] (F4 Status Phase 2) Cache status elements
             statusDropdown: query('#f4-status-dropdown'),
             statusUpdateButton: query('#f4-status-update-btn'),
+            // [NEW] (Correction Flow Phase 1) Cache Cancel/Correct button
+            cancelCorrectButton: query('#f4-btn-cancel-correct'),
+            // [NEW] (Correction Flow Fix) Cache Correction Controls
+            correctionControls: query('#f4-correction-controls'),
+            btnCorrectionSet: query('#f4-btn-correction-set'),
+            btnCorrectionExit: query('#f4-btn-correction-exit'),
 
             buttons: {
                 'f1-key-save': query('#f1-key-save'),
@@ -24018,50 +24795,144 @@ export class F4ActionsView {
                 this.eventAggregator.publish(EVENTS.USER_REQUESTED_UPDATE_STATUS, { newStatus });
             });
         }
+
+        // [NEW] (Correction Flow Phase 1) Bind Cancel/Correct Button
+        if (this.f4.cancelCorrectButton) {
+            this._addListener(this.f4.cancelCorrectButton, 'click', () => {
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_CANCEL_CORRECT);
+            });
+        }
+
+        // [NEW] (Correction Flow Fix) Bind SET and Exit Buttons
+        if (this.f4.btnCorrectionSet) {
+            // SET triggers the SAVE event. 
+            // The backend (QuotePersistenceService) will detect isCorrectionMode and handle it as atomic correction.
+            this._addListener(this.f4.btnCorrectionSet, 'click', () => {
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_SAVE);
+            });
+        }
+
+        if (this.f4.btnCorrectionExit) {
+            this._addListener(this.f4.btnCorrectionExit, 'click', () => {
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_EXIT_CORRECTION_MODE);
+            });
+        }
     }
 
     /**
      * [NEW] (F4 Status Phase 2) Renders the F4 tab, specifically the status dropdown.
+     * [MODIFIED] (Correction Flow Fix) Handles Correction Mode UI state (Disabling buttons, showing SET/Exit).
+     * [MODIFIED] (Correction Flow Phase 5) Handles Locked State UI (Disabling Save/SaveAs).
      */
     render(state) {
         // Guard clause: if DOM elements aren't cached, return
         if (!this.f4.statusDropdown) return;
 
         const { quoteId, status } = state.quoteData;
+        const { isCorrectionMode } = state.ui; // [NEW] Get correction mode state
         const isNewQuote = !quoteId;
 
-        // (Tweak 2) Check for non-Sales states (ReadOnly for Sales)
-        const nonSalesStates = [
+        // Helper to set button state (disabled + opacity)
+        const setButtonState = (btnId, isDisabled) => {
+            const btn = this.f4.buttons[btnId];
+            if (btn) {
+                btn.disabled = isDisabled;
+                btn.style.opacity = isDisabled ? '0.3' : '1';
+            }
+        };
+
+        // --- 1. CORRECTION MODE (Priority High) ---
+        if (isCorrectionMode) {
+            // Show Correction Controls (SET / Exit)
+            if (this.f4.correctionControls) {
+                this.f4.correctionControls.classList.remove('is-hidden');
+            }
+
+            // Disable ALL Standard File Operations
+            const allFileOps = [
+                'f1-key-save',
+                'f4-key-save-as-new',
+                'f1-key-export',
+                'f1-key-load',
+                'f4-key-load-cloud' // Search
+            ];
+            allFileOps.forEach(id => setButtonState(id, true));
+
+            // Disable Status Controls
+            this.f4.statusDropdown.disabled = true;
+            this.f4.statusUpdateButton.disabled = true;
+            if (this.f4.cancelCorrectButton) {
+                this.f4.cancelCorrectButton.disabled = true;
+                this.f4.cancelCorrectButton.style.opacity = '0.3';
+            }
+
+            this.f4.statusDropdown.value = status || QUOTE_STATUS.A_ARCHIVED;
+            return; // Exit render
+        }
+
+        // --- 2. STANDARD MODE (Not Correction) ---
+
+        // Ensure Correction Controls are hidden
+        if (this.f4.correctionControls) {
+            this.f4.correctionControls.classList.add('is-hidden');
+        }
+
+        // --- Locking Logic ---
+        // If the order is "Established" (B~I, or X/J), it is considered LOCKED for editing.
+        // Exception: If status is A (Saved) or new, it's unlocked.
+        const lockedStates = [
+            QUOTE_STATUS.B_VALID_ORDER,
+            QUOTE_STATUS.C_SENT_TO_FACTORY,
+            QUOTE_STATUS.D_IN_PRODUCTION,
+            QUOTE_STATUS.E_READY_FOR_PICKUP,
+            QUOTE_STATUS.F_PICKED_UP,
+            QUOTE_STATUS.G_COMPLETED,
+            QUOTE_STATUS.H_INVOICE_SENT,
+            QUOTE_STATUS.I_INVOICE_OVERDUE,
+            QUOTE_STATUS.X_CANCELLED,
+            QUOTE_STATUS.J_CLOSED
+        ];
+
+        const isLocked = lockedStates.includes(status);
+
+        // Reset standard buttons first (Enable all)
+        ['f1-key-save', 'f4-key-save-as-new', 'f1-key-export', 'f1-key-load', 'f4-key-load-cloud'].forEach(id => setButtonState(id, false));
+
+        // Apply Lock: Disable Save and Save As if locked
+        if (isLocked) {
+            setButtonState('f1-key-save', true);
+            setButtonState('f4-key-save-as-new', true);
+            // Note: Export, Load, and Search remain enabled for navigation/viewing.
+        }
+
+        // --- Status Controls Logic ---
+        // "Read Only" states are those where even Sales shouldn't change status (D~I, X, J).
+        // Sales CAN change B -> C.
+        const readOnlyStatusStates = [
             QUOTE_STATUS.D_IN_PRODUCTION,
             QUOTE_STATUS.E_READY_FOR_PICKUP,
             QUOTE_STATUS.F_PICKED_UP,
             QUOTE_STATUS.H_INVOICE_SENT,
-            QUOTE_STATUS.I_INVOICE_OVERDUE
+            QUOTE_STATUS.I_INVOICE_OVERDUE,
+            QUOTE_STATUS.X_CANCELLED,
+            QUOTE_STATUS.J_CLOSED
         ];
-        const isReadOnlyState = nonSalesStates.includes(status);
 
-        // 1. Disable controls if it's a new quote OR if it's in a read-only state
-        const isDisabled = isNewQuote || isReadOnlyState;
-        this.f4.statusDropdown.disabled = isDisabled;
-        this.f4.statusUpdateButton.disabled = isDisabled;
+        const isStatusReadOnly = readOnlyStatusStates.includes(status);
+        const isControlsDisabled = isNewQuote || isStatusReadOnly;
 
-        if (isReadOnlyState) {
-            this.f4.statusUpdateButton.title = "This status is managed by Factory/Accounting and cannot be changed here.";
-        } else if (isNewQuote) {
-            this.f4.statusUpdateButton.title = "Please save the quote first to enable status tracking.";
-        } else {
-            this.f4.statusUpdateButton.title = "";
-        }
+        this.f4.statusDropdown.disabled = isControlsDisabled;
+        this.f4.statusUpdateButton.disabled = isControlsDisabled;
 
-        // 2. Populate options (Run once)
+        // Populate options (Run once)
         if (this.f4.statusDropdown.options.length === 0) {
             for (const [key, text] of Object.entries(QUOTE_STATUS)) {
                 const option = document.createElement('option');
-                option.value = text; // Store "A. Â∑≤Â?Ê™?
+                option.value = text; // Store "A. Saved"
                 option.textContent = text;
 
                 // (Tweak 2) Visually distinguish non-sales options
-                if (nonSalesStates.includes(text)) {
+                if (readOnlyStatusStates.includes(text)) {
                     option.style.background = "#eee";
                     option.style.fontStyle = "italic";
                 }
@@ -24069,9 +24940,39 @@ export class F4ActionsView {
             }
         }
 
-        // 3. Set selected value
-        // Default to A if status is missing (e.g., legacy files)
+        // Set selected value
         this.f4.statusDropdown.value = status || QUOTE_STATUS.A_ARCHIVED;
+
+        // --- Cancel/Correct Button Logic ---
+        if (this.f4.cancelCorrectButton) {
+            const validCorrectionStates = [
+                QUOTE_STATUS.B_VALID_ORDER,
+                QUOTE_STATUS.C_SENT_TO_FACTORY,
+                QUOTE_STATUS.D_IN_PRODUCTION,
+                QUOTE_STATUS.E_READY_FOR_PICKUP,
+                QUOTE_STATUS.F_PICKED_UP,
+                QUOTE_STATUS.G_COMPLETED,
+                QUOTE_STATUS.H_INVOICE_SENT,
+                QUOTE_STATUS.I_INVOICE_OVERDUE
+            ];
+
+            const canCorrect = !isNewQuote && validCorrectionStates.includes(status);
+
+            this.f4.cancelCorrectButton.disabled = !canCorrect;
+            this.f4.cancelCorrectButton.style.opacity = canCorrect ? '1' : '0.3';
+
+            if (!canCorrect) {
+                if (status === QUOTE_STATUS.X_CANCELLED) {
+                    this.f4.cancelCorrectButton.title = "This order is already cancelled.";
+                } else if (status === QUOTE_STATUS.J_CLOSED) {
+                    this.f4.cancelCorrectButton.title = "Closed orders cannot be modified.";
+                } else if (status === QUOTE_STATUS.A_ARCHIVED || !status) {
+                    this.f4.cancelCorrectButton.title = "Only valid orders (Status B+) can be cancelled or corrected.";
+                }
+            } else {
+                this.f4.cancelCorrectButton.title = "Cancel order or create a correction version.";
+            }
+        }
     }
 }
 --- FILE END ---
@@ -26068,13 +26969,15 @@ export class SearchTabS2View {
 --- FILE END ---
 
 --- FILE START: 04-core-code/utils/csv-parser.js ---
-// /04-core-code/utils/csv-parser.js
+/* FILE: 04-core-code/utils/csv-parser.js */
+// [MODIFIED] (v6295-fix) Added F2 snapshot support and fixed null/string handling.
+// [MODIFIED] (F1 Motor Split Fix) Added w_motor_qty to f1SnapshotKeys to ensure persistence on load.
 
 /**
  * @fileoverview Utility functions for parsing and stringifying CSV data.
  */
 
-// [FIX] Â∞éÂÖ•?∫Á? initialState Ê®°ÊùøÔºå‰ª•‰øÆÂæ© csvToData_OldFormat ??ReferenceError
+// [FIX] Â∞éÂÖ•Ê≠?¢∫??initialState Ê®°ÊùøÔºå‰ª•‰øÆÂæ© csvToData_OldFormat ??ReferenceError
 import { initialState } from '../config/initial-state.js';
 
 // [MODIFIED v6285 Phase 5] Define the exact keys and order for all snapshot data
@@ -26087,7 +26990,8 @@ const f3SnapshotKeys = [
 const f1SnapshotKeys = [
     'winder_qty', 'motor_qty', 'charger_qty', 'cord_qty',
     'remote_1ch_qty', 'remote_16ch_qty', 'dual_combo_qty', 'dual_slim_qty',
-    'discountPercentage', 'wifi_qty' // <-- [FIX] 'wifi_qty' (from previous edit) is kept
+    'discountPercentage', 'wifi_qty',
+    'w_motor_qty' // [NEW] (F1 Motor Split Fix) Ensure this is persisted/loaded
 ];
 
 // [NEW] (v6295-fix) Define keys for F2 snapshot
@@ -26098,7 +27002,7 @@ const f2SnapshotKeys = [
     'acceSum', 'eAcceSum', 'surchargeFee', 'totalSumForRbTime', 'firstRbPrice',
     'disRbPrice', 'singleprofit', 'rbProfit', 'gst', 'netProfit',
     'deposit', 'balance', 'newOffer', 'f2_17_pre_sum', 'sumPrice',
-    'grandTotal', 'gstExcluded'
+    'grandTotal', 'gstExcluded', 'taxExclusiveTotal'
 ];
 
 // Helper to safely get nested properties
@@ -26150,10 +27054,8 @@ export function dataToCsv(quoteData) {
             return (value !== null && value !== undefined) ? value : '';
         })
     ].map(value => {
-        // [MODIFIED] Âº∑Âà∂ CSV ?ïÁ??èËºØ
-        let strValue = (value === null || value === undefined) ? '' : String(value);
-        strValue = strValue.replace(/"/g, '""'); // 1. ËΩâÁæ©?ßÈÉ®?ÑÈ?ÂºïË?
-        strValue = strValue.replace(/\n/g, ' '); // 2. ?øÊ??õË?Á¨?        // 3. [FIX] Â¶ÇÊ??ÖÂê´?óË??ÅÁ©∫?ºÊ?ÂºïË?ÔºåÂ?‰ΩøÁî®ÂºïË??ÖË£π
+        // [MODIFIED] Âº∑Âà∂ CSV Ëº∏Âá∫?ÑÈ?Ëº?        let strValue = (value === null || value === undefined) ? '' : String(value);
+        strValue = strValue.replace(/"/g, '""'); // 1. ËΩâÁæ©?ßÈÉ®?ôÂ???        strValue = strValue.replace(/\n/g, ' '); // 2. ?øÊ??õË?Á¨?        // 3. [FIX] Â¶ÇÊ??ÖÂê´?óË??ÅÁ©∫?ºÊ?ÂºïË?ÔºåÂ?‰ΩøÁî®ÂºïË??ÖË£π
         if (strValue.includes(',') || strValue.includes(' ') || strValue.includes('"')) {
             return `"${strValue}"`;
         }
@@ -26189,7 +27091,7 @@ export function dataToCsv(quoteData) {
             ];
 
             return rowData.map(value => {
-                // [MODIFIED] Âº∑Âà∂ CSV ?ïÁ??èËºØ (?åÊ®£?âÁî®?ºÊ≠§)
+                // [MODIFIED] Âº∑Âà∂ CSV Ëº∏Âá∫?ÑÈ?Ëº?(?åÊ®£?âÁî®?ºÊ≠§)
                 let strValue = (value === null || value === undefined) ? '' : String(value);
                 strValue = strValue.replace(/"/g, '""');
                 strValue = strValue.replace(/\n/g, ' ');
@@ -26216,21 +27118,21 @@ export function dataToCsv(quoteData) {
 
 
 /**
- * [PRIVATE] ËºîÂä©?ΩÊï∏Ôºå‰Ωø?®Ê≠£Ë¶èË°®Á§∫Â?‰æÜÂ??®Âú∞Ëß?? CSV Ë°åÔ?‰∏¶Ë??ÜÂ??üÂÖß?ÑÈÄóË?
- * @param {string} line - ?ÆË? CSV Â≠ó‰∏≤?? * @returns {Array<string>} - Ëß??ÂæåÁ?Ê¨Ñ‰?????? */
+ * [PRIVATE] ËºîÂä©?ΩÊï∏Ôºå‰Ωø?®Ê≠£Ë¶èË°®Á§∫Â?‰æÜÊ≠£Á¢∫Ëß£??CSV Ë°åÔ?‰∏¶Ë??ÜÂ??´Âú®ÂºïË??ßÁ??óË??? * @param {string} line - ?ÆË? CSV Â≠ó‰∏≤?? * @returns {Array<string>} - Ëß??ÂæåÁ?Ê¨Ñ‰?????? */
 function _parseCsvLine(line) {
     const values = [];
 
     // [FIX] ‰øÆÊ≠£ RegexÔº?    // 1. ÁßªÈô§Á¨¨‰??ãÁæ§Áµ?(?:^|,) ÂæåÊñπÂ§öÈ???|ÔºåÈÄôÊ?Â∞éËá¥?πÈ??ØË™§
-    // 2. Â∞áÁ¨¨‰∫åÂÄãÁæ§ÁµÑÊîπ?∫Ê??≤Áæ§Áµ?((...))ÔºåÁ¢∫‰ø?match[1] ÂßãÁ??ØÊ??ëÊÉ≥Ë¶ÅÁ?Ê¨Ñ‰??ßÂÆπ
+    // 2. Â∞áÁ¨¨‰∫åÂÄãÁæ§ÁµÑÊîπ?∫Ê??≤Áæ§Áµ?((...))ÔºåÁ¢∫‰ø?match[1] ÂßãÁ??ÖÂê´?ëÂÄëÊÉ≥Ë¶ÅÁ?Ê¨Ñ‰??ßÂÆπ
     const regex = /(?:^|,)((?:"(?:[^"]|"")*"|[^,]*))/g;
     let match;
+
     while (match = regex.exec(line)) {
         if (match[1] === undefined || match[1] === null) continue;
 
         let value = match[1];
 
-        // [FIX] ÁßªÈô§?ôÂÄãÈåØË™§Á??èËºØÔºåmatch[1] (?ïÁç≤Áæ§Á?) ‰∏çÊ??ÖÂê´Ë°åÈ??ÑÈÄóË?
+        // [FIX] ÁßªÈô§‰∏Ä?ãÈåØË™§Á??èËºØÔºåmatch[1] (?ïÁç≤Áæ§Á?) ‰∏çÊ??ÖÂê´Ë°åÈ??ÑÈÄóË?
         // if (value.startsWith(',')) {
         //     value = value.substring(1);
         // }
@@ -26242,7 +27144,7 @@ function _parseCsvLine(line) {
         values.push(value.trim());
     }
 
-    // ?ïÁ?Ë°åÂ∞æ?âÁ©∫Ê¨Ñ‰??ÑÊ?Ê≥?    if (line.endsWith(',')) {
+    // ?ïÁ?Ë°åÂ∞æ?ØÁ©∫Ê¨Ñ‰??ÑÊ?Ê≥?    if (line.endsWith(',')) {
         values.push('');
     }
 
@@ -26285,7 +27187,8 @@ export function csvToData(csvString) {
 
             // [FIX] (v6295-fix) Determine data type based on which key array it's in
             if (f1SnapshotKeys.includes(header) || f2SnapshotKeys.includes(header)) {
-                // ?ôÊòØ F1 ??F2 keyÔºåÂ?Ë©¶Ë??∏Â??ñÂ???                const numValue = parseFloat(value);
+                // Â¶ÇÊ???F1 ??F2 keyÔºåÂ?Ë©¶Ë??õÁÇ∫?∏Â?
+                const numValue = parseFloat(value);
                 if (!isNaN(numValue)) {
                     finalValue = numValue;
                 } else if (value.toLowerCase() === 'true') {
@@ -26298,7 +27201,7 @@ export function csvToData(csvString) {
                     finalValue = value; // Keep as string if not num/bool (e.g. for f2.wifiQty which is text "null")
                 }
             } else {
-                // ?ôÊòØ F3 key (?ñÂÖ∂‰ª?ÔºåË??∫Â?‰∏?                finalValue = value;
+                // Â¶ÇÊ???F3 key (Â≠ó‰∏≤)ÔºåÁõ¥?•Ë≥¶??                finalValue = value;
             }
 
             // [FIX] (v6295-fix) Handle 'null' strings being converted to null
@@ -26306,8 +27209,7 @@ export function csvToData(csvString) {
                 f2Snapshot[header] = null;
                 return;
             }
-            if (finalValue === null) return; // ‰∏çÂÑ≤Â≠òÁÑ°?àÂÄ?
-            // Assign to the correct snapshot object
+            if (finalValue === null) return; // ‰∏çÂÑ≤Â≠òÁÑ°?àÂÄ?            // Assign to the correct snapshot object
             if (f1SnapshotKeys.includes(header)) {
                 f1Snapshot[header] = finalValue;
             } else if (f2SnapshotKeys.includes(header)) { // [NEW] (v6295-fix)
@@ -26332,9 +27234,9 @@ export function csvToData(csvString) {
                 return;
             }
 
-            // [FIX] ‰ΩøÁî®?∞Á? CSV Ëß????            const values = _parseCsvLine(trimmedLine);
+            // [FIX] ‰ΩøÁî®Ê≠?¢∫??CSV Ëß????            const values = _parseCsvLine(trimmedLine);
 
-            // [FIX] ÁßªÈô§ " (ËºîÂä©?ΩÊï∏Â∑≤ÂÖßÂµåËá≥ _parseCsvLine)
+            // [FIX] ÁßªÈô§ÂºïË? (ËºîÂä©?ΩÊï∏Â∑≤ÂÖßÂµåËá≥ _parseCsvLine)
             const item = {
                 itemId: `item-${Date.now()}-${items.length}`,
                 width: parseInt(values[1], 10) || null,

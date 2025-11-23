@@ -1,12 +1,13 @@
 /* FILE: 04-core-code/utils/csv-parser.js */
 // [MODIFIED] (v6295-fix) Added F2 snapshot support and fixed null/string handling.
 // [MODIFIED] (F1 Motor Split Fix) Added w_motor_qty to f1SnapshotKeys to ensure persistence on load.
+// [FIX] (CSV Export) Added sanitation for invisible unicode characters (e.g., U+202C) to prevent Excel parsing errors.
 
 /**
  * @fileoverview Utility functions for parsing and stringifying CSV data.
  */
 
-// [FIX] 導入正確的 initialState 模板，以修復 csvToData_OldFormat 的 ReferenceError
+// [FIX] х░ОхЕецн?в║??initialState цибцЭ┐я╝Мф╗еф┐ох╛й csvToData_OldFormat ??ReferenceError
 import { initialState } from '../config/initial-state.js';
 
 // [MODIFIED v6285 Phase 5] Define the exact keys and order for all snapshot data
@@ -56,6 +57,27 @@ export function dataToCsv(quoteData) {
 
     if (!productData || !productData.items) return "";
 
+    // --- [NEW] Helper: Sanitize and format value for CSV ---
+    const processCsvValue = (value) => {
+        let strValue = (value === null || value === undefined) ? '' : String(value);
+
+        // 1. Remove invisible Unicode control characters (e.g., U+202C from phone numbers)
+        // eslint-disable-next-line no-control-regex
+        strValue = strValue.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '');
+
+        // 2. Escape double quotes by doubling them
+        strValue = strValue.replace(/"/g, '""');
+
+        // 3. Replace newlines with spaces to keep row integrity
+        strValue = strValue.replace(/\n/g, ' ');
+
+        // 4. Quote the string if it contains special CSV characters
+        if (strValue.includes(',') || strValue.includes(' ') || strValue.includes('"')) {
+            return `"${strValue}"`;
+        }
+        return strValue;
+    };
+
     // --- [MODIFIED v6295-fix] Create Project Summary Header and Row (F1, F2, F3) ---
     const projectHeaders = [...f3SnapshotKeys, ...f1SnapshotKeys, ...f2SnapshotKeys];
 
@@ -82,17 +104,7 @@ export function dataToCsv(quoteData) {
             const value = f2Snapshot[key];
             return (value !== null && value !== undefined) ? value : '';
         })
-    ].map(value => {
-        // [MODIFIED] 強制 CSV 輸出的邏輯
-        let strValue = (value === null || value === undefined) ? '' : String(value);
-        strValue = strValue.replace(/"/g, '""'); // 1. 轉義內部雙引號
-        strValue = strValue.replace(/\n/g, ' '); // 2. 替換換行符
-        // 3. [FIX] 如果包含逗號、空格或引號，則使用引號包裹
-        if (strValue.includes(',') || strValue.includes(' ') || strValue.includes('"')) {
-            return `"${strValue}"`;
-        }
-        return strValue;
-    });
+    ].map(processCsvValue); // [FIX] Apply sanitation
 
     // --- Create Item Header and Rows ---
     const itemHeaders = [
@@ -122,17 +134,7 @@ export function dataToCsv(quoteData) {
                 lfModifiedRowIndexes.includes(index) ? 1 : 0
             ];
 
-            return rowData.map(value => {
-                // [MODIFIED] 強制 CSV 輸出的邏輯 (同樣應用於此)
-                let strValue = (value === null || value === undefined) ? '' : String(value);
-                strValue = strValue.replace(/"/g, '""');
-                strValue = strValue.replace(/\n/g, ' ');
-
-                if (strValue.includes(',') || strValue.includes(' ') || strValue.includes('"')) {
-                    return `"${strValue}"`;
-                }
-                return strValue;
-            }).join(',');
+            return rowData.map(processCsvValue).join(','); // [FIX] Apply sanitation
         }
         return null;
     }).filter(row => row !== null);
@@ -150,16 +152,16 @@ export function dataToCsv(quoteData) {
 
 
 /**
- * [PRIVATE] 輔助函數，使用正規表示式來正確解析 CSV 行，並處理包含在引號內的逗號。
- * @param {string} line - 單行 CSV 字串。
- * @returns {Array<string>} - 解析後的欄位陣列。
+ * [PRIVATE] ш╝ФхКй?╜цХ╕я╝Мф╜┐?ицнгшжПшбичд║х?ф╛Жцнгчв║шзг??CSV шбМя?ф╕жш??Жх??лхЬих╝Хш??зч??Чш???
+ * @param {string} line - ?ош? CSV хнЧф╕▓??
+ * @returns {Array<string>} - шз??х╛Мч?цмДф??????
  */
 function _parseCsvLine(line) {
     const values = [];
 
-    // [FIX] 修正 Regex：
-    // 1. 移除第一個群組 (?:^|,) 後方多餘的 |，這會導致匹配錯誤
-    // 2. 將第二個群組改為捕獲群組 ((...))，確保 match[1] 始終包含我們想要的欄位內容
+    // [FIX] ф┐оцнг Regexя╝?
+    // 1. чз╗щЩдчммф??Лч╛дч╡?(?:^|,) х╛МцЦ╣хдЪщ???|я╝МщАЩц?х░ОшЗ┤?╣щ??пшкд
+    // 2. х░Зчммф║МхАЛч╛дч╡ДцФ╣?║ц??▓ч╛дч╡?((...))я╝Мчв║ф┐?match[1] хзЛч??ЕхРл?СхАСцГ│шжБч?цмДф??зхо╣
     const regex = /(?:^|,)((?:"(?:[^"]|"")*"|[^,]*))/g;
     let match;
 
@@ -168,19 +170,19 @@ function _parseCsvLine(line) {
 
         let value = match[1];
 
-        // [FIX] 移除一個錯誤的邏輯，match[1] (捕獲群組) 不會包含行首的逗號
+        // [FIX] чз╗щЩдф╕А?ЛщМпшкдч??Пш╝пя╝Мmatch[1] (?ХчН▓ч╛дч?) ф╕Нц??ЕхРлшбМщ??ДщАЧш?
         // if (value.startsWith(',')) {
         //     value = value.substring(1);
         // }
 
-        // 移除引號並反轉義
+        // чз╗щЩдх╝Хш?ф╕жх?ш╜Йч╛й
         if (value.startsWith('"') && value.endsWith('"')) {
             value = value.substring(1, value.length - 1).replace(/""/g, '"');
         }
         values.push(value.trim());
     }
 
-    // 處理行尾是空欄位的情況
+    // ?Хч?шбМх░╛?пчй║цмДф??Дц?ц│?
     if (line.endsWith(',')) {
         values.push('');
     }
@@ -220,12 +222,12 @@ export function csvToData(csvString) {
 
         projectHeaders.forEach((header, index) => {
             const value = projectValues[index] || null;
-            if (value === null || value === '') return; // [MODIFIED] 檢查空值
+            if (value === null || value === '') return; // [MODIFIED] цквцЯечй║хА?
             let finalValue;
 
             // [FIX] (v6295-fix) Determine data type based on which key array it's in
             if (f1SnapshotKeys.includes(header) || f2SnapshotKeys.includes(header)) {
-                // 如果是 F1 或 F2 key，嘗試轉換為數字
+                // хжВц???F1 ??F2 keyя╝Мх?шйжш??ЫчВ║?╕х?
                 const numValue = parseFloat(value);
                 if (!isNaN(numValue)) {
                     finalValue = numValue;
@@ -239,7 +241,7 @@ export function csvToData(csvString) {
                     finalValue = value; // Keep as string if not num/bool (e.g. for f2.wifiQty which is text "null")
                 }
             } else {
-                // 如果是 F3 key (字串)，直接賦值
+                // хжВц???F3 key (хнЧф╕▓)я╝МчЫ┤?еш│ж??
                 finalValue = value;
             }
 
@@ -248,7 +250,8 @@ export function csvToData(csvString) {
                 f2Snapshot[header] = null;
                 return;
             }
-            if (finalValue === null) return; // 不儲存無效值
+            if (finalValue === null) return; // ф╕НхД▓хнШчДб?ИхА?
+
             // Assign to the correct snapshot object
             if (f1SnapshotKeys.includes(header)) {
                 f1Snapshot[header] = finalValue;
@@ -274,10 +277,11 @@ export function csvToData(csvString) {
                 return;
             }
 
-            // [FIX] 使用正確的 CSV 解析器
+            // [FIX] ф╜┐чФицн?в║??CSV шз????
             const values = _parseCsvLine(trimmedLine);
 
-            // [FIX] 移除引號 (輔助函數已內嵌至 _parseCsvLine)
+            // [FIX] чз╗щЩдх╝Хш? (ш╝ФхКй?╜цХ╕х╖▓хЕзх╡МшЗ│ _parseCsvLine)
+
             const item = {
                 itemId: `item-${Date.now()}-${items.length}`,
                 width: parseInt(values[1], 10) || null,
