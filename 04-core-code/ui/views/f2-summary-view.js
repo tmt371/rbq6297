@@ -1,6 +1,7 @@
 /* FILE: 04-core-code/ui/views/f2-summary-view.js */
 // [MODIFIED] (Tweak 1) Implemented forced ceiling rounding for f2-balance.
 // [MODIFIED] (F1 Motor Split Fix) Render logic now recalculates motor price based on B/W split.
+// [MODIFIED] (F1 Motor Split Architecture Fix) Removed calculation logic from View. Now reads from State.
 
 import { EVENTS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -157,8 +158,6 @@ export class F2SummaryView {
         const f2State = state.ui.f2;
         const productSummary = state.quoteData.products[state.quoteData.currentProduct]?.summary;
         const accessories = productSummary?.accessories || {};
-        // [NEW] Need items for motor calculation
-        const items = state.quoteData.products[state.quoteData.currentProduct]?.items || [];
 
         const formatIntegerCurrency = (value) => (typeof value === 'number') ? `$${value.toFixed(0)}` : '$';
         const formatDecimalCurrency = (value) => (typeof value === 'number') ? `$${value.toFixed(2)}` : '$';
@@ -167,16 +166,10 @@ export class F2SummaryView {
         const winderPrice = accessories.winderCostSum || 0;
         const dualPrice = accessories.dualCostSum || 0;
 
-        // --- [MODIFIED] (F1 Motor Split Fix) Recalculate Motor Price ---
-        // Don't rely on accessories.motorCostSum which K4 calculates blindly as $250/unit.
-        const totalMotorQty = items.filter(item => !!item.motor).length;
-        let wMotorQty = state.ui.f1.w_motor_qty || 0;
-        // Clamp W
-        if (wMotorQty > totalMotorQty) wMotorQty = totalMotorQty;
-        const bMotorQty = totalMotorQty - wMotorQty;
-
-        // Calculate: (B * 250) + (W * 200)
-        const motorPrice = (bMotorQty * 250) + (wMotorQty * 200);
+        // --- [MODIFIED] (F1 Motor Split Architecture Fix) Read from State ---
+        // View no longer calculates price. It reads the value dispatched by the service.
+        // We fallback to 0 if it's not set yet (e.g. initial load before calculation).
+        const motorPrice = f2State.motorPrice || 0;
         // --- [END MODIFIED] ---
 
         const remotePrice = accessories.remoteCostSum || 0;
@@ -186,7 +179,7 @@ export class F2SummaryView {
         // [MODIFIED] (v6298-fix-5) Add checks for element existence
         if (this.f2.b2_winderPrice) this.f2.b2_winderPrice.textContent = formatIntegerCurrency(winderPrice);
         if (this.f2.b3_dualPrice) this.f2.b3_dualPrice.textContent = formatIntegerCurrency(dualPrice);
-        if (this.f2.b6_motorPrice) this.f2.b6_motorPrice.textContent = formatIntegerCurrency(motorPrice); // [FIX] Uses local calc
+        if (this.f2.b6_motorPrice) this.f2.b6_motorPrice.textContent = formatIntegerCurrency(motorPrice);
         if (this.f2.b7_remotePrice) this.f2.b7_remotePrice.textContent = formatIntegerCurrency(remotePrice);
         if (this.f2.b8_chargerPrice) this.f2.b8_chargerPrice.textContent = formatIntegerCurrency(chargerPrice);
         if (this.f2.b9_cordPrice) this.f2.b9_cordPrice.textContent = formatIntegerCurrency(cordPrice);
@@ -200,7 +193,7 @@ export class F2SummaryView {
         const removalFee = f2State.removalFee || 0;
         const acceSum = winderPrice + dualPrice;
 
-        // [MODIFIED] Use the corrected motorPrice
+        // [MODIFIED] Use the state-provided motorPrice
         const eAcceSum = motorPrice + remotePrice + chargerPrice + cordPrice + wifiSum;
 
         const surchargeFee =
@@ -368,6 +361,9 @@ export class F2SummaryView {
 
         // [NEW] (Accounting V2 Phase 2) Dispatch taxExclusiveTotal
         this.stateService.dispatch(uiActions.setF2Value('taxExclusiveTotal', summaryValues.taxExclusiveTotal));
+
+        // [NEW] (F1 Motor Split Architecture Fix) Dispatch calculated motor price to State
+        this.stateService.dispatch(uiActions.setF2MotorPrice(summaryValues.calculatedMotorPrice));
 
         // [NEW] v6290 Calculate and dispatch Deposit and Balance
         const currentGrandTotal = summaryValues.grandTotal || 0;

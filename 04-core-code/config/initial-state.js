@@ -2,6 +2,7 @@
 // [MODIFIED] (F4 Status Phase 1) Import QUOTE_STATUS
 // [MODIFIED] (Correction Flow Phase 2) Added isCorrectionMode to UI state.
 // [MODIFIED] (F1 Motor Split) Added w_motor_qty to ui.f1 and f1Snapshot.
+// [MODIFIED] (F1 Motor Split Architecture Fix) Added motorPrice to ui.f2.
 
 import { QUOTE_STATUS } from './status-config.js';
 
@@ -75,7 +76,6 @@ export const initialState = {
             dual_combo_qty: null,
             dual_slim_qty: null,
             // [NEW] (F1 Motor Split) W-Motor (Wired) Quantity
-            // B-Motor is calculated dynamically: Total Motor (K4) - W-Motor
             w_motor_qty: null,
 
             // [NEW] (F1/F2 Refactor Phase 1) Add state to store F1 cost totals
@@ -109,7 +109,10 @@ export const initialState = {
             gstExcluded: false, // [NEW] (Phase 2)
 
             // [NEW] (Accounting V2 Phase 2) Store tax exclusive total for XERO
-            taxExclusiveTotal: null
+            taxExclusiveTotal: null,
+
+            // [NEW] (F1 Motor Split Architecture Fix) Store calculated motor price for display
+            motorPrice: null
         },
 
         // --- Global UI State ---

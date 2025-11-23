@@ -1,6 +1,7 @@
 // File: 04-core-code/actions/ui-actions.js
 // [MODIFIED] (Correction Flow Phase 2) Added setCorrectionMode.
 // [MODIFIED] (F1 Motor Split) Added setF1MotorDistribution.
+// [MODIFIED] (F1 Motor Split Architecture Fix) Added setF2MotorPrice helper.
 
 /**
  * @fileoverview Action creators for all UI-related state changes.
@@ -129,7 +130,7 @@ export const setDriveGrandTotal = (price) => ({
     payload: { price },
 });
 
-// --- [FIX] Add new action creators for K5 view ---
+// --- [FIX] Add new action types for K5 view ---
 export const setDualPrice = (price) => ({
     type: UI_ACTION_TYPES.SET_DUAL_PRICE,
     payload: { price },
@@ -210,6 +211,13 @@ export const setF1WifiQty = (quantity) => ({
 export const setF2Value = (key, value) => ({
     type: UI_ACTION_TYPES.SET_F2_VALUE,
     payload: { key, value },
+});
+
+// [NEW] (F1 Motor Split Architecture Fix) Helper action to specifically set motor price
+// Reuses the generic SET_F2_VALUE type but provides semantic clarity
+export const setF2MotorPrice = (price) => ({
+    type: UI_ACTION_TYPES.SET_F2_VALUE,
+    payload: { key: 'motorPrice', value: price },
 });
 
 export const toggleF2FeeExclusion = (feeType) => ({
