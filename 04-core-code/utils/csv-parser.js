@@ -1,10 +1,12 @@
-// /04-core-code/utils/csv-parser.js
+/* FILE: 04-core-code/utils/csv-parser.js */
+// [MODIFIED] (v6295-fix) Added F2 snapshot support and fixed null/string handling.
+// [MODIFIED] (F1 Motor Split Fix) Added w_motor_qty to f1SnapshotKeys to ensure persistence on load.
 
 /**
  * @fileoverview Utility functions for parsing and stringifying CSV data.
  */
 
-// [FIX] 導入基礎 initialState 模板，以修復 csvToData_OldFormat 的 ReferenceError
+// [FIX] 導入正確的 initialState 模板，以修復 csvToData_OldFormat 的 ReferenceError
 import { initialState } from '../config/initial-state.js';
 
 // [MODIFIED v6285 Phase 5] Define the exact keys and order for all snapshot data
@@ -17,7 +19,8 @@ const f3SnapshotKeys = [
 const f1SnapshotKeys = [
     'winder_qty', 'motor_qty', 'charger_qty', 'cord_qty',
     'remote_1ch_qty', 'remote_16ch_qty', 'dual_combo_qty', 'dual_slim_qty',
-    'discountPercentage', 'wifi_qty' // <-- [FIX] 'wifi_qty' (from previous edit) is kept
+    'discountPercentage', 'wifi_qty',
+    'w_motor_qty' // [NEW] (F1 Motor Split Fix) Ensure this is persisted/loaded
 ];
 
 // [NEW] (v6295-fix) Define keys for F2 snapshot
@@ -28,7 +31,7 @@ const f2SnapshotKeys = [
     'acceSum', 'eAcceSum', 'surchargeFee', 'totalSumForRbTime', 'firstRbPrice',
     'disRbPrice', 'singleprofit', 'rbProfit', 'gst', 'netProfit',
     'deposit', 'balance', 'newOffer', 'f2_17_pre_sum', 'sumPrice',
-    'grandTotal', 'gstExcluded'
+    'grandTotal', 'gstExcluded', 'taxExclusiveTotal'
 ];
 
 // Helper to safely get nested properties
@@ -80,9 +83,9 @@ export function dataToCsv(quoteData) {
             return (value !== null && value !== undefined) ? value : '';
         })
     ].map(value => {
-        // [MODIFIED] 強制 CSV 處理邏輯
+        // [MODIFIED] 強制 CSV 輸出的邏輯
         let strValue = (value === null || value === undefined) ? '' : String(value);
-        strValue = strValue.replace(/"/g, '""'); // 1. 轉義內部的雙引號
+        strValue = strValue.replace(/"/g, '""'); // 1. 轉義內部雙引號
         strValue = strValue.replace(/\n/g, ' '); // 2. 替換換行符
         // 3. [FIX] 如果包含逗號、空格或引號，則使用引號包裹
         if (strValue.includes(',') || strValue.includes(' ') || strValue.includes('"')) {
@@ -120,7 +123,7 @@ export function dataToCsv(quoteData) {
             ];
 
             return rowData.map(value => {
-                // [MODIFIED] 強制 CSV 處理邏輯 (同樣應用於此)
+                // [MODIFIED] 強制 CSV 輸出的邏輯 (同樣應用於此)
                 let strValue = (value === null || value === undefined) ? '' : String(value);
                 strValue = strValue.replace(/"/g, '""');
                 strValue = strValue.replace(/\n/g, ' ');
@@ -147,7 +150,7 @@ export function dataToCsv(quoteData) {
 
 
 /**
- * [PRIVATE] 輔助函數，使用正規表示式來安全地解析 CSV 行，並處理引號內的逗號
+ * [PRIVATE] 輔助函數，使用正規表示式來正確解析 CSV 行，並處理包含在引號內的逗號。
  * @param {string} line - 單行 CSV 字串。
  * @returns {Array<string>} - 解析後的欄位陣列。
  */
@@ -156,15 +159,16 @@ function _parseCsvLine(line) {
 
     // [FIX] 修正 Regex：
     // 1. 移除第一個群組 (?:^|,) 後方多餘的 |，這會導致匹配錯誤
-    // 2. 將第二個群組改為捕獲群組 ((...))，確保 match[1] 始終是我們想要的欄位內容
+    // 2. 將第二個群組改為捕獲群組 ((...))，確保 match[1] 始終包含我們想要的欄位內容
     const regex = /(?:^|,)((?:"(?:[^"]|"")*"|[^,]*))/g;
     let match;
+
     while (match = regex.exec(line)) {
         if (match[1] === undefined || match[1] === null) continue;
 
         let value = match[1];
 
-        // [FIX] 移除這個錯誤的邏輯，match[1] (捕獲群組) 不會包含行首的逗號
+        // [FIX] 移除一個錯誤的邏輯，match[1] (捕獲群組) 不會包含行首的逗號
         // if (value.startsWith(',')) {
         //     value = value.substring(1);
         // }
@@ -176,7 +180,7 @@ function _parseCsvLine(line) {
         values.push(value.trim());
     }
 
-    // 處理行尾有空欄位的情況
+    // 處理行尾是空欄位的情況
     if (line.endsWith(',')) {
         values.push('');
     }
@@ -221,7 +225,7 @@ export function csvToData(csvString) {
 
             // [FIX] (v6295-fix) Determine data type based on which key array it's in
             if (f1SnapshotKeys.includes(header) || f2SnapshotKeys.includes(header)) {
-                // 這是 F1 或 F2 key，嘗試轉數字或布林
+                // 如果是 F1 或 F2 key，嘗試轉換為數字
                 const numValue = parseFloat(value);
                 if (!isNaN(numValue)) {
                     finalValue = numValue;
@@ -235,7 +239,7 @@ export function csvToData(csvString) {
                     finalValue = value; // Keep as string if not num/bool (e.g. for f2.wifiQty which is text "null")
                 }
             } else {
-                // 這是 F3 key (或其他)，視為字串
+                // 如果是 F3 key (字串)，直接賦值
                 finalValue = value;
             }
 
@@ -245,7 +249,6 @@ export function csvToData(csvString) {
                 return;
             }
             if (finalValue === null) return; // 不儲存無效值
-
             // Assign to the correct snapshot object
             if (f1SnapshotKeys.includes(header)) {
                 f1Snapshot[header] = finalValue;
@@ -271,10 +274,10 @@ export function csvToData(csvString) {
                 return;
             }
 
-            // [FIX] 使用新的 CSV 解析器
+            // [FIX] 使用正確的 CSV 解析器
             const values = _parseCsvLine(trimmedLine);
 
-            // [FIX] 移除 " (輔助函數已內嵌至 _parseCsvLine)
+            // [FIX] 移除引號 (輔助函數已內嵌至 _parseCsvLine)
             const item = {
                 itemId: `item-${Date.now()}-${items.length}`,
                 width: parseInt(values[1], 10) || null,
