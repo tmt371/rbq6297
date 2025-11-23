@@ -1,5 +1,6 @@
 // File: 04-core-code/config/action-types.js
 // [MODIFIED] (Correction Flow Phase 2) Added SET_CORRECTION_MODE.
+// [MODIFIED] (F1 Motor Split) Added SET_F1_MOTOR_DISTRIBUTION.
 
 /**
  * @fileoverview Defines all action types for the strict state management pattern.
@@ -56,6 +57,9 @@ export const UI_ACTION_TYPES = {
     // F1 Financial Overview State
     SET_F1_REMOTE_DISTRIBUTION: 'ui/setF1RemoteDistribution',
     SET_F1_DUAL_DISTRIBUTION: 'ui/setF1DualDistribution',
+    // [NEW] (F1 Motor Split)
+    SET_F1_MOTOR_DISTRIBUTION: 'ui/setF1MotorDistribution',
+
     SET_F1_DISCOUNT_PERCENTAGE: 'ui/setF1DiscountPercentage',
     // [NEW] (F1/F2 Refactor Phase 1) Add action for F1 cost totals
     SET_F1_COST_TOTALS: 'ui/setF1CostTotals',

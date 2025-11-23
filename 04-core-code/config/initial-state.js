@@ -1,6 +1,7 @@
 /* FILE: 04-core-code/config/initial-state.js */
 // [MODIFIED] (F4 Status Phase 1) Import QUOTE_STATUS
 // [MODIFIED] (Correction Flow Phase 2) Added isCorrectionMode to UI state.
+// [MODIFIED] (F1 Motor Split) Added w_motor_qty to ui.f1 and f1Snapshot.
 
 import { QUOTE_STATUS } from './status-config.js';
 
@@ -73,6 +74,10 @@ export const initialState = {
             remote_16ch_qty: null,
             dual_combo_qty: null,
             dual_slim_qty: null,
+            // [NEW] (F1 Motor Split) W-Motor (Wired) Quantity
+            // B-Motor is calculated dynamically: Total Motor (K4) - W-Motor
+            w_motor_qty: null,
+
             // [NEW] (F1/F2 Refactor Phase 1) Add state to store F1 cost totals
             f1_subTotal: null,
             f1_finalTotal: null,
@@ -186,6 +191,9 @@ export const initialState = {
             remote_16ch_qty: null,
             dual_combo_qty: null,
             dual_slim_qty: null,
+            // [NEW] (F1 Motor Split) Snapshot W-Motor Qty
+            w_motor_qty: null,
+
             // Financial values (from ui.f1)
             discountPercentage: null,
             wifi_qty: null // [NEW] (v6295)

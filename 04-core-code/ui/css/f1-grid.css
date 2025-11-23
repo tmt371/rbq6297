@@ -1,5 +1,6 @@
 /* /04-core-code/ui/css/f1-grid.css */
 /* [MODIFIED] (v6297 F1 Tweak) Reduced vertical gaps and padding for a tighter layout. */
+/* [MODIFIED] (F1 Motor Split) Added group-row-motor style. */
 
 .f1-grid {
     display: grid;
@@ -161,6 +162,12 @@
 .f1-grid .group-row-remote {
     border-left: 3px solid #f97316;
     /* Orange border */
+}
+
+/* [NEW] (F1 Motor Split) Yellow border for Motor group */
+.f1-grid .group-row-motor {
+    border-left: 3px solid #facc15;
+    /* Yellow border */
 }
 
 /* --- Hide Number Input Spinners --- */

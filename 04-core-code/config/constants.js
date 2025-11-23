@@ -1,7 +1,7 @@
 /* FILE: 04-core-code/config/constants.js */
-// [MODIFIED] (Correction Flow Phase 1) Added USER_REQUESTED_CANCEL_CORRECT.
 // [MODIFIED] (Correction Flow Phase 4) Added USER_REQUESTED_EXECUTE_CANCELLATION.
 // [MODIFIED] (Correction Flow Fix) Added USER_REQUESTED_EXIT_CORRECTION_MODE.
+// [MODIFIED] (F1 Motor Split) Added W-Motor IDs and Dialog Inputs.
 
 /**
  * @fileoverview Centralized constants for the application.
@@ -105,6 +105,9 @@ export const EVENTS = {
     F1_DISCOUNT_CHANGED: 'f1DiscountChanged',
     USER_REQUESTED_REMOTE_DISTRIBUTION: 'userRequestedRemoteDistribution',
     USER_REQUESTED_DUAL_DISTRIBUTION: 'userRequestedDualDistribution',
+    // [NEW] (F1 Motor Split)
+    USER_REQUESTED_MOTOR_DISTRIBUTION: 'userRequestedMotorDistribution',
+
     F2_TAB_ACTIVATED: 'f2TabActivated',
     F2_VALUE_CHANGED: 'f2ValueChanged',
     F2_INPUT_ENTER_PRESSED: 'f2InputEnterPressed',
@@ -147,6 +150,10 @@ export const DOM_IDS = {
     F1_PRICE_WINDER: 'f1-price-winder',
     F1_QTY_MOTOR: 'f1-qty-motor',
     F1_PRICE_MOTOR: 'f1-price-motor',
+    // [NEW] (F1 Motor Split)
+    F1_QTY_W_MOTOR: 'f1-qty-w-motor',
+    F1_PRICE_W_MOTOR: 'f1-price-w-motor',
+
     F1_QTY_REMOTE_1CH: 'f1-qty-remote-1ch',
     F1_PRICE_REMOTE_1CH: 'f1-price-remote-1ch',
     F1_QTY_REMOTE_16CH: 'f1-qty-remote-16ch',
@@ -204,6 +211,9 @@ export const DOM_IDS = {
     DIALOG_INPUT_SLIM: 'dialog-input-slim',
     // [NEW] (Correction Flow Phase 4)
     DIALOG_INPUT_CANCEL_REASON: 'dialog-input-cancel-reason',
+    // [NEW] (F1 Motor Split)
+    DIALOG_INPUT_BATTERY: 'dialog-input-battery',
+    DIALOG_INPUT_WIRED: 'dialog-input-wired',
 };
 
 export const STORAGE_KEYS = {

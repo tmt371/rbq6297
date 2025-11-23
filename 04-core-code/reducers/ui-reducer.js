@@ -1,5 +1,6 @@
 // File: 04-core-code/reducers/ui-reducer.js
 // [MODIFIED] (Correction Flow Phase 2) Added SET_CORRECTION_MODE handler.
+// [MODIFIED] (F1 Motor Split) Added SET_F1_MOTOR_DISTRIBUTION handler and snapshot restoration.
 
 import { UI_ACTION_TYPES } from '../config/action-types.js';
 import { initialState } from '../config/initial-state.js';
@@ -113,6 +114,11 @@ export function uiReducer(state, action) {
             return { ...state, f1: { ...state.f1, remote_1ch_qty: action.payload.qty1, remote_16ch_qty: action.payload.qty16 } };
         case UI_ACTION_TYPES.SET_F1_DUAL_DISTRIBUTION:
             return { ...state, f1: { ...state.f1, dual_combo_qty: action.payload.comboQty, dual_slim_qty: action.payload.slimQty } };
+
+        // [NEW] (F1 Motor Split) Handle motor distribution update
+        case UI_ACTION_TYPES.SET_F1_MOTOR_DISTRIBUTION:
+            return { ...state, f1: { ...state.f1, w_motor_qty: action.payload.wQty } };
+
         case UI_ACTION_TYPES.SET_F1_DISCOUNT_PERCENTAGE:
             return { ...state, f1: { ...state.f1, discountPercentage: action.payload.percentage } };
 
@@ -194,6 +200,10 @@ export function uiReducer(state, action) {
             // [FIX] (v6295-fix) Add missing wifi_qty restore logic
             if (snapshot.wifi_qty !== null && snapshot.wifi_qty !== undefined) {
                 newF1State.wifi_qty = snapshot.wifi_qty;
+            }
+            // [NEW] (F1 Motor Split) Restore W-Motor quantity
+            if (snapshot.w_motor_qty !== null && snapshot.w_motor_qty !== undefined) {
+                newF1State.w_motor_qty = snapshot.w_motor_qty;
             }
 
             const newState = { ...state, f1: newF1State };

@@ -1,5 +1,6 @@
 // File: 04-core-code/actions/ui-actions.js
 // [MODIFIED] (Correction Flow Phase 2) Added setCorrectionMode.
+// [MODIFIED] (F1 Motor Split) Added setF1MotorDistribution.
 
 /**
  * @fileoverview Action creators for all UI-related state changes.
@@ -91,8 +92,14 @@ export const clearLFSelection = () => ({
 });
 
 // [REMOVED] (Phase 3) K2 (SSet) State
-// export const toggleSSetSelection = (rowIndex) => ({ ... });
-// export const clearSSetSelection = () => ({ ... });
+// export const toggleSSetSelection = (rowIndex) => ({
+//     type: UI_ACTION_TYPES.TOGGLE_SSET_SELECTION,
+//     payload: { rowIndex },
+// });
+// 
+// export const clearSSetSelection = () => ({
+//     type: UI_ACTION_TYPES.CLEAR_SSET_SELECTION,
+// });
 
 
 // --- K4 & K5 State ---
@@ -174,6 +181,12 @@ export const setF1RemoteDistribution = (qty1, qty16) => ({
 export const setF1DualDistribution = (comboQty, slimQty) => ({
     type: UI_ACTION_TYPES.SET_F1_DUAL_DISTRIBUTION,
     payload: { comboQty, slimQty },
+});
+
+// [NEW] (F1 Motor Split) Action to update W-Motor quantity
+export const setF1MotorDistribution = (wQty) => ({
+    type: UI_ACTION_TYPES.SET_F1_MOTOR_DISTRIBUTION,
+    payload: { wQty },
 });
 
 export const setF1DiscountPercentage = (percentage) => ({

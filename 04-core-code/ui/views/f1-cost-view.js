@@ -1,5 +1,6 @@
 /* FILE: 04-core-code/ui/views/f1-cost-view.js */
-// [MODIFIED] (第 7 次編修) 移除本地 F1 成本計算邏輯，改為呼叫 calculationService.calculateF1Costs
+// [MODIFIED] (v6297) 移除本地 F1 成本計算邏輯，改為呼叫 calculationService.calculateF1Costs
+// [MODIFIED] (F1 Motor Split) Added W-Motor display cache, render logic, and handleMotorDistribution dialog.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -56,6 +57,7 @@ export class F1CostView {
                 qty: {
                     'winder': query(`#${DOM_IDS.F1_QTY_WINDER}`),
                     'motor': query(`#${DOM_IDS.F1_QTY_MOTOR}`),
+                    'w-motor': query(`#${DOM_IDS.F1_QTY_W_MOTOR}`), // [NEW] (F1 Motor Split)
                     'remote-1ch': query(`#${DOM_IDS.F1_QTY_REMOTE_1CH}`),
                     'remote-16ch': query(`#${DOM_IDS.F1_QTY_REMOTE_16CH}`),
                     'charger': query(`#${DOM_IDS.F1_QTY_CHARGER}`),
@@ -66,6 +68,7 @@ export class F1CostView {
                 price: {
                     'winder': query(`#${DOM_IDS.F1_PRICE_WINDER}`),
                     'motor': query(`#${DOM_IDS.F1_PRICE_MOTOR}`),
+                    'w-motor': query(`#${DOM_IDS.F1_PRICE_W_MOTOR}`), // [NEW] (F1 Motor Split)
                     'remote-1ch': query(`#${DOM_IDS.F1_PRICE_REMOTE_1CH}`),
                     'remote-16ch': query(`#${DOM_IDS.F1_PRICE_REMOTE_16CH}`),
                     'charger': query(`#${DOM_IDS.F1_PRICE_CHARGER}`),
@@ -92,6 +95,11 @@ export class F1CostView {
         const slimQtyDiv = this.f1.displays.qty['slim'];
         // [MODIFIED] (v6298-fix-5) Use helper
         this._addListener(slimQtyDiv, 'click', this.handleDualDistribution);
+
+        // [NEW] (F1 Motor Split) Listener for W-Motor distribution
+        const wMotorQtyDiv = this.f1.displays.qty['w-motor'];
+        this._addListener(wMotorQtyDiv, 'click', this.handleMotorDistribution);
+
 
         const discountInput = this.f1.inputs['discount'];
         // [MODIFIED] (v6298-fix-5) Use helper
@@ -132,25 +140,26 @@ export class F1CostView {
         const formatDisplay = (value) => (value !== null && value !== undefined) ? value : '';
 
         // --- [NEW] (第 7 次編修) ---
-        // 1. 從 CalculationService 獲取所有 F1 成本和數量
+        // 1. 從 CalculationService 獲取 F1 成本的數據
         const f1Costs = this.calculationService.calculateF1Costs(quoteData, ui);
         // --- [END NEW] ---
 
 
-        // --- [REMOVED] (第 7 次編修) 移除本地的成本計算邏輯 ---
-        // const componentPrices = {};
-        // const winderQty = items.filter(item => item.winder === 'HD').length;
-        // ... (所有 componentPrices.winder, .motor 等計算邏輯均被移除)
-        // --- [END REMOVED] ---
-
-        // --- [MODIFIED] (第 7 次編修) 使用 f1Costs 物件來更新顯示 ---
+        // --- [MODIFIED] (F1 Motor Split) Update Render Logic ---
 
         // --- Component Cost Display ---
         if (this.f1.displays.qty.winder) this.f1.displays.qty.winder.textContent = f1Costs.qtys.winder;
         if (this.f1.displays.price.winder) this.f1.displays.price.winder.textContent = formatPrice(f1Costs.winderCost);
 
-        if (this.f1.displays.qty.motor) this.f1.displays.qty.motor.textContent = f1Costs.qtys.motor;
-        if (this.f1.displays.price.motor) this.f1.displays.price.motor.textContent = formatPrice(f1Costs.motorCost);
+        // [MODIFIED] Motor (B-Motor)
+        // Using b_motor Qty and Cost from calculation service
+        if (this.f1.displays.qty.motor) this.f1.displays.qty.motor.textContent = f1Costs.qtys.b_motor;
+        if (this.f1.displays.price.motor) this.f1.displays.price.motor.textContent = formatPrice(f1Costs.bMotorCost);
+
+        // [NEW] W-Motor
+        if (this.f1.displays.qty['w-motor']) this.f1.displays.qty['w-motor'].textContent = f1Costs.qtys.w_motor;
+        if (this.f1.displays.price['w-motor']) this.f1.displays.price['w-motor'].textContent = formatPrice(f1Costs.wMotorCost);
+
 
         if (this.f1.displays.qty['remote-1ch']) this.f1.displays.qty['remote-1ch'].textContent = f1Costs.qtys.remote1ch;
         if (this.f1.displays.price['remote-1ch']) this.f1.displays.price['remote-1ch'].textContent = formatPrice(f1Costs.remote1chCost);
@@ -208,8 +217,8 @@ export class F1CostView {
     activate() {
         this.eventAggregator.publish(EVENTS.F1_TAB_ACTIVATED);
 
-        // [MODIFIED] (v6294) (第 2 次編修)
-        // 恢復 F1 頁籤的自動聚焦功能，使其與 F2 頁籤的行為一致
+        // [MODIFIED] (v6294) (第 12 次編修)
+        // 恢復 F1 標籤的自動對焦功能，使其與 F2 標籤的行為一致
         // if (!window.matchMedia("(max-width: 600px)").matches) {
         setTimeout(() => {
             const discountInput = this.f1.inputs.discount;
@@ -358,11 +367,94 @@ export class F1CostView {
                         inputSlim.value = totalDualPairs - qtyCombo;
                     }
                 });
-
                 setTimeout(() => {
                     inputSlim.focus();
                     inputSlim.select();
                 }, 0);
+            },
+            closeOnOverlayClick: false
+        });
+    }
+
+    // [NEW] (F1 Motor Split) Handle Motor Distribution Dialog
+    handleMotorDistribution() {
+        const { quoteData, ui } = this.stateService.getState();
+        // Calculate total motor quantity from items (Truth source)
+        const items = quoteData.products[quoteData.currentProduct].items;
+        const totalMotorQty = items.filter(item => !!item.motor).length;
+
+        // Get current W-Motor quantity from state (default 0)
+        const currentWQty = ui.f1.w_motor_qty || 0;
+        const currentBQty = totalMotorQty - currentWQty;
+
+        this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
+            message: `Total motor qty : ${totalMotorQty}. Please distribute them.`,
+            layout: [
+                [
+                    { type: 'text', text: 'Battery-motor qty', className: 'dialog-label' },
+                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_BATTERY, value: currentBQty, inputType: 'number', disableEnterConfirm: true } // Read-only/Auto-calc typically, but input type for consistency
+                ],
+                [
+                    { type: 'text', text: 'Wired-motor qty', className: 'dialog-label' },
+                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_WIRED, value: currentWQty, inputType: 'number' }
+                ],
+                [
+                    {
+                        type: 'button',
+                        text: 'Confirm',
+                        className: 'primary-confirm-button',
+                        colspan: 1,
+                        callback: () => {
+                            const wQty = parseInt(document.getElementById(DOM_IDS.DIALOG_INPUT_WIRED).value, 10);
+
+                            if (isNaN(wQty) || wQty < 0) {
+                                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Quantities must be positive numbers.', type: 'error' });
+                                return false;
+                            }
+
+                            if (wQty > totalMotorQty) {
+                                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                                    message: `Wired motor qty cannot exceed total (${totalMotorQty}).`,
+                                    type: 'error'
+                                });
+                                return false;
+                            }
+
+                            // Dispatch action to set W-Motor quantity. B-Motor is derived.
+                            this.stateService.dispatch(uiActions.setF1MotorDistribution(wQty));
+                            return true;
+                        }
+                    },
+                    { type: 'button', text: 'Cancel', className: 'secondary', colspan: 1, callback: () => { } }
+                ]
+            ],
+            onOpen: () => {
+                const inputB = document.getElementById(DOM_IDS.DIALOG_INPUT_BATTERY);
+                const inputW = document.getElementById(DOM_IDS.DIALOG_INPUT_WIRED);
+
+                // Make Battery input read-only visually or functional logic to auto-update
+                // The requirement says: "User inputs W-motor... program automatically displays B-motor"
+                // So inputB should be essentially read-only or auto-calculated.
+
+                inputW.addEventListener('input', () => {
+                    const wVal = parseInt(inputW.value, 10);
+                    if (!isNaN(wVal) && wVal >= 0 && wVal <= totalMotorQty) {
+                        inputB.value = totalMotorQty - wVal;
+                    }
+                });
+
+                // If user tries to edit Battery, update Wired
+                inputB.addEventListener('input', () => {
+                    const bVal = parseInt(inputB.value, 10);
+                    if (!isNaN(bVal) && bVal >= 0 && bVal <= totalMotorQty) {
+                        inputW.value = totalMotorQty - bVal;
+                    }
+                });
+
+                setTimeout(() => {
+                    inputW.focus();
+                    inputW.select();
+                }, 50);
             },
             closeOnOverlayClick: false
         });

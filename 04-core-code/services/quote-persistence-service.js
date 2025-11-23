@@ -6,6 +6,7 @@
 // [MODIFIED] (Correction Flow Phase 3) Implemented Locking Logic and Atomic Correction Save.
 // [FIX] (Correction Flow Phase 3 Fix) Corrected 'db' import path.
 // [MODIFIED] (Correction Flow Phase 4) Added handleCancelOrder.
+// [MODIFIED] (F1 Motor Split) Added w_motor_qty to snapshot capture.
 
 // [MODIFIED] ¾?workflow-service.js 移入此è?
 import {
@@ -115,6 +116,10 @@ export class QuotePersistenceService {
 
             // [NEW] (v6295) Fix omission: Save F1 Wifi Qty
             dataWithSnapshot.f1Snapshot.wifi_qty = ui.f1.wifi_qty || 0;
+
+            // [NEW] (F1 Motor Split) Save W-Motor Qty
+            dataWithSnapshot.f1Snapshot.w_motor_qty = ui.f1.w_motor_qty || 0;
+
         } else {
             console.error(
                 'f1Snapshot object is missing from quoteData. Cannot save F1 state.'
@@ -401,6 +406,13 @@ export class QuotePersistenceService {
     async handleUpdateStatus({ newStatus }) {
         // [NEW] (Correction Flow Phase 3) Add Lock Check for Update Status
         // We prevent moving status IF we are in a locked state, unless the user is moving to X (Cancel)
+        // But handleUpdateStatus is triggered by the dropdown Update button.
+        // We should allow status updates generally (e.g. B -> C -> D), but we must respect the logical flow.
+        // However, the requirement is "Once locked... forbidden to edit/save".
+        // Changing status IS an edit.
+        // BUT, the "Update Status" button is the specific mechanism TO change status.
+        // So we allow this method to run, as long as it's not modifying "content".
+        // This method ONLY updates `status` and `creationDate`.
 
         // 1. 立即更新本地 state，使 UI 保持同步
         this.stateService.dispatch(quoteActions.updateQuoteProperty('status', newStatus));
