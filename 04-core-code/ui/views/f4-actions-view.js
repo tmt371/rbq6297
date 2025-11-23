@@ -5,6 +5,7 @@
 // [MODIFIED] (F4 Status Phase 3) Bound update button to USER_REQUESTED_UPDATE_STATUS event.
 // [MODIFIED] (Correction Flow Phase 1) Added Cancel/Correct button logic.
 // [MODIFIED] (Correction Flow Fix) Added SET/Exit buttons and Correction Mode UI logic.
+// [MODIFIED] (Correction Flow Phase 5) Implemented Locking UI Logic (Disable Save/SaveAs when locked).
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 // [NEW] (F4 Status Phase 2) Import status constants
@@ -147,6 +148,7 @@ export class F4ActionsView {
     /**
      * [NEW] (F4 Status Phase 2) Renders the F4 tab, specifically the status dropdown.
      * [MODIFIED] (Correction Flow Fix) Handles Correction Mode UI state (Disabling buttons, showing SET/Exit).
+     * [MODIFIED] (Correction Flow Phase 5) Handles Locked State UI (Disabling Save/SaveAs).
      */
     render(state) {
         // Guard clause: if DOM elements aren't cached, return
@@ -156,30 +158,33 @@ export class F4ActionsView {
         const { isCorrectionMode } = state.ui; // [NEW] Get correction mode state
         const isNewQuote = !quoteId;
 
-        // --- [NEW] (Correction Flow Fix) Correction Mode UI Logic ---
+        // Helper to set button state (disabled + opacity)
+        const setButtonState = (btnId, isDisabled) => {
+            const btn = this.f4.buttons[btnId];
+            if (btn) {
+                btn.disabled = isDisabled;
+                btn.style.opacity = isDisabled ? '0.3' : '1';
+            }
+        };
+
+        // --- 1. CORRECTION MODE (Priority High) ---
         if (isCorrectionMode) {
-            // 1. Show Correction Controls (SET / Exit)
+            // Show Correction Controls (SET / Exit)
             if (this.f4.correctionControls) {
                 this.f4.correctionControls.classList.remove('is-hidden');
             }
 
-            // 2. Disable Standard File Operations
-            const forbiddenButtons = [
+            // Disable ALL Standard File Operations
+            const allFileOps = [
                 'f1-key-save',
                 'f4-key-save-as-new',
                 'f1-key-export',
                 'f1-key-load',
                 'f4-key-load-cloud' // Search
             ];
-            forbiddenButtons.forEach(btnId => {
-                const btn = this.f4.buttons[btnId];
-                if (btn) {
-                    btn.disabled = true;
-                    btn.style.opacity = '0.3'; // Visual cue for disabled
-                }
-            });
+            allFileOps.forEach(id => setButtonState(id, true));
 
-            // 3. Disable Status Controls
+            // Disable Status Controls
             this.f4.statusDropdown.disabled = true;
             this.f4.statusUpdateButton.disabled = true;
             if (this.f4.cancelCorrectButton) {
@@ -187,63 +192,65 @@ export class F4ActionsView {
                 this.f4.cancelCorrectButton.style.opacity = '0.3';
             }
 
-            // Early return or skip standard rendering logic if needed, 
-            // but we might want to keep the dropdown showing the current status.
-            // So we just let the execution fall through but override disabled states.
-
-            // Ensure dropdown shows current status (likely D or similar)
             this.f4.statusDropdown.value = status || QUOTE_STATUS.A_ARCHIVED;
-
-            return; // Exit render here as Correction Mode overrides normal state logic
-        } else {
-            // Not in Correction Mode: Ensure controls are hidden and standard buttons are enabled (if valid)
-            if (this.f4.correctionControls) {
-                this.f4.correctionControls.classList.add('is-hidden');
-            }
-
-            // Re-enable standard buttons
-            const standardButtons = [
-                'f1-key-save',
-                'f4-key-save-as-new',
-                'f1-key-export',
-                'f1-key-load',
-                'f4-key-load-cloud'
-            ];
-            standardButtons.forEach(btnId => {
-                const btn = this.f4.buttons[btnId];
-                if (btn) {
-                    btn.disabled = false;
-                    btn.style.opacity = '1';
-                }
-            });
+            return; // Exit render
         }
-        // --- [END NEW] ---
 
+        // --- 2. STANDARD MODE (Not Correction) ---
 
-        // (Tweak 2) Check for non-Sales states (ReadOnly for Sales)
-        const nonSalesStates = [
+        // Ensure Correction Controls are hidden
+        if (this.f4.correctionControls) {
+            this.f4.correctionControls.classList.add('is-hidden');
+        }
+
+        // --- Locking Logic ---
+        // If the order is "Established" (B~I, or X/J), it is considered LOCKED for editing.
+        // Exception: If status is A (Saved) or new, it's unlocked.
+        const lockedStates = [
+            QUOTE_STATUS.B_VALID_ORDER,
+            QUOTE_STATUS.C_SENT_TO_FACTORY,
+            QUOTE_STATUS.D_IN_PRODUCTION,
+            QUOTE_STATUS.E_READY_FOR_PICKUP,
+            QUOTE_STATUS.F_PICKED_UP,
+            QUOTE_STATUS.G_COMPLETED,
+            QUOTE_STATUS.H_INVOICE_SENT,
+            QUOTE_STATUS.I_INVOICE_OVERDUE,
+            QUOTE_STATUS.X_CANCELLED,
+            QUOTE_STATUS.J_CLOSED
+        ];
+
+        const isLocked = lockedStates.includes(status);
+
+        // Reset standard buttons first (Enable all)
+        ['f1-key-save', 'f4-key-save-as-new', 'f1-key-export', 'f1-key-load', 'f4-key-load-cloud'].forEach(id => setButtonState(id, false));
+
+        // Apply Lock: Disable Save and Save As if locked
+        if (isLocked) {
+            setButtonState('f1-key-save', true);
+            setButtonState('f4-key-save-as-new', true);
+            // Note: Export, Load, and Search remain enabled for navigation/viewing.
+        }
+
+        // --- Status Controls Logic ---
+        // "Read Only" states are those where even Sales shouldn't change status (D~I, X, J).
+        // Sales CAN change B -> C.
+        const readOnlyStatusStates = [
             QUOTE_STATUS.D_IN_PRODUCTION,
             QUOTE_STATUS.E_READY_FOR_PICKUP,
             QUOTE_STATUS.F_PICKED_UP,
             QUOTE_STATUS.H_INVOICE_SENT,
-            QUOTE_STATUS.I_INVOICE_OVERDUE
+            QUOTE_STATUS.I_INVOICE_OVERDUE,
+            QUOTE_STATUS.X_CANCELLED,
+            QUOTE_STATUS.J_CLOSED
         ];
-        const isReadOnlyState = nonSalesStates.includes(status);
 
-        // 1. Disable controls if it's a new quote OR if it's in a read-only state
-        const isDisabled = isNewQuote || isReadOnlyState;
-        this.f4.statusDropdown.disabled = isDisabled;
-        this.f4.statusUpdateButton.disabled = isDisabled;
+        const isStatusReadOnly = readOnlyStatusStates.includes(status);
+        const isControlsDisabled = isNewQuote || isStatusReadOnly;
 
-        if (isReadOnlyState) {
-            this.f4.statusUpdateButton.title = "This status is managed by Factory/Accounting and cannot be changed here.";
-        } else if (isNewQuote) {
-            this.f4.statusUpdateButton.title = "Please save the quote first to enable status tracking.";
-        } else {
-            this.f4.statusUpdateButton.title = "";
-        }
+        this.f4.statusDropdown.disabled = isControlsDisabled;
+        this.f4.statusUpdateButton.disabled = isControlsDisabled;
 
-        // 2. Populate options (Run once)
+        // Populate options (Run once)
         if (this.f4.statusDropdown.options.length === 0) {
             for (const [key, text] of Object.entries(QUOTE_STATUS)) {
                 const option = document.createElement('option');
@@ -251,7 +258,7 @@ export class F4ActionsView {
                 option.textContent = text;
 
                 // (Tweak 2) Visually distinguish non-sales options
-                if (nonSalesStates.includes(text)) {
+                if (readOnlyStatusStates.includes(text)) {
                     option.style.background = "#eee";
                     option.style.fontStyle = "italic";
                 }
@@ -259,15 +266,11 @@ export class F4ActionsView {
             }
         }
 
-        // 3. Set selected value
-        // Default to A if status is missing (e.g., legacy files)
+        // Set selected value
         this.f4.statusDropdown.value = status || QUOTE_STATUS.A_ARCHIVED;
 
-        // [NEW] (Correction Flow Phase 1) Handle Cancel/Correct Button State
+        // --- Cancel/Correct Button Logic ---
         if (this.f4.cancelCorrectButton) {
-            // Logic: Button is enabled ONLY if quote is saved AND status is between B and I (inclusive).
-            // It is disabled for A (Archived), J (Closed), and X (Cancelled).
-
             const validCorrectionStates = [
                 QUOTE_STATUS.B_VALID_ORDER,
                 QUOTE_STATUS.C_SENT_TO_FACTORY,
@@ -282,6 +285,7 @@ export class F4ActionsView {
             const canCorrect = !isNewQuote && validCorrectionStates.includes(status);
 
             this.f4.cancelCorrectButton.disabled = !canCorrect;
+            this.f4.cancelCorrectButton.style.opacity = canCorrect ? '1' : '0.3';
 
             if (!canCorrect) {
                 if (status === QUOTE_STATUS.X_CANCELLED) {

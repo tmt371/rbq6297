@@ -90,7 +90,50 @@ body {
     position: relative;
     padding: 0 20px 20px 20px;
     box-sizing: border-box;
+    display: flex;
+    /* [NEW] For layout control */
+    flex-direction: column;
 }
+
+/* [NEW] (Correction Flow Phase 5) Quote ID Banner Styles */
+.quote-id-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    background-color: #e0f2fe;
+    /* Default Light Blue */
+    border: 1px solid #bae6fd;
+    border-radius: 4px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    /* Space between banner and table */
+    color: #0369a1;
+    font-weight: bold;
+    font-size: 1.1em;
+    flex-shrink: 0;
+    /* Prevent shrinking */
+}
+
+/* Style for Locked State (Pink) */
+.quote-id-banner.is-locked {
+    background-color: #fce7f3;
+    /* Light Pink */
+    border-color: #fbcfe8;
+    color: #9d174d;
+}
+
+.status-tag {
+    font-size: 0.8em;
+    padding: 2px 8px;
+    background-color: rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
+    text-transform: uppercase;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* --- End Quote ID Banner --- */
+
 
 /* --- [NEW] Global Modal Lock State --- */
 /* When modal is active, disable pointer events and dim everything... */

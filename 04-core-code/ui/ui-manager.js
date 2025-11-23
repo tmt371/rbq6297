@@ -1,5 +1,6 @@
 // File: 04-core-code/ui/ui-manager.js
 // [MODIFIED] (Correction Flow Phase 2) Added logic to render the correction mode banner.
+// [MODIFIED] (Correction Flow Phase 5) Added Quote ID Banner rendering logic.
 
 import { TableComponent } from './table-component.js';
 import { SummaryComponent } from './summary-component.js';
@@ -14,6 +15,8 @@ import { LeftPanelTabManager } from './left-panel-tab-manager.js';
 // import { AuthService } from '../services/auth-service.js';
 // [NEW] (v6298-F4-Search) Import SearchDialogComponent
 import { SearchDialogComponent } from './search-dialog-component.js';
+// [NEW] (Correction Flow Phase 5) Import status constants for lock check
+import { QUOTE_STATUS } from '../config/status-config.js';
 
 
 export class UIManager {
@@ -41,6 +44,11 @@ export class UIManager {
 
         // [NEW] (Correction Flow Phase 2) Cache banner element
         this.correctionBanner = document.getElementById('correction-mode-banner');
+
+        // [NEW] (Correction Flow Phase 5) Cache Quote ID Banner elements
+        this.quoteIdBanner = document.getElementById('quote-id-banner');
+        this.quoteIdText = document.getElementById('quote-id-text');
+        this.quoteStatusTag = document.getElementById('quote-status-tag');
 
         const tableElement = document.getElementById(DOM_IDS.RESULTS_TABLE);
         this.tableComponent = new TableComponent(tableElement);
@@ -229,6 +237,43 @@ export class UIManager {
         if (this.correctionBanner) {
             this.correctionBanner.classList.toggle('is-hidden', !state.ui.isCorrectionMode);
         }
+
+        // --- [NEW] (Correction Flow Phase 5) Update Quote ID Banner ---
+        if (this.quoteIdBanner && this.quoteIdText && this.quoteStatusTag) {
+            const { quoteId, status } = state.quoteData;
+            const { isCorrectionMode } = state.ui;
+
+            // 1. Update Quote ID Text
+            this.quoteIdText.textContent = quoteId || 'New Quote';
+
+            // 2. Update Status Tag
+            this.quoteStatusTag.textContent = status || 'Configuring';
+
+            // 3. Update Lock Styling (Pink Background)
+            // Condition: Locked if status is "established" (B~I, X, J) AND NOT in Correction Mode.
+            // A. Saved is NOT locked.
+
+            // Helper: Check if status is considered "Locked" (same logic as in F4 and persistence)
+            const nonSalesStates = [
+                QUOTE_STATUS.B_VALID_ORDER,
+                QUOTE_STATUS.C_SENT_TO_FACTORY,
+                QUOTE_STATUS.D_IN_PRODUCTION,
+                QUOTE_STATUS.E_READY_FOR_PICKUP,
+                QUOTE_STATUS.F_PICKED_UP,
+                QUOTE_STATUS.G_COMPLETED,
+                QUOTE_STATUS.H_INVOICE_SENT,
+                QUOTE_STATUS.I_INVOICE_OVERDUE,
+                QUOTE_STATUS.X_CANCELLED,
+                QUOTE_STATUS.J_CLOSED
+            ];
+
+            const isStatusLocked = nonSalesStates.includes(status);
+            const isBannerLocked = isStatusLocked && !isCorrectionMode;
+
+            this.quoteIdBanner.classList.toggle('is-locked', isBannerLocked);
+        }
+        // --- End Quote ID Banner ---
+
 
         // [NEW] (v6294 K5) (步é? 1) Add class for chain mode focus
         this.appElement.classList.toggle('chain-mode-active', state.ui.dualChainMode === 'chain');
