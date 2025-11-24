@@ -6,6 +6,7 @@
 // [MODIFIED] (v6299 Phase 4 Fix) Updated Side Panel to 3 columns (P,Q,R) with full item breakdown.
 // [MODIFIED] (v6299 Phase 4 Refinement) Added Color Legend and removed "Light-filter" prefix from F-Name.
 // [MODIFIED] (v6299 Phase 4 Tweak 2) Added TYPE column, lighter pink, shifted Side Panel, removed Legend.
+// [MODIFIED] (v6299 Print Optimization) Added pageSetup for A4 Landscape Fit-to-Width.
 
 export class ExcelExportService {
     constructor({ configManager, calculationService }) {
@@ -50,6 +51,22 @@ export class ExcelExportService {
      */
     _generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui) {
         const sheet = workbook.addWorksheet('work-sheet');
+
+        // --- [NEW] (Print Optimization) Set Print Area & Scale ---
+        sheet.pageSetup = {
+            paperSize: 9, // 9 = A4
+            orientation: 'landscape',
+            fitToPage: true,
+            fitToWidth: 1,  // Force width to 1 page
+            fitToHeight: 0, // 0 = Automatic height (maintain aspect ratio, span pages if long)
+            showGridLines: true
+        };
+        // Optimize margins for maximum space
+        sheet.pageMargins = {
+            left: 0.25, right: 0.25,
+            top: 0.4, bottom: 0.4,
+            header: 0.3, footer: 0.3
+        };
 
         // --- 1. Define Columns (A~P) ---
         // [MODIFIED] Added 'TYPE' column at index 2 (Column C)
@@ -99,7 +116,7 @@ export class ExcelExportService {
             let fabricName = this._sanitize(item.fabric);
             fabricName = fabricName.replace(/^Light-filter\s+/i, '');
 
-            // [NEW] Determine TYPE Label
+            // Determine TYPE Label
             let typeLabel = '';
             if (isLF) {
                 typeLabel = "L'filter";
@@ -112,7 +129,7 @@ export class ExcelExportService {
             const rowData = [
                 newIndex + 1,
                 item.originalIndex,
-                typeLabel,                     // [NEW] TYPE
+                typeLabel,                     // TYPE
                 fabricName,                    // F-Name (Cleaned)
                 this._sanitize(item.color),
                 correctedWidth,
@@ -133,7 +150,7 @@ export class ExcelExportService {
             // Apply Row Styling
             let argbColor = null;
             if (isLF) {
-                // [MODIFIED] Lighter Pink
+                // Lighter Pink
                 argbColor = 'FFFFE6E6';
             } else if (fabricType.startsWith('B')) {
                 argbColor = 'FFE0E0E0'; // Light Grey for Blockout
@@ -150,7 +167,7 @@ export class ExcelExportService {
                     right: { style: 'thin' }
                 };
                 // Center align most columns
-                // [MODIFIED] Adjusted for new column index: Name=4, Color=5, Location=15 are Left aligned
+                // Name=4, Color=5, Location=15 are Left aligned
                 if (colNumber !== 4 && colNumber !== 5 && colNumber !== 15) {
                     cell.alignment = { horizontal: 'center' };
                 }
@@ -167,7 +184,6 @@ export class ExcelExportService {
         });
 
         // --- 4. Side Panel Generation (Columns Q, R, S) ---
-        // [MODIFIED] Shifted columns by +1 because main table grew by 1 column
         const qtys = f1Costs.qtys || {};
 
         // Acce Sum
@@ -229,7 +245,6 @@ export class ExcelExportService {
 
         // Render Side Panel
         const startRow = 2;
-        // [MODIFIED] Shifted to Q, R, S due to new TYPE column
         const labelCol = 17; // Q
         const colQ = 18; // R
         const colR = 19; // S
@@ -292,8 +307,6 @@ export class ExcelExportService {
                 cellR.border = { top: borderStyle, bottom: borderStyle, right: { style: 'thin' } };
             }
         });
-
-        // [MODIFIED] Removed Color Legend as per request
     }
 
     _sortItemsForWorkOrder(items, lfIndexes) {
