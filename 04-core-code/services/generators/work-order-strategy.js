@@ -1,33 +1,27 @@
 /* FILE: 04-core-code/services/generators/work-order-strategy.js */
-// [MODIFIED] (Phase 6) Implemented Work Order Strategy with sorting and aggregation.
 // [MODIFIED] (v6299 Phase 5) Injected configManager for height calculation.
-// [MODIFIED] (v6299 Phase 5) Implemented manufacturing width correction (IN-4, OUT-2).
-// [MODIFIED] (v6299 Phase 5) Implemented manufacturing height correction (Next Drop - 5).
-// [MODIFIED] (v6299 Phase 5) Implemented F-Name cleaning (remove Light-filter prefix).
+// [MODIFIED] (v6299 Phase 5 Fix) Renamed method to generateRows and updated logic for manufacturing corrections.
 
 import { populateTemplate } from '../../utils/template-utils.js';
 
 export class WorkOrderStrategy {
-    // [MODIFIED] (v6299 Phase 5) Inject configManager
     constructor({ configManager } = {}) {
         this.configManager = configManager;
     }
 
-    async generate(quoteData, ui, templateCache) {
-        const template = templateCache['work-order-template.html'];
-        const rowTemplate = templateCache['work-order-template-row.html'];
-
-        if (!template || !rowTemplate) {
-            console.error('Work Order templates not found.');
-            return '';
-        }
-
+    /**
+     * Generates the table rows for the Work Order HTML.
+     * Applies manufacturing corrections (Width/Height) and name cleaning.
+     * @param {object} quoteData - The raw quote data.
+     * @param {object} ui - The UI state.
+     * @param {string} rowTemplate - The HTML template for a single row.
+     */
+    generateRows(quoteData, ui, rowTemplate) {
         const currentProductKey = quoteData.currentProduct;
         const rawItems = quoteData.products[currentProductKey].items;
-        const lfModifiedRowIndexes =
-            quoteData.uiMetadata?.lfModifiedRowIndexes || [];
+        const lfModifiedRowIndexes = quoteData.uiMetadata?.lfModifiedRowIndexes || [];
 
-        // 1. Prepare Items (Add original index)
+        // 1. Prepare Items (Add original index and LF status)
         const itemsWithIndex = rawItems
             .map((item, index) => ({
                 ...item,
@@ -36,60 +30,48 @@ export class WorkOrderStrategy {
             }))
             .filter((item) => item.width && item.height);
 
-        // 2. Sort Items (B > SN > LF, then by Qty) - Existing Logic Preserved
+        // 2. Sort Items (B > SN > LF, then by Qty)
         const sortedItems = this._sortItems(itemsWithIndex);
 
-        // 3. Generate Rows
-        const rowsHtml = sortedItems
-            .map((item, index) => {
-                // --- [NEW] (v6299 Phase 5) Manufacturing Logic Start ---
+        // 3. Generate HTML
+        return sortedItems.map((item, index) => {
+            // --- Manufacturing Logic ---
 
-                // A. Width & Height Correction
-                const { mWidth, mHeight } = this._calculateManufacturingDimensions(item);
+            // A. Width & Height Correction
+            const { mWidth, mHeight } = this._calculateManufacturingDimensions(item);
 
-                // B. Name Cleaning
-                let cleanFabricName = item.fabric || '';
-                cleanFabricName = cleanFabricName.replace(/^Light-filter\s+/i, '');
+            // B. Name Cleaning
+            let cleanFabricName = item.fabric || '';
+            cleanFabricName = cleanFabricName.replace(/^Light-filter\s+/i, '');
 
-                // --- Manufacturing Logic End ---
+            // C. Combine Name + Color
+            const fcolor = `${cleanFabricName} ${item.color || ''}`.trim();
 
-                const rowData = {
-                    no: index + 1,
-                    originalNo: item.originalIndex,
-                    location: item.location || '',
-                    // [MODIFIED] Use corrected width/height and cleaned name
-                    fabric: cleanFabricName,
-                    color: item.color || '',
-                    width: mWidth,
-                    height: mHeight,
-                    control: item.lr || '', // L/R
-                    mount: item.oi || '', // O/I
-                    roll: item.over || '', // Over
-                    drive: item.chain || '', // Chain
-                    winder: item.winder || '',
-                    motor: item.motor || '',
-                    price: item.linePrice ? `$${item.linePrice.toFixed(2)}` : '',
-                    rowClass: this._getRowClass(item),
-                };
-                return populateTemplate(rowTemplate, rowData);
-            })
-            .join('');
+            const rowData = {
+                rowNumber: index + 1,
+                index: item.originalIndex,
+                location: item.location || '',
+                fcolor: fcolor,
+                width: mWidth,
+                height: mHeight,
+                lr: item.lr || '',
+                over: item.over || '', // Roll direction
+                dual: item.dual === 'D' ? 'Y' : '',
+                winder: item.winder === 'HD' ? 'Y' : '',
+                chain: item.chain || '',
+                motor: item.motor ? 'Y' : '',
+                price: item.linePrice ? `$${item.linePrice.toFixed(2)}` : '',
+                // Add CSS classes for styling
+                fabricClass: this._getRowClass(item),
+                isEmptyClassDual: item.dual === 'D' ? '' : 'is-empty-cell',
+                isEmptyClassHD: item.winder === 'HD' ? '' : 'is-empty-cell',
+                isEmptyClassMotor: item.motor ? '' : 'is-empty-cell'
+            };
 
-        // 4. Generate Summary Table (Existing Logic)
-        const summaryHtml = this._generateSummaryHtml(quoteData, ui);
-
-        // 5. Populate Main Template
-        return populateTemplate(template, {
-            quoteId: quoteData.quoteId || 'New Quote',
-            issueDate: quoteData.issueDate || new Date().toLocaleDateString(),
-            customerName: quoteData.customer?.name || '',
-            customerPhone: quoteData.customer?.phone || '',
-            rows: rowsHtml,
-            summaryTable: summaryHtml,
-        });
+            return populateTemplate(rowTemplate, rowData);
+        }).join('');
     }
 
-    // [NEW] (v6299 Phase 5) Calculate Manufacturing Dimensions
     _calculateManufacturingDimensions(item) {
         // 1. Width Correction
         let mWidth = item.width;
@@ -109,9 +91,6 @@ export class WorkOrderStrategy {
 
                 if (nextDrop) {
                     mHeight = nextDrop - 5;
-                } else {
-                    // Fallback if exceeds max drop (keep raw height or handle error)
-                    // console.warn(`No larger drop found for height ${item.height}.`);
                 }
             }
         }
@@ -120,7 +99,6 @@ export class WorkOrderStrategy {
     }
 
     _sortItems(items) {
-        // Calculate frequencies for secondary sorting
         const typeCounts = {};
         items.forEach((item) => {
             const type = item.fabricType || 'Unknown';
@@ -140,12 +118,10 @@ export class WorkOrderStrategy {
             const catB = getCategory(b);
             if (catA !== catB) return catA - catB;
 
-            // Secondary: Quantity Descending
             const countA = typeCounts[a.fabricType] || 0;
             const countB = typeCounts[b.fabricType] || 0;
             if (countA !== countB) return countB - countA;
 
-            // Tertiary: Group by Type Name
             if (a.fabricType !== b.fabricType) {
                 return (a.fabricType || '').localeCompare(b.fabricType || '');
             }
@@ -154,35 +130,10 @@ export class WorkOrderStrategy {
     }
 
     _getRowClass(item) {
-        if (item.isLf) return 'row-lf';
+        if (item.isLf) return 'bg-light-filter';
         const type = item.fabricType || '';
-        if (type.startsWith('B')) return 'row-blockout';
-        if (type === 'SN') return 'row-screen';
+        if (type.startsWith('B')) return 'bg-blockout';
+        if (type === 'SN') return 'bg-screen';
         return '';
-    }
-
-    _generateSummaryHtml(quoteData, ui) {
-        // Reuse or adapt logic from F1 Cost View logic if needed, 
-        // but based on previous Phase 6, this might be constructing a simple HTML table string.
-        // For brevity in this edit, assuming basic summary logic exists or is simple.
-        // (Placeholder for existing Summary generation logic to keep file complete)
-
-        // Note: To strictly follow "Do not move other settings from gen-xls", 
-        // we keep the existing HTML generation logic here. 
-        // Since the prompt focus is on the item table, we assume the standard 
-        // summary generation is sufficient or handled by the template.
-
-        // Minimal recreation of summary based on context:
-        const f1 = quoteData.f1Snapshot || {};
-
-        // We can build a simple rows string for the summary table
-        // This part is just to ensure the file is valid and functional.
-        return `
-            <tr><td>Winder Qty</td><td>${f1.winder_qty || 0}</td></tr>
-            <tr><td>Motor Qty</td><td>${f1.motor_qty || 0}</td></tr>
-            <tr><td>W-Motor Qty</td><td>${f1.w_motor_qty || 0}</td></tr>
-            <tr><td>Remote 1CH</td><td>${f1.remote_1ch_qty || 0}</td></tr>
-            <tr><td>Remote 16CH</td><td>${f1.remote_16ch_qty || 0}</td></tr>
-        `;
     }
 }
