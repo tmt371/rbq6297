@@ -1,10 +1,11 @@
 /* FILE: 04-core-code/services/excel-export-service.js */
 // [NEW] (v6299 Phase 1) New service to handle Excel (.xlsx) generation using ExcelJS.
-// Currently implements 'data-sheet' generation which mirrors the CSV export format.
+// [MODIFIED] (v6299 Phase 2) Implemented 'work-sheet' generation with sorting and dimension correction logic.
 
 export class ExcelExportService {
-    constructor() {
-        console.log("ExcelExportService Initialized.");
+    constructor({ configManager }) {
+        this.configManager = configManager;
+        console.log("ExcelExportService Initialized with ConfigManager.");
     }
 
     /**
@@ -21,16 +22,162 @@ export class ExcelExportService {
         workbook.creator = 'Ez Blinds Quote System';
         workbook.created = new Date();
 
-        // 1. Create Data Sheet (Raw Data)
-        this._generateDataSheet(workbook, quoteData);
+        // 1. Create Work Sheet (Calculated Data) - [NEW] Phase 2
+        this._generateWorkSheet(workbook, quoteData);
 
-        // 2. Create Work Sheet (To be implemented in Phase 2)
-        // this._generateWorkSheet(workbook, quoteData); 
+        // 2. Create Data Sheet (Raw Data)
+        this._generateDataSheet(workbook, quoteData);
 
         // 3. Trigger Download
         const buffer = await workbook.xlsx.writeBuffer();
         this._triggerDownload(buffer, this._generateFileName(quoteData));
     }
+
+    /**
+     * [NEW] (Phase 2) Generates the 'work-sheet' for factory production.
+     * Applies sorting rules and dimension corrections.
+     */
+    _generateWorkSheet(workbook, quoteData) {
+        const sheet = workbook.addWorksheet('work-sheet');
+
+        // --- 1. Define Columns (A~O) ---
+        const columns = [
+            'NO', '#', 'F-Name', 'F-Color', 'Width', 'Height',
+            'Over', 'O/I', 'L/R', 'Dual', 'Chain', 'Winder', 'Motor',
+            'Location', 'Price'
+        ];
+        sheet.addRow(columns);
+
+        // --- 2. Prepare & Sort Items ---
+        const rawItems = quoteData.products[quoteData.currentProduct].items;
+        const lfModifiedRowIndexes = quoteData.uiMetadata?.lfModifiedRowIndexes || [];
+
+        // Map to internal structure for sorting
+        const processableItems = rawItems
+            .map((item, index) => ({ ...item, originalIndex: index + 1 })) // Keep original sequence #
+            .filter(item => item.width && item.height); // Filter empty rows
+
+        // Apply Sorting Logic
+        const sortedItems = this._sortItemsForWorkOrder(processableItems, lfModifiedRowIndexes);
+
+        // --- 3. Populate Rows with Corrections ---
+        sortedItems.forEach((item, newIndex) => {
+            const originalIndex = item.originalIndex - 1; // Back to 0-based for checks
+            const isLF = lfModifiedRowIndexes.includes(originalIndex);
+
+            // Calculate Corrected Dimensions
+            const { correctedWidth, correctedHeight } = this._calculateProductionDimensions(item);
+
+            const rowData = [
+                newIndex + 1,                  // NO (New Sequence)
+                item.originalIndex,            // # (Original Sequence)
+                this._sanitize(item.fabric),   // F-Name
+                this._sanitize(item.color),    // F-Color
+                correctedWidth,                // Width (Corrected)
+                correctedHeight,               // Height (Corrected)
+                this._sanitize(item.over),     // Over
+                this._sanitize(item.oi),       // O/I
+                this._sanitize(item.lr),       // L/R
+                this._sanitize(item.dual),     // Dual
+                item.chain,                    // Chain
+                this._sanitize(item.winder),   // Winder
+                this._sanitize(item.motor),    // Motor
+                this._sanitize(item.location), // Location
+                item.linePrice                 // Price
+            ];
+
+            sheet.addRow(rowData);
+        });
+    }
+
+    /**
+     * [NEW] (Phase 2) Logic for sorting items based on Type and Quantity.
+     * Priority: B-Series > SN > LF. Inside groups: Quantity Descending.
+     */
+    _sortItemsForWorkOrder(items, lfIndexes) {
+        // 1. Calculate Frequencies for Secondary Sorting
+        const typeCounts = {};
+        items.forEach(item => {
+            const type = item.fabricType || 'Unknown';
+            typeCounts[type] = (typeCounts[type] || 0) + 1;
+        });
+
+        // 2. Define Sort Category Helper
+        const getCategory = (item) => {
+            const originalIndex = item.originalIndex - 1;
+            // Priority 3 (Last): Light Filter (LF)
+            if (lfIndexes.includes(originalIndex)) return 3;
+
+            const type = item.fabricType || '';
+            // Priority 1: Blockout (B-Series)
+            if (type.startsWith('B')) return 1;
+            // Priority 2: Screen (SN)
+            if (type === 'SN') return 2;
+
+            // Others
+            return 4;
+        };
+
+        // 3. Execute Sort
+        return items.sort((a, b) => {
+            const catA = getCategory(a);
+            const catB = getCategory(b);
+
+            // Primary: Category (Ascending)
+            if (catA !== catB) return catA - catB;
+
+            // Secondary: Quantity of that Fabric Type (Descending)
+            const countA = typeCounts[a.fabricType] || 0;
+            const countB = typeCounts[b.fabricType] || 0;
+            if (countA !== countB) return countB - countA;
+
+            // Tertiary: Group by Fabric Type Name (to keep B1s together, B2s together)
+            if (a.fabricType !== b.fabricType) {
+                return (a.fabricType || '').localeCompare(b.fabricType || '');
+            }
+
+            // Quaternary: Original Sequence (to maintain stability)
+            return a.originalIndex - b.originalIndex;
+        });
+    }
+
+    /**
+     * [NEW] (Phase 2) Calculates production dimensions based on rules.
+     * Width: IN (-4), OUT (-2)
+     * Height: Next Drop - 5
+     */
+    _calculateProductionDimensions(item) {
+        // --- Width Correction ---
+        let width = item.width;
+        if (item.oi === 'IN') {
+            width = width - 4;
+        } else if (item.oi === 'OUT') {
+            width = width - 2;
+        }
+
+        // --- Height Correction ---
+        let height = item.height;
+        const matrix = this.configManager.getPriceMatrix(item.fabricType);
+        if (matrix && matrix.drops) {
+            // Rule: Find the drop closest to X but LARGER than X.
+            // Then: Corrected Height = Drop - 5.
+            // Example: 2655 -> Next is 2700 -> 2695.
+            const nextDrop = matrix.drops.find(d => d > item.height);
+
+            if (nextDrop) {
+                height = nextDrop - 5;
+            } else {
+                // Fallback: If height exceeds all drops (edge case),
+                // use the raw height or handle as error? 
+                // For now, we assume the input was valid against the matrix max.
+                // We will keep raw height to avoid producing 0 or NaN.
+                console.warn(`No larger drop found for height ${item.height} in type ${item.fabricType}. Keeping raw height.`);
+            }
+        }
+
+        return { correctedWidth: width, correctedHeight: height };
+    }
+
 
     /**
      * Generates the 'data-sheet' containing raw data, identical to the CSV structure.
@@ -89,7 +236,7 @@ export class ExcelExportService {
             ...f1SnapshotKeys.map(key => (f1Snapshot[key] !== undefined && f1Snapshot[key] !== null) ? f1Snapshot[key] : ''),
             // F2 Values
             ...f2SnapshotKeys.map(key => (f2Snapshot[key] !== undefined && f2Snapshot[key] !== null) ? f2Snapshot[key] : '')
-        ].map(this._sanitize); // Apply sanitation
+        ].map(val => this._sanitize(val)); // Apply sanitation
 
         sheet.addRow(projectValues);
 
@@ -140,7 +287,6 @@ export class ExcelExportService {
 
     /**
      * Removes invisible Unicode characters that break Excel/CSV parsing.
-     * Same logic as in csv-parser.js fix.
      */
     _sanitize(value) {
         if (typeof value !== 'string') return value;
