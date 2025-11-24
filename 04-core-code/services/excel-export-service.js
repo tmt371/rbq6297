@@ -4,6 +4,7 @@
 // [MODIFIED] (v6299 Phase 3) Added visual styling and Side Panel cost summary.
 // [FIX] (Phase 3 Fix) Passed 'ui' state to _generateWorkSheet to fix ReferenceError.
 // [MODIFIED] (v6299 Phase 4 Fix) Updated Side Panel to 3 columns (P,Q,R) with full item breakdown.
+// [MODIFIED] (v6299 Phase 4 Refinement) Added Color Legend and removed "Light-filter" prefix from F-Name.
 
 export class ExcelExportService {
     constructor({ configManager, calculationService }) {
@@ -92,10 +93,14 @@ export class ExcelExportService {
 
             const { correctedWidth, correctedHeight } = this._calculateProductionDimensions(item);
 
+            // [MODIFIED] (v6299 Phase 4 Refinement) Remove "Light-filter" prefix from Fabric Name
+            let fabricName = this._sanitize(item.fabric);
+            fabricName = fabricName.replace(/^Light-filter\s+/i, '');
+
             const rowData = [
                 newIndex + 1,
                 item.originalIndex,
-                this._sanitize(item.fabric),
+                fabricName,                    // F-Name (Cleaned)
                 this._sanitize(item.color),
                 correctedWidth,
                 correctedHeight,
@@ -147,8 +152,6 @@ export class ExcelExportService {
         });
 
         // --- 4. Side Panel Generation (Columns P, Q, R) ---
-        // [MODIFIED] (v6299 Phase 4 Fix) Expanded to 3 columns with detailed breakdown.
-
         const qtys = f1Costs.qtys || {};
 
         // Acce Sum
@@ -174,7 +177,6 @@ export class ExcelExportService {
         const total = subTotal + gst;
 
         // Define Side Panel Data Rows
-        // Structure: { label, qty, value, isHeader, isTotal, color }
         const sidePanelRows = [
             // Block A: Mechanical
             { label: 'HD Winder', qty: qtys.winder || 0, value: f1Costs.winderCost || 0 },
@@ -198,7 +200,7 @@ export class ExcelExportService {
 
             // Block C: Roller Blind
             { label: 'RB Retail', qty: '', value: retailTotal },
-            { label: 'Discount %', qty: `${discount}%`, value: '' }, // Display discount % in Qty column
+            { label: 'Discount %', qty: `${discount}%`, value: '' },
             { label: 'RB Price', qty: '', value: rbPriceDiscounted, isBold: true, bg: 'FFEFEFEF' },
 
             { label: '', qty: '', value: '' }, // Spacer
@@ -209,19 +211,17 @@ export class ExcelExportService {
             { label: 'TOTAL', qty: '', value: total, isBold: true, bg: 'FFFFE0E0', color: 'FFDC143C' }
         ];
 
-        // Render Side Panel starting at Row 2, Columns P, Q, R
+        // Render Side Panel
         const startRow = 2;
-        const colP = 16; // Label
+        const labelCol = 16; // P
         const colQ = 17; // Qty
         const colR = 18; // Amount
 
-        // Set Column Widths
-        sheet.getColumn(colP).width = 18;
+        sheet.getColumn(labelCol).width = 18;
         sheet.getColumn(colQ).width = 10;
         sheet.getColumn(colR).width = 15;
 
-        // Headers for Side Panel (Optional, but good for clarity)
-        const headerP = sheet.getCell(1, colP);
+        const headerP = sheet.getCell(1, labelCol);
         headerP.value = 'Item';
         headerP.font = { bold: true };
         headerP.border = { bottom: { style: 'thin' } };
@@ -242,47 +242,65 @@ export class ExcelExportService {
             const currentRow = startRow + index;
             const row = sheet.getRow(currentRow);
 
-            // Cell P: Label
-            const cellP = row.getCell(colP);
+            const cellP = row.getCell(labelCol);
             cellP.value = data.label;
-            cellP.border = { left: { style: 'thin' } }; // Left border for the block
+            cellP.border = { left: { style: 'thin' } };
             if (data.isBold) cellP.font = { bold: true };
 
-            // Cell Q: Quantity
             const cellQ = row.getCell(colQ);
             cellQ.value = data.qty;
             cellQ.alignment = { horizontal: 'center' };
             if (data.isBold) cellQ.font = { bold: true };
 
-            // Cell R: Amount
             const cellR = row.getCell(colR);
             cellR.value = (data.value !== '' && data.value !== null) ? data.value : '';
             if (typeof data.value === 'number') {
                 cellR.numFmt = '$#,##0.00';
             }
-            cellR.border = { right: { style: 'thin' } }; // Right border
+            cellR.border = { right: { style: 'thin' } };
             if (data.isBold) cellR.font = { bold: true };
             if (data.color) cellR.font = { bold: true, color: { argb: data.color } };
 
-            // Background Color
             if (data.bg) {
                 const fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: data.bg } };
                 cellP.fill = fill;
                 cellQ.fill = fill;
                 cellR.fill = fill;
-                // Add top/bottom borders for summary rows
                 const borderStyle = { style: 'thin' };
                 cellP.border = { top: borderStyle, bottom: borderStyle, left: { style: 'thin' } };
                 cellQ.border = { top: borderStyle, bottom: borderStyle };
                 cellR.border = { top: borderStyle, bottom: borderStyle, right: { style: 'thin' } };
             }
         });
+
+        // --- 5. [NEW] (v6299 Phase 4 Refinement) Add Color Legend ---
+        const legendStartRow = startRow + sidePanelRows.length + 2; // Gap of 1 row
+
+        const legendHeaderRow = sheet.getRow(legendStartRow);
+        const legendHeaderCell = legendHeaderRow.getCell(labelCol);
+        legendHeaderCell.value = 'Color Key';
+        legendHeaderCell.font = { bold: true };
+
+        const legendItems = [
+            { label: 'Blockout', bg: 'FFE0E0E0' },   // Grey
+            { label: 'Screen', bg: 'FFE0FFFF' },     // Blue
+            { label: 'Light Filter', bg: 'FFFFC0CB' } // Pink
+        ];
+
+        legendItems.forEach((item, idx) => {
+            const r = legendStartRow + 1 + idx;
+            const row = sheet.getRow(r);
+            const cell = row.getCell(labelCol);
+            cell.value = item.label;
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: item.bg }
+            };
+            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+        });
     }
 
-    /**
-     * Logic for sorting items based on Type and Quantity.
-     * Priority: B-Series > SN > LF. Inside groups: Quantity Descending.
-     */
     _sortItemsForWorkOrder(items, lfIndexes) {
         const typeCounts = {};
         items.forEach(item => {
@@ -315,9 +333,6 @@ export class ExcelExportService {
         });
     }
 
-    /**
-     * Calculates production dimensions based on rules.
-     */
     _calculateProductionDimensions(item) {
         let width = item.width;
         if (item.oi === 'IN') {
@@ -339,9 +354,6 @@ export class ExcelExportService {
         return { correctedWidth: width, correctedHeight: height };
     }
 
-    /**
-     * Generates the 'data-sheet' containing raw data.
-     */
     _generateDataSheet(workbook, quoteData) {
         const sheet = workbook.addWorksheet('data-sheet');
 
