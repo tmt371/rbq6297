@@ -1,6 +1,7 @@
 /* FILE: 04-core-code/services/generators/work-order-strategy.js */
 // [MODIFIED] (v6299 Phase 5) Injected configManager for height calculation.
 // [MODIFIED] (v6299 Phase 5 Fix) Renamed method to generateRows and updated logic for manufacturing corrections.
+// [MODIFIED] (v6299 Phase 6) Restored the Summary Row at the bottom of the table (Dual, HD, % Off, Total Price).
 
 import { populateTemplate } from '../../utils/template-utils.js';
 
@@ -12,8 +13,9 @@ export class WorkOrderStrategy {
     /**
      * Generates the table rows for the Work Order HTML.
      * Applies manufacturing corrections (Width/Height) and name cleaning.
+     * Appends a summary row at the bottom.
      * @param {object} quoteData - The raw quote data.
-     * @param {object} ui - The UI state.
+     * @param {object} ui - The UI state (for discount).
      * @param {string} rowTemplate - The HTML template for a single row.
      */
     generateRows(quoteData, ui, rowTemplate) {
@@ -33,10 +35,19 @@ export class WorkOrderStrategy {
         // 2. Sort Items (B > SN > LF, then by Qty)
         const sortedItems = this._sortItems(itemsWithIndex);
 
-        // 3. Generate HTML
-        return sortedItems.map((item, index) => {
-            // --- Manufacturing Logic ---
+        // --- [NEW] Initialize Counters for Summary Row ---
+        let dualCount = 0;
+        let hdCount = 0;
+        let totalListPrice = 0;
 
+        // 3. Generate HTML Rows
+        const rowsHtml = sortedItems.map((item, index) => {
+            // --- Calculate Stats ---
+            if (item.dual === 'D') dualCount++;
+            if (item.winder === 'HD') hdCount++;
+            if (item.linePrice) totalListPrice += item.linePrice;
+
+            // --- Manufacturing Logic ---
             // A. Width & Height Correction
             const { mWidth, mHeight } = this._calculateManufacturingDimensions(item);
 
@@ -70,6 +81,24 @@ export class WorkOrderStrategy {
 
             return populateTemplate(rowTemplate, rowData);
         }).join('');
+
+        // --- [NEW] Generate Summary Row HTML ---
+        const dualPairs = Math.floor(dualCount / 2);
+        const discountPercentage = ui.f1?.discountPercentage || 0;
+        const discountedTotal = totalListPrice * (1 - (discountPercentage / 100));
+
+        const summaryRowHtml = `
+            <tr class="summary-row" style="font-weight: bold; background-color: #f0f2f5; border-top: 2px solid #555;">
+                <td data-label="NO" class="text-center" colspan="8" style="text-align: right; padding-right: 10px;">(Summary)</td>
+                <td data-label="dual" class="text-center">${dualPairs}</td>
+                <td data-label="HD" class="text-center">${hdCount}</td>
+                <td data-label="chain" class="text-center"></td>
+                <td data-label="motor" class="text-center" style="font-size: 0.9em; color: #c0392b;">${discountPercentage} %<span style="font-size: 90%;">off</span></td>
+                <td data-label="PRICE" class="text-right" style="color: #c0392b;">$${discountedTotal.toFixed(2)}</td>
+            </tr>
+        `;
+
+        return rowsHtml + summaryRowHtml;
     }
 
     _calculateManufacturingDimensions(item) {
@@ -118,10 +147,12 @@ export class WorkOrderStrategy {
             const catB = getCategory(b);
             if (catA !== catB) return catA - catB;
 
+            // Secondary: Quantity Descending
             const countA = typeCounts[a.fabricType] || 0;
             const countB = typeCounts[b.fabricType] || 0;
             if (countA !== countB) return countB - countA;
 
+            // Tertiary: Group by Type Name
             if (a.fabricType !== b.fabricType) {
                 return (a.fabricType || '').localeCompare(b.fabricType || '');
             }
