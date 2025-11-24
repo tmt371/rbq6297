@@ -3,6 +3,7 @@
 // [MODIFIED] (v6299 Phase 2) Implemented 'work-sheet' generation with sorting and dimension correction logic.
 // [MODIFIED] (v6299 Phase 3) Added visual styling and Side Panel cost summary.
 // [FIX] (Phase 3 Fix) Passed 'ui' state to _generateWorkSheet to fix ReferenceError.
+// [MODIFIED] (v6299 Phase 4 Fix) Updated Side Panel to 3 columns (P,Q,R) with full item breakdown.
 
 export class ExcelExportService {
     constructor({ configManager, calculationService }) {
@@ -31,7 +32,6 @@ export class ExcelExportService {
         const f2Summary = this.calculationService.calculateF2Summary(quoteData, ui);
 
         // 1. Create Work Sheet (Calculated Data + Styles)
-        // [FIX] Pass 'ui' to _generateWorkSheet
         this._generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui);
 
         // 2. Create Data Sheet (Raw Data)
@@ -45,7 +45,6 @@ export class ExcelExportService {
     /**
      * Generates the 'work-sheet' for factory production.
      * Applies sorting, dimension corrections, STYLES, and SIDE PANEL.
-     * [FIX] Added 'ui' parameter.
      */
     _generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui) {
         const sheet = workbook.addWorksheet('work-sheet');
@@ -132,7 +131,7 @@ export class ExcelExportService {
                     right: { style: 'thin' }
                 };
                 // Center align most columns
-                if (colNumber !== 3 && colNumber !== 4 && colNumber !== 14) { // Align Text Left for Name, Color, Location
+                if (colNumber !== 3 && colNumber !== 4 && colNumber !== 14) {
                     cell.alignment = { horizontal: 'center' };
                 }
 
@@ -147,12 +146,15 @@ export class ExcelExportService {
             });
         });
 
-        // --- 4. Side Panel Generation (Columns P, Q) ---
+        // --- 4. Side Panel Generation (Columns P, Q, R) ---
+        // [MODIFIED] (v6299 Phase 4 Fix) Expanded to 3 columns with detailed breakdown.
 
-        // Acce Sum = Winder + Dual + Slim (Component costs from F1)
+        const qtys = f1Costs.qtys || {};
+
+        // Acce Sum
         const acceSum = (f1Costs.winderCost || 0) + (f1Costs.dualComboCost || 0) + (f1Costs.slimCost || 0);
 
-        // E-Acce Sum = Motor + W-Motor + Remotes + Charger + Cord + Wifi
+        // E-Acce Sum
         const eAcceSum =
             (f1Costs.bMotorCost || 0) +
             (f1Costs.wMotorCost || 0) +
@@ -162,55 +164,117 @@ export class ExcelExportService {
             (f1Costs.cordCost || 0) +
             (f1Costs.wifiCost || 0);
 
-        // RB Price (Discounted)
-        // [FIX] Now we can safely access 'ui'
+        // RB Price Logic
         const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
         const discount = (ui && ui.f1) ? (ui.f1.discountPercentage || 0) : 0;
         const rbPriceDiscounted = retailTotal * (1 - (discount / 100));
 
-        // Use calculated totals (prefer f1Costs component total + rbPrice)
         const subTotal = f1Costs.componentTotal + rbPriceDiscounted;
         const gst = subTotal * 0.1;
         const total = subTotal + gst;
 
-        // Define Side Panel Data
-        const sidePanelData = [
-            { label: 'Acce Sum', value: acceSum },
-            { label: 'E-Acce Sum', value: eAcceSum },
-            { label: 'RB Price (Disc)', value: rbPriceDiscounted },
-            { label: 'SubTotal', value: subTotal },
-            { label: 'GST', value: gst },
-            { label: 'TOTAL', value: total }
+        // Define Side Panel Data Rows
+        // Structure: { label, qty, value, isHeader, isTotal, color }
+        const sidePanelRows = [
+            // Block A: Mechanical
+            { label: 'HD Winder', qty: qtys.winder || 0, value: f1Costs.winderCost || 0 },
+            { label: 'Dual Combo', qty: qtys.combo || 0, value: f1Costs.dualComboCost || 0 },
+            { label: 'Dual Slim', qty: qtys.slim || 0, value: f1Costs.slimCost || 0 },
+            { label: 'Acce Sum', qty: '', value: acceSum, isBold: true, bg: 'FFEFEFEF' },
+
+            { label: '', qty: '', value: '' }, // Spacer
+
+            // Block B: Motorization
+            { label: 'B-Motor', qty: qtys.b_motor || 0, value: f1Costs.bMotorCost || 0 },
+            { label: 'W-Motor', qty: qtys.w_motor || 0, value: f1Costs.wMotorCost || 0 },
+            { label: 'Remote 1Ch', qty: qtys.remote1ch || 0, value: f1Costs.remote1chCost || 0 },
+            { label: 'Remote 16Ch', qty: qtys.remote16ch || 0, value: f1Costs.remote16chCost || 0 },
+            { label: 'Charger', qty: qtys.charger || 0, value: f1Costs.chargerCost || 0 },
+            { label: '3M Cord', qty: qtys.cord || 0, value: f1Costs.cordCost || 0 },
+            { label: 'Wifi Hub', qty: qtys.wifi || 0, value: f1Costs.wifiCost || 0 },
+            { label: 'E-Acce Sum', qty: '', value: eAcceSum, isBold: true, bg: 'FFEFEFEF' },
+
+            { label: '', qty: '', value: '' }, // Spacer
+
+            // Block C: Roller Blind
+            { label: 'RB Retail', qty: '', value: retailTotal },
+            { label: 'Discount %', qty: `${discount}%`, value: '' }, // Display discount % in Qty column
+            { label: 'RB Price', qty: '', value: rbPriceDiscounted, isBold: true, bg: 'FFEFEFEF' },
+
+            { label: '', qty: '', value: '' }, // Spacer
+
+            // Block D: Final Summary
+            { label: 'SubTotal', qty: '', value: subTotal },
+            { label: 'GST', qty: '10%', value: gst },
+            { label: 'TOTAL', qty: '', value: total, isBold: true, bg: 'FFFFE0E0', color: 'FFDC143C' }
         ];
 
-        // Render Side Panel starting at Row 2, Column P (16)
+        // Render Side Panel starting at Row 2, Columns P, Q, R
         const startRow = 2;
-        const labelCol = 16; // P
-        const valueCol = 17; // Q
+        const colP = 16; // Label
+        const colQ = 17; // Qty
+        const colR = 18; // Amount
 
         // Set Column Widths
-        sheet.getColumn(labelCol).width = 15;
-        sheet.getColumn(valueCol).width = 12;
+        sheet.getColumn(colP).width = 18;
+        sheet.getColumn(colQ).width = 10;
+        sheet.getColumn(colR).width = 15;
 
-        sidePanelData.forEach((data, index) => {
+        // Headers for Side Panel (Optional, but good for clarity)
+        const headerP = sheet.getCell(1, colP);
+        headerP.value = 'Item';
+        headerP.font = { bold: true };
+        headerP.border = { bottom: { style: 'thin' } };
+
+        const headerQ = sheet.getCell(1, colQ);
+        headerQ.value = 'Qty';
+        headerQ.font = { bold: true };
+        headerQ.alignment = { horizontal: 'center' };
+        headerQ.border = { bottom: { style: 'thin' } };
+
+        const headerR = sheet.getCell(1, colR);
+        headerR.value = 'Amount';
+        headerR.font = { bold: true };
+        headerR.alignment = { horizontal: 'right' };
+        headerR.border = { bottom: { style: 'thin' } };
+
+        sidePanelRows.forEach((data, index) => {
             const currentRow = startRow + index;
             const row = sheet.getRow(currentRow);
 
-            const labelCell = row.getCell(labelCol);
-            labelCell.value = data.label;
-            labelCell.font = { bold: true };
-            labelCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            // Cell P: Label
+            const cellP = row.getCell(colP);
+            cellP.value = data.label;
+            cellP.border = { left: { style: 'thin' } }; // Left border for the block
+            if (data.isBold) cellP.font = { bold: true };
 
-            const valueCell = row.getCell(valueCol);
-            valueCell.value = data.value;
-            valueCell.numFmt = '$#,##0.00';
-            valueCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            // Cell Q: Quantity
+            const cellQ = row.getCell(colQ);
+            cellQ.value = data.qty;
+            cellQ.alignment = { horizontal: 'center' };
+            if (data.isBold) cellQ.font = { bold: true };
 
-            // Highlight TOTAL
-            if (data.label === 'TOTAL') {
-                labelCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE0E0' } }; // Light Red
-                valueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE0E0' } };
-                valueCell.font = { bold: true, color: { argb: 'FFDC143C' } };
+            // Cell R: Amount
+            const cellR = row.getCell(colR);
+            cellR.value = (data.value !== '' && data.value !== null) ? data.value : '';
+            if (typeof data.value === 'number') {
+                cellR.numFmt = '$#,##0.00';
+            }
+            cellR.border = { right: { style: 'thin' } }; // Right border
+            if (data.isBold) cellR.font = { bold: true };
+            if (data.color) cellR.font = { bold: true, color: { argb: data.color } };
+
+            // Background Color
+            if (data.bg) {
+                const fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: data.bg } };
+                cellP.fill = fill;
+                cellQ.fill = fill;
+                cellR.fill = fill;
+                // Add top/bottom borders for summary rows
+                const borderStyle = { style: 'thin' };
+                cellP.border = { top: borderStyle, bottom: borderStyle, left: { style: 'thin' } };
+                cellQ.border = { top: borderStyle, bottom: borderStyle };
+                cellR.border = { top: borderStyle, bottom: borderStyle, right: { style: 'thin' } };
             }
         });
     }
