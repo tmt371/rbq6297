@@ -1,17 +1,15 @@
 /* FILE: 04-core-code/services/workflow-service.js */
-// [MODIFIED] (v6297 瘦身) 移除了持久化邏輯
-// [FIX] (v6297 瘦身) 修正了 handleFileLoad 崩潰錯誤
-// [FIX] (v6297 瘦身) 保留了 fileService 依賴，因為 handleFileLoad 仍需使用它。
 // [MODIFIED] (Correction Flow Phase 2) Added handleCancelCorrectRequest.
 // [MODIFIED] (Correction Flow Phase 4) Implemented _handleCancelOrderFlow with input dialog.
 // [FIX] (Correction Flow Fix) Added setTimeout to _handleCancelOrderFlow to prevent dialog conflict.
+// [MODIFIED] (v6299 Gen-Xls) Added handleGenerateExcel.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
 import * as uiActions from '../actions/ui-actions.js';
 import * as quoteActions from '../actions/quote-actions.js';
 import { paths } from '../config/paths.js';
-// [MODIFIED] 移除了 saveQuoteToCloud
+// [MODIFIED] чз╗щЩдф║?saveQuoteToCloud
 import {
     loadQuoteFromCloud,
     searchQuotesAdvanced, // [MODIFIED] (v6298-F4-Search) Import new function
@@ -25,21 +23,23 @@ export class WorkflowService {
     constructor({
         eventAggregator,
         stateService,
-        fileService, // [MODIFIED] (v6297 瘦身) 架構修正：保留 fileService
+        fileService, // [MODIFIED] (v6297 ?жш║л) ?╢ц?ф┐оцнгя╝Ъф???fileService
         calculationService,
         productFactory,
         detailConfigView,
         quoteGeneratorService,
         authService, // [NEW] (v6297) Inject authService
+        excelExportService // [NEW] (v6299 Gen-Xls) Inject ExcelExportService
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
-        this.fileService = fileService; // [MODIFIED] (v6297 瘦身) 架構修正：保留 fileService
+        this.fileService = fileService; // [MODIFIED] (v6297 ?жш║л) ?╢ц?ф┐оцнгя╝Ъф???fileService
         this.calculationService = calculationService;
         this.productFactory = productFactory;
         this.detailConfigView = detailConfigView;
         this.quoteGeneratorService = quoteGeneratorService; // [NEW] Store the injected service
         this.authService = authService; // [NEW] (v6297) Store authService
+        this.excelExportService = excelExportService; // [NEW] (v6299 Gen-Xls) Store injected service
         this.quotePreviewComponent = null; // Will be set by AppContext
 
         console.log('WorkflowService Initialized.');
@@ -49,13 +49,33 @@ export class WorkflowService {
         this.quotePreviewComponent = component;
     }
 
-    // [NEW] 階段 1: 建立工單流程
+    // [NEW] (v6299 Gen-Xls) Handle Excel Generation Workflow
+    async handleGenerateExcel() {
+        try {
+            const { quoteData } = this.stateService.getState();
+            // Delegate to the specific service
+            await this.excelExportService.generateExcel(quoteData);
+
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Excel file generated and downloaded.',
+                type: 'info',
+            });
+        } catch (error) {
+            console.error('Error generating Excel:', error);
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Failed to generate Excel file. See console for details.',
+                type: 'error',
+            });
+        }
+    }
+
+    // [NEW] ?Оцо╡ 1: х╗║ч?х╖ехЦоц╡Бч?
     async handleGenerateWorkOrder() {
         try {
             const { quoteData, ui } = this.stateService.getState();
 
-            // 1. (非同步) 請求 quoteGeneratorService 產生 HTML
-            // 此階段，這會確保載入模板
+            // 1. (?Юх?цн? шлЛц? quoteGeneratorService ?вч? HTML
+            // цндщ?цо╡я??Щц?чв║ф?ш╝ЙхЕецибцЭ┐
             const finalHtml =
                 await this.quoteGeneratorService.generateWorkOrderHtml(
                     quoteData,
@@ -63,7 +83,7 @@ export class WorkflowService {
                 );
 
             if (finalHtml) {
-                // 2. (同步) 開啟新分頁
+                // 2. (?Мцне) ?Лх??░х???
                 const blob = new Blob([finalHtml], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 window.open(url, '_blank');
@@ -198,13 +218,13 @@ export class WorkflowService {
         this.detailConfigView.activateTab(tabId);
     }
 
-    // [REMOVED] (v6297 瘦身) _getQuoteDataWithSnapshots has been moved to quote-persistence-service.js
+    // [REMOVED] (v6297 ?жш║л) _getQuoteDataWithSnapshots has been moved to quote-persistence-service.js
 
-    // [REMOVED] (v6297 瘦身) handleSaveToFile has been moved to quote-persistence-service.js
+    // [REMOVED] (v6297 ?жш║л) handleSaveToFile has been moved to quote-persistence-service.js
 
-    // [REMOVED] (v6297 瘦身) handleSaveAsNewVersion has been moved to quote-persistence-service.js
+    // [REMOVED] (v6297 ?жш║л) handleSaveAsNewVersion has been moved to quote-persistence-service.js
 
-    // [REMOVED] (v6297 瘦身) handleExportCSV has been moved to quote-persistence-service.js
+    // [REMOVED] (v6297 ?жш║л) handleExportCSV has been moved to quote-persistence-service.js
 
     // [MODIFIED v6285 Phase 5] Logic migrated from quick-quote-view.js and updated.
     handleReset() {
@@ -307,7 +327,7 @@ export class WorkflowService {
         });
     }
 
-    // [FIX] (v6297 瘦身) 
+    // [FIX] (v6297 ?жш║л) 
     // This is the function that crashed.
     // It is now clean and only contains the correct logic.
     handleFileLoad({ fileName, content }) {

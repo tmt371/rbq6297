@@ -2,6 +2,7 @@
 // [MODIFIED] (Correction Flow Phase 4) Added USER_REQUESTED_EXECUTE_CANCELLATION.
 // [MODIFIED] (Correction Flow Fix) Added USER_REQUESTED_EXIT_CORRECTION_MODE.
 // [MODIFIED] (F1 Motor Split) Added W-Motor IDs and Dialog Inputs.
+// [MODIFIED] (v6299 Gen-Xls) Added USER_REQUESTED_GENERATE_EXCEL and F4_BTN_GENERATE_XLS.
 
 /**
  * @fileoverview Centralized constants for the application.
@@ -26,6 +27,7 @@ export const EVENTS = {
     USER_REQUESTED_PRINTABLE_QUOTE: 'userRequestedPrintableQuote',
     USER_REQUESTED_GMAIL_QUOTE: 'userRequestedGmailQuote', // [NEW]
     SHOW_QUOTE_PREVIEW: 'showQuotePreview',
+
 
     // --- User Actions: Quick Quote View ---
     NUMERIC_KEY_PRESSED: 'numericKeyPressed',
@@ -73,8 +75,11 @@ export const EVENTS = {
     USER_CHOSE_LOAD_DIRECTLY: 'userChoseLoadDirectly',
     TRIGGER_FILE_LOAD: 'triggerFileLoad',
     FILE_LOADED: 'fileLoaded',
-    // [NEW] ?段 1 (工單)
+    // [NEW] ?цо?1 (х╖ехЦо)
     USER_REQUESTED_GENERATE_WORK_ORDER: 'userRequestedGenerateWorkOrder',
+    // [NEW] (v6299 Gen-Xls)
+    USER_REQUESTED_GENERATE_EXCEL: 'userRequestedGenerateExcel',
+
 
     // --- [NEW] v6298 F4 & Auth Events ---
     USER_REQUESTED_LOGOUT: 'userRequestedLogout',
@@ -82,11 +87,11 @@ export const EVENTS = {
     USER_REQUESTED_SEARCH_DIALOG: 'userRequestedSearchDialog',
     // [NEW] (v6298-F4-Search) New event for the advanced dialog
     SHOW_SEARCH_DIALOG: 'showSearchDialog',
-    // --- [NEW] ?段 3：S1/S2 互å?事件 ---
+    // --- [NEW] ?цо?3я╝ЪS1/S2 ф║Т├?ф║Лф╗╢ ---
     USER_REQUESTED_EXECUTE_SEARCH: 'userRequestedExecuteSearch',
     SEARCH_RESULTS_SUCCESSFUL: 'searchResultsSuccessful',
-    USER_REQUESTED_CLOSE_SEARCH_DIALOG: 'userRequestedCloseSearchDialog', // [NEW] ?段 3 S2View 請æ?
-    USER_REQUESTED_RELOGIN: 'userRequestedRelogin', // [NEW] (¬?11 次編¿?
+    USER_REQUESTED_CLOSE_SEARCH_DIALOG: 'userRequestedCloseSearchDialog', // [NEW] ?цо?3 S2View шлЛ├?
+    USER_REQUESTED_RELOGIN: 'userRequestedRelogin', // [NEW] (┬м?11 цмбч╖и┬┐?
 
     // [NEW] (F4 Status Phase 3)
     USER_REQUESTED_UPDATE_STATUS: 'userRequestedUpdateStatus',
@@ -181,7 +186,8 @@ export const DOM_IDS = {
     // --- [NEW] v6298 F4 Panel Elements ---
     F4_BTN_SEARCH_DIALOG: 'f4-key-search-dialog',
     F4_BTN_LOGOUT: 'f4-key-logout',
-    F4_BTN_RELOGIN: 'f4-key-relogin', // [NEW] (¬?11 次編¿?
+    F4_BTN_RELOGIN: 'f4-key-relogin', // [NEW] (┬м?11 цмбч╖и┬┐?
+    F4_BTN_GENERATE_XLS: 'f4-key-generate-xls', // [NEW] (v6299 Gen-Xls)
 
     // --- [NEW] v6298 Search Dialog Elements ---
     SEARCH_DIALOG_CONTAINER: 'search-dialog-container',
@@ -203,6 +209,7 @@ export const DOM_IDS = {
     // --- [NEW] v6298 Login Page Elements ---
     FORGOT_PASSWORD_LINK: 'forgot-password-link',
     // --- End v6298 ---
+
 
     // --- Dialog-specific Elements ---
     DIALOG_INPUT_1CH: 'dialog-input-1ch',

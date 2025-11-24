@@ -6,6 +6,7 @@
 // [MODIFIED] (Correction Flow Phase 1) Added Cancel/Correct button logic.
 // [MODIFIED] (Correction Flow Fix) Added SET/Exit buttons and Correction Mode UI logic.
 // [MODIFIED] (Correction Flow Phase 5) Implemented Locking UI Logic (Disable Save/SaveAs when locked).
+// [MODIFIED] (v6299 Gen-Xls) Added logic for Gen-Xls button.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 // [NEW] (F4 Status Phase 2) Import status constants
@@ -69,6 +70,7 @@ export class F4ActionsView {
                 'f1-key-save': query('#f1-key-save'),
                 'f4-key-save-as-new': query('#f4-key-save-as-new'),
                 'f4-key-generate-work-order': query('#f4-key-generate-work-order'),
+                'f4-key-generate-xls': query(`#${DOM_IDS.F4_BTN_GENERATE_XLS}`), // [NEW] (v6299 Gen-Xls)
                 'f1-key-export': query('#f1-key-export'),
                 'f1-key-load': query('#f1-key-load'),
                 'f4-key-load-cloud': query(`#${DOM_IDS.F4_BTN_SEARCH_DIALOG}`),
@@ -84,6 +86,7 @@ export class F4ActionsView {
             'f1-key-save': EVENTS.USER_REQUESTED_SAVE,
             'f4-key-save-as-new': EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION,
             'f4-key-generate-work-order': EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER,
+            'f4-key-generate-xls': EVENTS.USER_REQUESTED_GENERATE_EXCEL, // [NEW] (v6299 Gen-Xls)
             'f1-key-export': EVENTS.USER_REQUESTED_EXPORT_CSV,
             'f1-key-load': EVENTS.USER_REQUESTED_LOAD,
             'f4-key-load-cloud': EVENTS.USER_REQUESTED_SEARCH_DIALOG,
@@ -180,7 +183,8 @@ export class F4ActionsView {
                 'f4-key-save-as-new',
                 'f1-key-export',
                 'f1-key-load',
-                'f4-key-load-cloud' // Search
+                'f4-key-load-cloud', // Search
+                'f4-key-generate-xls' // [NEW] (v6299 Gen-Xls) Disable Gen-Xls in Correction Mode
             ];
             allFileOps.forEach(id => setButtonState(id, true));
 
@@ -222,7 +226,8 @@ export class F4ActionsView {
         const isLocked = lockedStates.includes(status);
 
         // Reset standard buttons first (Enable all)
-        ['f1-key-save', 'f4-key-save-as-new', 'f1-key-export', 'f1-key-load', 'f4-key-load-cloud'].forEach(id => setButtonState(id, false));
+        // [MODIFIED] (v6299 Gen-Xls) Added generate-xls to reset list
+        ['f1-key-save', 'f4-key-save-as-new', 'f1-key-export', 'f1-key-load', 'f4-key-load-cloud', 'f4-key-generate-xls'].forEach(id => setButtonState(id, false));
 
         // Apply Lock: Disable Save and Save As if locked
         if (isLocked) {

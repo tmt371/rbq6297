@@ -137,7 +137,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    /* 統一間距 */
+    /* ч╡▒ф??Уш? */
 }
 
 /* [NEW] New F4 grid group styles */
@@ -153,9 +153,9 @@
 /* [NEW] Style for the "Save" group border */
 .f4-group-save {
     border: 2px solid #166534;
-    /* 深綠色 */
+    /* ц╖▒ч???*/
     background-color: #f0fdf4;
-    /* 非常淡的綠色背景 */
+    /* ?Юх╕╕ц╖бч?ч╢ашЙ▓?МцЩп */
     padding: 10px;
     border-radius: 4px;
 }
@@ -175,7 +175,7 @@
     height: 1px;
     background-color: var(--panel-border-color);
     margin: 5px 0;
-    /* 上下間距 */
+    /* ф╕Кф??Уш? */
 }
 
 /* [NEW] Generic .f4-button style for the new layout */
@@ -200,7 +200,7 @@
 /* [NEW] Color classes for buttons */
 .f4-button.btn-green {
     background-color: #dcfce7;
-    /* 淡綠 */
+    /* ц╖бч? */
     border-color: #a7f3d0;
 }
 
@@ -210,7 +210,7 @@
 
 .f4-button.btn-orange {
     background-color: #ffedd5;
-    /* 淺橘 */
+    /* ц╖║ц? */
     border-color: #fed7aa;
 }
 
@@ -220,7 +220,7 @@
 
 .f4-button.btn-pink {
     background-color: #fee2e2;
-    /* 粉紅 */
+    /* ч▓Йч? */
     border-color: #fecaca;
 }
 
@@ -230,7 +230,7 @@
 
 .f4-button.btn-red {
     background-color: #ef4444;
-    /* 紅色 */
+    /* ч┤ЕшЙ▓ */
     color: white;
     font-weight: bold;
     border-color: #dc2626;
@@ -259,6 +259,11 @@
     border-color: #fca5a5;
     color: #fee2e2;
     opacity: 0.6;
+}
+
+/* [NEW] (v6299 Gen-Xls) Utility class to span 2 columns in F4 grid */
+.f4-span-2 {
+    grid-column: span 2;
 }
 
 /* [NEW] (Correction Flow Fix) Correction Controls Container */

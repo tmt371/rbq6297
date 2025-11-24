@@ -1,34 +1,35 @@
 /* FILE: 04-core-code/app-context.js */
-// [MODIFIED] (v6297 瘦身) 階段 1：Import 並註冊新的 QuotePersistenceService。
-// [SELF-CORRECTION] 依賴 `fileService` 仍被保留在 `workflowService` 中，因為 `handleFileLoad` 仍由 `workflowService` 處理。
+// [MODIFIED] (v6297 Phase 8) Import and register QuotePersistenceService.
+// [SELF-CORRECTION] fileService dependency moved to workflowService as handleFileLoad logic resides there.
+// [MODIFIED] (v6299 Gen-Xls) Register ExcelExportService and inject into WorkflowService.
 
 /**
  * @description
- * AppContext ?此?用程å??「ä?賴注?容?€?DI Container)??
- * 它ç??責?「建立」並註å??€?æ???(Services) ??UI ?件 (Components)??
- * 1. 建ç? Services (例å? StateService, CalculationService)??
- * 2. 建ç? UI Components (例å? QuickQuoteView, RightPanelComponent)??
- * 3. 將這ä?實ä? (instances) 保å??ä??中央登記表 (this.instances) 中€?
+ * AppContext acts as the central Dependency Injection (DI) Container for the application.
+ * It is responsible for instantiating and registering all core Services and UI Components.
  *
- * ?種模å??好??(依賴注入):
- * - ?解?」ï??件不é?要知?「å?何」建立「其他ä?賴」€?
- * 例å?，`AppController` 不é?¦?`new WorkflowService()`，只?要å? AppContext?è?求」已經å??ç? `workflowService` 實ä???
- * - ?可測試?」ï??進è??å?測試?ï??們可以è??地?模?€?mock) 並替??AppContext 中ç??實?å???
- * - ?é?中管?」ï??€?物件ç?建ç??輯?é?中在此ï?便於管ç??維護€?
+ * Core Responsibilities:
+ * 1. Initialize Services (e.g., StateService, CalculationService).
+ * 2. Initialize UI Components (e.g., QuickQuoteView, RightPanelComponent).
+ * 3. Store these instances in a centralized registry (this.instances) for global access.
  *
- * Example:
- * `main.js` (組è?»? ??AppContext 請æ?建ç?好ç??€?零»?(Services, Components)¼?
- * ?å?將這ä??件 (例å? `quickQuoteView`, `appController`) 交給 `UIManager` (總æ??? ?ç?裝å?渲æ??面??
- * */
+ * Key Benefits:
+ * - Decoupling: Components (e.g., AppController) request dependencies rather than instantiating them.
+ * - Testing: Allows for easy injection of mock services during unit testing.
+ * - Order Management: Ensures components are initialized in the correct order to satisfy dependencies.
+ *
+ * Example Usage:
+ * main.js initializes AppContext to bootstrap the app, then retrieves instances like UIManager.
+ */
 export class AppContext {
     constructor() {
         this.instances = {};
     }
 
     /**
-     * 註å?一?實例到容器中€?
-     * @param {string} name - 實ä??唯一?稱 (key)
-     * @param {object} instance - 要註?ç?實ä???
+     * ши╗├?ф╕А?хпжф??░хо╣?иф╕н??
+     * @param {string} name - хпж├???пф??чи?(key)
+     * @param {object} instance - шжБши╗?├з?хпж├???
      */
     register(name, instance) {
         this.instances[name] =
@@ -36,9 +37,9 @@ export class AppContext {
     }
 
     /**
-     * 從容?中?å?一?實例€?
-     * @param {string} name - 要å?得ç?實ä??稱??
-     * @returns {object} - 註å??實例€?
+     * х╛Юхо╣?ф╕?├е?ф╕А?хпжф???
+     * @param {string} name - шжБ├?х╛Ч├?хпж├??чи??
+     * @returns {object} - ши╗├??хпжф???
      */
     get(name) {
         const instance = this.instances[name];
@@ -91,6 +92,10 @@ export class AppContext {
             stateService
         });
         this.register('focusService', focusService);
+
+        // [NEW] (v6299 Gen-Xls) Initialize ExcelExportService
+        const excelExportService = new ExcelExportService();
+        this.register('excelExportService', excelExportService);
     }
 
     initializeUIComponents() {
@@ -104,6 +109,8 @@ export class AppContext {
         const focusService = this.get('focusService');
         const fileService = this.get('fileService');
         const authService = this.get('authService'); // [NEW] (v6297) Get AuthService
+        // [NEW] (v6299 Gen-Xls) Get ExcelExportService
+        const excelExportService = this.get('excelExportService');
 
         // --- [NEW] Instantiate LeftPanelTabManager (Phase 6 Refactor) ---
         const leftPanelElement = document.getElementById(DOM_IDS.LEFT_PANEL);
@@ -141,20 +148,20 @@ export class AppContext {
         const k5TabComponent = new K5TabComponent();
         this.register('k5TabComponent', k5TabComponent);
 
-        // --- [NEW] (?段 2) 實ä??新??Generator 策略 ---
+        // --- [NEW] (?цо?2) хпж├?????Generator чнЦчХе ---
         const workOrderStrategy = new WorkOrderStrategy();
         this.register('workOrderStrategy', workOrderStrategy);
 
-        // [NEW] (?段 3) 實ä??å?表ç???
+        // [NEW] (?цо?3) хпж├??├е?шби├???
         const originalQuoteStrategy = new OriginalQuoteStrategy();
         this.register('originalQuoteStrategy', originalQuoteStrategy);
 
-        // [NEW] (?段 4) 實ä???GTH 策略
+        // [NEW] (?цо?4) хпж├???GTH чнЦчХе
         const gthQuoteStrategy = new GthQuoteStrategy();
         this.register('gthQuoteStrategy', gthQuoteStrategy);
 
 
-        // [NEW] (v6297 瘦身) 階段 1：實例化 QuotePersistenceService
+        // [NEW] (v6297 ?жш║л) ?Оцо╡ 1я╝Ъхпжф╛Лх? QuotePersistenceService
         const quotePersistenceService = new QuotePersistenceService({
             eventAggregator,
             stateService,
@@ -168,7 +175,7 @@ export class AppContext {
 
 
         // --- [NEW] Instantiate the new QuoteGeneratorService ---
-        // [MODIFIED] (?段 4) 注入?€??strategy
+        // [MODIFIED] (?цо?4) ц│ихЕе????strategy
         const quoteGeneratorService = new QuoteGeneratorService({
             calculationService,
             workOrderStrategy,
@@ -237,13 +244,13 @@ export class AppContext {
         const workflowService = new WorkflowService({
             eventAggregator,
             stateService,
-            fileService, // [MODIFIED] (v6297 瘦身) 自我修正：保留 fileService，因為 handleFileLoad 仍在此服務中
+            fileService, // [MODIFIED] (v6297 ?жш║л) ?кц?ф┐оцнгя╝Ъф???fileServiceя╝Мх???handleFileLoad ф╗НхЬицндц??Щф╕н
             calculationService,
             productFactory,
             detailConfigView,
             quoteGeneratorService, // [NEW] Inject the new service
-            authService // [NEW] (v6297) Inject AuthService
-
+            authService, // [NEW] (v6297) Inject AuthService
+            excelExportService // [NEW] (v6299 Gen-Xls) Inject ExcelExportService
         });
         // [REMOVED]
         this.register('workflowService', workflowService);
@@ -265,26 +272,26 @@ export class AppContext {
             workflowService,
             quickQuoteView,
             detailConfigView
-            // [MODIFIED] (v6297 瘦身) 階段 2 將在此處注入 quotePersistenceService
+            // [MODIFIED] (v6297 ?жш║л) ?Оцо╡ 2 х░ЗхЬицндш?ц│ихЕе quotePersistenceService
         });
         this.register('appController', appController);
 
         // --- [NEW] (v6298-F4-Search) Instantiate the Search Dialog Component ---
-        // --- [NEW] ?段 4：實例å? S1/S2 子è???---
+        // --- [NEW] ?цо?4я╝Ъхпжф╛Л├? S1/S2 хнР├???---
         const s1View = new SearchTabS1View({ eventAggregator });
         this.register('s1View', s1View);
 
         const s2View = new SearchTabS2View({ eventAggregator, stateService });
         this.register('s2View', s2View);
 
-        // --- [MODIFIED] ?段 4：å? S1/S2 子è??注?管?員 ---
+        // --- [MODIFIED] ?цо?4я╝Ъ├? S1/S2 хнР├??ц│?чо???---
         const searchDialogComponent = new SearchDialogComponent({
             containerElement: document.getElementById(DOM_IDS.SEARCH_DIALOG_CONTAINER),
             eventAggregator,
             // [MODIFIED] (v6298-F4-Search) Inject required services
             stateService,
             authService,
-            // [NEW] ?段 4 注入
+            // [NEW] ?цо?4 ц│ихЕе
             s1View: s1View,
             s2View: s2View
         });
@@ -318,7 +325,8 @@ import { FileService } from './services/file-service.js';
 import { WorkflowService } from './services/workflow-service.js';
 import { QuoteGeneratorService } from './services/quote-generator-service.js'; // [NEW]
 import { AuthService } from './services/auth-service.js'; // [NEW] (v6297)
-// [NEW] (v6297 瘦身) 階段 1：Import 新服務
+import { ExcelExportService } from './services/excel-export-service.js'; // [NEW] (v6299 Gen-Xls)
+// [NEW] (v6297 ?жш║л) ?Оцо╡ 1я╝ЪImport ?░ц???
 import { QuotePersistenceService } from './services/quote-persistence-service.js';
 import { RightPanelComponent } from './ui/right-panel-component.js';
 import { QuickQuoteView } from './ui/views/quick-quote-view.js';
@@ -340,14 +348,14 @@ import { LeftPanelTabManager } from './ui/left-panel-tab-manager.js'; // [MODIFI
 import { DOM_IDS } from './config/constants.js'; // [MODIFIED]
 // [NEW] (v6298-F4-Search) Import the new search dialog component
 import { SearchDialogComponent } from './ui/search-dialog-component.js';
-// [NEW] ?段 4：Import S1/S2 子è???
+// [NEW] ?цо?4я╝ЪImport S1/S2 хнР├???
 import { SearchTabS1View } from './ui/views/search-tab-s1-view.js';
 import { SearchTabS2View } from './ui/views/search-tab-s2-view.js';
-// [NEW] (?段 2) Import the new generator strategy
+// [NEW] (?цо?2) Import the new generator strategy
 import { WorkOrderStrategy } from './services/generators/work-order-strategy.js';
-// [NEW] (?段 3) Import the new generator strategy
+// [NEW] (?цо?3) Import the new generator strategy
 import { OriginalQuoteStrategy } from './services/generators/original-quote-strategy.js';
-// [NEW] (?段 4) Import the new generator strategy
+// [NEW] (?цо?4) Import the new generator strategy
 import { GthQuoteStrategy } from './services/generators/gth-quote-strategy.js';
 
 
