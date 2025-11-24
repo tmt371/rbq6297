@@ -1,8 +1,12 @@
 /* FILE: 04-core-code/services/workflow-service.js */
+// [MODIFIED] (v6297 ?жш║л) чз╗щЩдф║Жц?ф╣Ех??Пш╝п
+// [FIX] (v6297 ?жш║л) ф┐оцнгф║?handleFileLoad х┤йц╜░?пшкд
+// [FIX] (v6297 ?жш║л) ф┐Эч?ф║?fileService ф╛Эш│┤я╝Мх???handleFileLoad ф╗Нщ?ф╜┐чФихоГуА?
 // [MODIFIED] (Correction Flow Phase 2) Added handleCancelCorrectRequest.
 // [MODIFIED] (Correction Flow Phase 4) Implemented _handleCancelOrderFlow with input dialog.
 // [FIX] (Correction Flow Fix) Added setTimeout to _handleCancelOrderFlow to prevent dialog conflict.
 // [MODIFIED] (v6299 Gen-Xls) Added handleGenerateExcel.
+// [MODIFIED] (v6299 Phase 3) Update handleGenerateExcel to pass UI state.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
@@ -49,12 +53,13 @@ export class WorkflowService {
         this.quotePreviewComponent = component;
     }
 
-    // [NEW] (v6299 Gen-Xls) Handle Excel Generation Workflow
+    // [MODIFIED] (v6299 Phase 3) Pass UI state for cost calculation
     async handleGenerateExcel() {
         try {
-            const { quoteData } = this.stateService.getState();
-            // Delegate to the specific service
-            await this.excelExportService.generateExcel(quoteData);
+            // [MODIFIED] Destructure ui from state
+            const { quoteData, ui } = this.stateService.getState();
+            // Delegate to the specific service, passing ui
+            await this.excelExportService.generateExcel(quoteData, ui);
 
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                 message: 'Excel file generated and downloaded.',

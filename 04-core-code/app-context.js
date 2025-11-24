@@ -2,7 +2,8 @@
 // [MODIFIED] (v6297 Phase 8) Import and register QuotePersistenceService.
 // [SELF-CORRECTION] fileService dependency moved to workflowService as handleFileLoad logic resides there.
 // [MODIFIED] (v6299 Gen-Xls) Register ExcelExportService and inject into WorkflowService.
-// [MODIFIED] (v6299 Phase 2) Inject configManager into ExcelExportService for height calculation.
+// [MODIFIED] (v6299 Phase 2) Inject configManager into ExcelExportService.
+// [MODIFIED] (v6299 Phase 3) Inject calculationService into ExcelExportService for side panel costs.
 
 /**
  * @description
@@ -95,8 +96,11 @@ export class AppContext {
         this.register('focusService', focusService);
 
         // [NEW] (v6299 Gen-Xls) Initialize ExcelExportService
-        // [MODIFIED] (Phase 2) Inject configManager
-        const excelExportService = new ExcelExportService({ configManager });
+        // [MODIFIED] (Phase 2 & 3) Inject configManager AND calculationService
+        const excelExportService = new ExcelExportService({
+            configManager,
+            calculationService // [NEW] (Phase 3)
+        });
         this.register('excelExportService', excelExportService);
     }
 
