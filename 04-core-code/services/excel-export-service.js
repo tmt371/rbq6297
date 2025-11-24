@@ -1,19 +1,20 @@
 /* FILE: 04-core-code/services/excel-export-service.js */
 // [NEW] (v6299 Phase 1) New service to handle Excel (.xlsx) generation using ExcelJS.
 // [MODIFIED] (v6299 Phase 2) Implemented 'work-sheet' generation with sorting and dimension correction logic.
-// [MODIFIED] (v6299 Phase 3) Added visual styling (LF pink, B grey, SN blue) and Side Panel cost summary.
+// [MODIFIED] (v6299 Phase 3) Added visual styling and Side Panel cost summary.
+// [FIX] (Phase 3 Fix) Passed 'ui' state to _generateWorkSheet to fix ReferenceError.
 
 export class ExcelExportService {
     constructor({ configManager, calculationService }) {
         this.configManager = configManager;
-        this.calculationService = calculationService; // [NEW] (Phase 3) Injected
+        this.calculationService = calculationService;
         console.log("ExcelExportService Initialized with ConfigManager and CalculationService.");
     }
 
     /**
      * Main entry point to generate and download the Excel file.
      * @param {object} quoteData - The full quote data object.
-     * @param {object} ui - [NEW] (Phase 3) The UI state for cost calculation.
+     * @param {object} ui - The UI state for cost calculation.
      */
     async generateExcel(quoteData, ui) {
         if (!window.ExcelJS) {
@@ -25,13 +26,13 @@ export class ExcelExportService {
         workbook.creator = 'Ez Blinds Quote System';
         workbook.created = new Date();
 
-        // [NEW] (Phase 3) Calculate Costs for Side Panel
-        // We calculate these here to pass into the worksheet generator
+        // Calculate Costs for Side Panel
         const f1Costs = this.calculationService.calculateF1Costs(quoteData, ui);
         const f2Summary = this.calculationService.calculateF2Summary(quoteData, ui);
 
         // 1. Create Work Sheet (Calculated Data + Styles)
-        this._generateWorkSheet(workbook, quoteData, f1Costs, f2Summary);
+        // [FIX] Pass 'ui' to _generateWorkSheet
+        this._generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui);
 
         // 2. Create Data Sheet (Raw Data)
         this._generateDataSheet(workbook, quoteData);
@@ -44,8 +45,9 @@ export class ExcelExportService {
     /**
      * Generates the 'work-sheet' for factory production.
      * Applies sorting, dimension corrections, STYLES, and SIDE PANEL.
+     * [FIX] Added 'ui' parameter.
      */
-    _generateWorkSheet(workbook, quoteData, f1Costs, f2Summary) {
+    _generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui) {
         const sheet = workbook.addWorksheet('work-sheet');
 
         // --- 1. Define Columns (A~O) ---
@@ -56,7 +58,7 @@ export class ExcelExportService {
         ];
         const headerRow = sheet.addRow(columns);
 
-        // [NEW] (Phase 3) Style Header Row
+        // Style Header Row
         headerRow.eachCell((cell) => {
             cell.font = { bold: true };
             cell.alignment = { horizontal: 'center' };
@@ -111,7 +113,7 @@ export class ExcelExportService {
 
             const row = sheet.addRow(rowData);
 
-            // [NEW] (Phase 3) Apply Row Styling
+            // Apply Row Styling
             let argbColor = null;
             if (isLF) {
                 argbColor = 'FFFFC0CB'; // Pink for LF
@@ -145,8 +147,7 @@ export class ExcelExportService {
             });
         });
 
-        // --- 4. [NEW] (Phase 3) Side Panel Generation (Columns P, Q) ---
-        // Calculate summary values from f1Costs (Cost View) and f2Summary (Summary View)
+        // --- 4. Side Panel Generation (Columns P, Q) ---
 
         // Acce Sum = Winder + Dual + Slim (Component costs from F1)
         const acceSum = (f1Costs.winderCost || 0) + (f1Costs.dualComboCost || 0) + (f1Costs.slimCost || 0);
@@ -162,24 +163,12 @@ export class ExcelExportService {
             (f1Costs.wifiCost || 0);
 
         // RB Price (Discounted)
-        // We need to recalculate RB Price (Discounted) as it's not explicitly exposed in f1Costs return object separately in a simple way, 
-        // but we can derive it from (Total - Components).
-        // Or better, check how f1Costs calculates `componentTotal`.
-        // f1Costs.componentTotal = Sum of all accessories.
-        // We know f1_sub_total (SubTotal) = componentTotal + RB_Price_Discounted.
-        // So RB_Price_Discounted = f1_sub_total - componentTotal.
-        // Note: f2Summary.sumPrice is SubTotal.
-        // Wait, let's look at calculateF1Costs in calculation-service.
-        // It returns `componentTotal`. It does NOT return RB price. 
-        // However, F1CostView calculates rbPrice = retailTotal * (1 - discount).
-        // Let's re-calculate RB Price here to be safe and independent of View state.
-
+        // [FIX] Now we can safely access 'ui'
         const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
-        const discountPercentage = f1Costs.qtys.discountPercentage || (ui.f1 ? ui.f1.discountPercentage : 0); // f1Costs returns discountPercentage in snapshot logic? No, calculateF1Costs doesn't return it explicitly in root. 
-        // Actually, calculateF1Costs uses ui state. We have `ui` passed in.
-        const discount = ui.f1.discountPercentage || 0;
+        const discount = (ui && ui.f1) ? (ui.f1.discountPercentage || 0) : 0;
         const rbPriceDiscounted = retailTotal * (1 - (discount / 100));
 
+        // Use calculated totals (prefer f1Costs component total + rbPrice)
         const subTotal = f1Costs.componentTotal + rbPriceDiscounted;
         const gst = subTotal * 0.1;
         const total = subTotal + gst;
