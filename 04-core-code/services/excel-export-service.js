@@ -5,6 +5,7 @@
 // [FIX] (Phase 3 Fix) Passed 'ui' state to _generateWorkSheet to fix ReferenceError.
 // [MODIFIED] (v6299 Phase 4 Fix) Updated Side Panel to 3 columns (P,Q,R) with full item breakdown.
 // [MODIFIED] (v6299 Phase 4 Refinement) Added Color Legend and removed "Light-filter" prefix from F-Name.
+// [MODIFIED] (v6299 Phase 4 Tweak 2) Added TYPE column, lighter pink, shifted Side Panel, removed Legend.
 
 export class ExcelExportService {
     constructor({ configManager, calculationService }) {
@@ -50,9 +51,10 @@ export class ExcelExportService {
     _generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui) {
         const sheet = workbook.addWorksheet('work-sheet');
 
-        // --- 1. Define Columns (A~O) ---
+        // --- 1. Define Columns (A~P) ---
+        // [MODIFIED] Added 'TYPE' column at index 2 (Column C)
         const columns = [
-            'NO', '#', 'F-Name', 'F-Color', 'Width', 'Height',
+            'NO', '#', 'TYPE', 'F-Name', 'F-Color', 'Width', 'Height',
             'Over', 'O/I', 'L/R', 'Dual', 'Chain', 'Winder', 'Motor',
             'Location', 'Price'
         ];
@@ -93,13 +95,24 @@ export class ExcelExportService {
 
             const { correctedWidth, correctedHeight } = this._calculateProductionDimensions(item);
 
-            // [MODIFIED] (v6299 Phase 4 Refinement) Remove "Light-filter" prefix from Fabric Name
+            // Remove "Light-filter" prefix from Fabric Name
             let fabricName = this._sanitize(item.fabric);
             fabricName = fabricName.replace(/^Light-filter\s+/i, '');
+
+            // [NEW] Determine TYPE Label
+            let typeLabel = '';
+            if (isLF) {
+                typeLabel = "L'filter";
+            } else if (fabricType.startsWith('B')) {
+                typeLabel = "Blockout";
+            } else if (fabricType === 'SN') {
+                typeLabel = "Screen";
+            }
 
             const rowData = [
                 newIndex + 1,
                 item.originalIndex,
+                typeLabel,                     // [NEW] TYPE
                 fabricName,                    // F-Name (Cleaned)
                 this._sanitize(item.color),
                 correctedWidth,
@@ -120,7 +133,8 @@ export class ExcelExportService {
             // Apply Row Styling
             let argbColor = null;
             if (isLF) {
-                argbColor = 'FFFFC0CB'; // Pink for LF
+                // [MODIFIED] Lighter Pink
+                argbColor = 'FFFFE6E6';
             } else if (fabricType.startsWith('B')) {
                 argbColor = 'FFE0E0E0'; // Light Grey for Blockout
             } else if (fabricType === 'SN') {
@@ -136,7 +150,8 @@ export class ExcelExportService {
                     right: { style: 'thin' }
                 };
                 // Center align most columns
-                if (colNumber !== 3 && colNumber !== 4 && colNumber !== 14) {
+                // [MODIFIED] Adjusted for new column index: Name=4, Color=5, Location=15 are Left aligned
+                if (colNumber !== 4 && colNumber !== 5 && colNumber !== 15) {
                     cell.alignment = { horizontal: 'center' };
                 }
 
@@ -151,7 +166,8 @@ export class ExcelExportService {
             });
         });
 
-        // --- 4. Side Panel Generation (Columns P, Q, R) ---
+        // --- 4. Side Panel Generation (Columns Q, R, S) ---
+        // [MODIFIED] Shifted columns by +1 because main table grew by 1 column
         const qtys = f1Costs.qtys || {};
 
         // Acce Sum
@@ -213,9 +229,10 @@ export class ExcelExportService {
 
         // Render Side Panel
         const startRow = 2;
-        const labelCol = 16; // P
-        const colQ = 17; // Qty
-        const colR = 18; // Amount
+        // [MODIFIED] Shifted to Q, R, S due to new TYPE column
+        const labelCol = 17; // Q
+        const colQ = 18; // R
+        const colR = 19; // S
 
         sheet.getColumn(labelCol).width = 18;
         sheet.getColumn(colQ).width = 10;
@@ -242,16 +259,19 @@ export class ExcelExportService {
             const currentRow = startRow + index;
             const row = sheet.getRow(currentRow);
 
+            // Cell P: Label
             const cellP = row.getCell(labelCol);
             cellP.value = data.label;
             cellP.border = { left: { style: 'thin' } };
             if (data.isBold) cellP.font = { bold: true };
 
+            // Cell Q: Quantity
             const cellQ = row.getCell(colQ);
             cellQ.value = data.qty;
             cellQ.alignment = { horizontal: 'center' };
             if (data.isBold) cellQ.font = { bold: true };
 
+            // Cell R: Amount
             const cellR = row.getCell(colR);
             cellR.value = (data.value !== '' && data.value !== null) ? data.value : '';
             if (typeof data.value === 'number') {
@@ -273,32 +293,7 @@ export class ExcelExportService {
             }
         });
 
-        // --- 5. [NEW] (v6299 Phase 4 Refinement) Add Color Legend ---
-        const legendStartRow = startRow + sidePanelRows.length + 2; // Gap of 1 row
-
-        const legendHeaderRow = sheet.getRow(legendStartRow);
-        const legendHeaderCell = legendHeaderRow.getCell(labelCol);
-        legendHeaderCell.value = 'Color Key';
-        legendHeaderCell.font = { bold: true };
-
-        const legendItems = [
-            { label: 'Blockout', bg: 'FFE0E0E0' },   // Grey
-            { label: 'Screen', bg: 'FFE0FFFF' },     // Blue
-            { label: 'Light Filter', bg: 'FFFFC0CB' } // Pink
-        ];
-
-        legendItems.forEach((item, idx) => {
-            const r = legendStartRow + 1 + idx;
-            const row = sheet.getRow(r);
-            const cell = row.getCell(labelCol);
-            cell.value = item.label;
-            cell.fill = {
-                type: 'pattern',
-                pattern: 'solid',
-                fgColor: { argb: item.bg }
-            };
-            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-        });
+        // [MODIFIED] Removed Color Legend as per request
     }
 
     _sortItemsForWorkOrder(items, lfIndexes) {
