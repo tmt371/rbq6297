@@ -3,6 +3,7 @@
 // [SELF-CORRECTION] fileService dependency moved to workflowService as handleFileLoad logic resides there.
 // [MODIFIED] (v6299 Gen-Xls) Register ExcelExportService.
 // [MODIFIED] (v6299 Phase 4) Moved excelExportService injection from WorkflowService to QuotePersistenceService for architectural consistency.
+// [MODIFIED] (v6299 Phase 5) Inject configManager into WorkOrderStrategy for height calculation.
 
 /**
  * @description
@@ -153,7 +154,8 @@ export class AppContext {
         this.register('k5TabComponent', k5TabComponent);
 
         // --- [NEW] (?цо?2) хпж├?????Generator чнЦчХе ---
-        const workOrderStrategy = new WorkOrderStrategy();
+        // [MODIFIED] (v6299 Phase 5) Inject configManager for Work Order Logic
+        const workOrderStrategy = new WorkOrderStrategy({ configManager });
         this.register('workOrderStrategy', workOrderStrategy);
 
         // [NEW] (?цо?3) хпж├??├е?шби├???
