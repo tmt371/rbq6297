@@ -5,6 +5,7 @@
 // [MODIFIED] (Correction Flow Phase 4) Subscribe to USER_REQUESTED_EXECUTE_CANCELLATION.
 // [MODIFIED] (Correction Flow Fix) Subscribe to USER_REQUESTED_EXIT_CORRECTION_MODE.
 // [MODIFIED] (v6299 Gen-Xls) Subscribe to USER_REQUESTED_GENERATE_EXCEL.
+// [MODIFIED] (v6299 Phase 4) Redirect USER_REQUESTED_GENERATE_EXCEL to quotePersistenceService.
 
 import { EVENTS, STORAGE_KEYS } from './config/constants.js';
 import * as uiActions from './actions/ui-actions.js';
@@ -268,8 +269,9 @@ export class AppController {
             this.workflowService.handleGenerateWorkOrder()
         );
         // [NEW] (v6299 Gen-Xls) Connect the new Excel generation event
+        // [MODIFIED] (v6299 Phase 4) Now delegates to quotePersistenceService
         this._subscribe(EVENTS.USER_REQUESTED_GENERATE_EXCEL, () =>
-            this.workflowService.handleGenerateExcel()
+            this.quotePersistenceService.handleGenerateExcel()
         );
 
         // [MODIFIED] (v6297 ?жш║л) ?Оцо╡ 2я╝Ъщ?хоЪх? EXPORT_CSV ф║Лф╗╢

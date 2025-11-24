@@ -1,14 +1,15 @@
 /* FILE: 04-core-code/services/quote-persistence-service.js */
-// [NEW] (v6297) ?段 1：建立新檔æ?以實?æ?久å?
-// [MODIFIED] (¬?1 次編¿? ?儲存方法中?入 authService.verifyAuthentication() 驗è?
-// [MODIFIED] (¬?11 次編¿? ?å? 'blocked' ?誤，é?級為警å?並繼續執行本?儲存€?
+// [NEW] (v6297) ?цо?1я╝Ъх╗║члЛцЦ░цкФ├?ф╗ехпж?├ж?ф╣Е├?
+// [MODIFIED] (┬м?1 цмбч╖и┬┐? ??▓х??╣ц?ф╕???authService.verifyAuthentication() щйЧ├?
+// [MODIFIED] (┬м?11 цмбч╖и┬┐? ?├е? 'blocked' ?шкдя?├й?ч┤ЪчВ║шнж├?ф╕жч╣╝ч║МхЯ╖шбМцЬм??▓х???
 // [MODIFIED] (F4 Status Phase 3) Added handleUpdateStatus logic.
 // [MODIFIED] (Correction Flow Phase 3) Implemented Locking Logic and Atomic Correction Save.
 // [FIX] (Correction Flow Phase 3 Fix) Corrected 'db' import path.
 // [MODIFIED] (Correction Flow Phase 4) Added handleCancelOrder.
 // [MODIFIED] (F1 Motor Split) Added w_motor_qty to snapshot capture.
+// [MODIFIED] (v6299 Phase 4) Added handleGenerateExcel and injected excelExportService.
 
-// [MODIFIED] ¾?workflow-service.js 移入此è?
+// [MODIFIED] ┬╛?workflow-service.js чз╗хЕецнд├?
 import {
     saveQuoteToCloud
 } from './online-storage-service.js';
@@ -18,7 +19,7 @@ import { db } from '../config/firebase-config.js';
 // [NEW] Import Firestore batch functions
 import { writeBatch, doc, collection } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js';
 import { EVENTS } from '../config/constants.js';
-import * as quoteActions from '../actions/quote-actions.js'; // [NEW] 複製依賴
+import * as quoteActions from '../actions/quote-actions.js'; // [NEW] шдЗшг╜ф╛Эш│┤
 import { QUOTE_STATUS } from '../config/status-config.js'; // [NEW] Import status for locking check
 
 /**
@@ -32,10 +33,11 @@ export class QuotePersistenceService {
         stateService,
         fileService,
         authService,
-        // [NEW] 複製 _getQuoteDataWithSnapshots ?€?€?ä?³?
+        // [NEW] шдЗшг╜ _getQuoteDataWithSnapshots ?????├д?┬│?
         calculationService,
         configManager,
-        productFactory
+        productFactory,
+        excelExportService // [NEW] (v6299 Phase 4) Injected
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
@@ -44,12 +46,13 @@ export class QuotePersistenceService {
         this.calculationService = calculationService;
         this.configManager = configManager;
         this.productFactory = productFactory;
+        this.excelExportService = excelExportService; // [NEW] Store reference
 
         console.log('QuotePersistenceService Initialized.');
     }
 
 
-    // [MOVED] ¾?workflow-service.js 移入
+    // [MOVED] ┬╛?workflow-service.js чз╗хЕе
     _getQuoteDataWithSnapshots() {
         const { quoteData, ui } = this.stateService.getState();
         // Create a deep copy to avoid mutating the original state
@@ -141,9 +144,9 @@ export class QuotePersistenceService {
         return dataWithSnapshot;
     }
 
-    // [MOVED] ¾?workflow-service.js 移入
-    // [MODIFIED] (¬?1 次編¿? ?入 authService.verifyAuthentication()
-    // [MODIFIED] (¬?11 次編¿? ?å? 'blocked' ?誤?特殊è??ï?不中?本?儲­?
+    // [MOVED] ┬╛?workflow-service.js чз╗хЕе
+    // [MODIFIED] (┬м?1 цмбч╖и┬┐? ???authService.verifyAuthentication()
+    // [MODIFIED] (┬м?11 цмбч╖и┬┐? ?├е? 'blocked' ?шк??╣ц?├и??├п?ф╕Нф╕н????▓┬?
     // [MODIFIED] (Correction Flow Phase 3) Added LOCKING logic and redirection to handleCorrectionSave.
     async handleSaveToFile() {
         const authResult = await this.authService.verifyAuthentication();
@@ -151,7 +154,7 @@ export class QuotePersistenceService {
 
         if (!authResult.success) {
             if (authResult.reason === 'blocked') {
-                // [NEW] 如æ??被?æ? (Config/Network Error)，顯示警?ä?繼ç??è??地?å?
+                // [NEW] хжВ├??шв?├ж? (Config/Network Error)я╝Мщбпчд║шнж?├д?ч╣╝├??├и????├е?
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message, // e.g., "Cloud connection failed..."
                     type: 'error', // or warning
@@ -159,7 +162,7 @@ export class QuotePersistenceService {
                 console.warn("Cloud save skipped due to network/config block. Proceeding to local save.");
                 skipCloudSave = true;
             } else {
-                // [NEW] 如æ??其他å???(例å? token ?æ?)，å??è??æ??登?è?中斷?輯
+                // [NEW] хжВ├???╢ф?├е???(ф╛Л├? token ?├ж?)я╝М├??├и??├ж????├и?ф╕нцЦ╖?ш╝?
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message,
                     type: 'error',
@@ -181,7 +184,7 @@ export class QuotePersistenceService {
         }
 
         // 2. Check for Lock Status
-        // "Established Order" (訂單已成立) implies any status other than A (Saved) or Configuring.
+        // "Established Order" (шиВхЦох╖▓ц?чл? implies any status other than A (Saved) or Configuring.
         // If status exists and is NOT A_ARCHIVED, we block standard saving.
         const isLocked = currentStatus && currentStatus !== QUOTE_STATUS.A_ARCHIVED && currentStatus !== "Configuring";
 
@@ -198,7 +201,7 @@ export class QuotePersistenceService {
         const dataToSave = this._getQuoteDataWithSnapshots();
 
         // --- [NEW] (v6298-fix-6) Robust Firebase Save ---
-        // [MODIFIED] (¬?11 次編¿? 如æ?被æ?記為 skipCloudSave，å?跳é??端?å?
+        // [MODIFIED] (┬м?11 цмбч╖и┬┐? хжВ├?швл├?шиШчВ║ skipCloudSaveя╝М├?ш╖│├??чл?├е?
         if (!skipCloudSave) {
             try {
                 await saveQuoteToCloud(dataToSave);
@@ -298,16 +301,16 @@ export class QuotePersistenceService {
         }
     }
 
-    // [MOVED] ¾?workflow-service.js 移入
-    // [MODIFIED] (¬?1 次編¿? ?入 authService.verifyAuthentication()
-    // [MODIFIED] (¬?11 次編¿? ?å? 'blocked' ?誤?特殊è??ï?不中?本?儲­?
+    // [MOVED] ┬╛?workflow-service.js чз╗хЕе
+    // [MODIFIED] (┬м?1 цмбч╖и┬┐? ???authService.verifyAuthentication()
+    // [MODIFIED] (┬м?11 цмбч╖и┬┐? ?├е? 'blocked' ?шк??╣ц?├и??├п?ф╕Нф╕н????▓┬?
     async handleSaveAsNewVersion() {
         const authResult = await this.authService.verifyAuthentication();
         let skipCloudSave = false;
 
         if (!authResult.success) {
             if (authResult.reason === 'blocked') {
-                // [NEW] ?å? Blocked，顯示警?ä?繼ç?
+                // [NEW] ?├е? Blockedя╝Мщбпчд║шнж?├д?ч╣╝├?
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message,
                     type: 'error',
@@ -315,7 +318,7 @@ export class QuotePersistenceService {
                 console.warn("Cloud save skipped due to network/config block. Proceeding to local save.");
                 skipCloudSave = true;
             } else {
-                // ?å? Expired，登?並?止
+                // ?├е? Expiredя╝МчЩ╗?ф╕?цн?
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message,
                     type: 'error',
@@ -330,7 +333,6 @@ export class QuotePersistenceService {
 
         // 2. Generate the new versioned quoteId
         const currentId = dataToSave.quoteId || `RB${new Date().toISOString().replace(/[-:.]/g, '').substring(0, 14)}`;
-
         // Regex to find a version suffix like "-v2"
         const versionRegex = /-v(\d+)$/;
         const match = currentId.match(versionRegex);
@@ -356,7 +358,7 @@ export class QuotePersistenceService {
 
         // 4. Save to both cloud (new document) and local (new file)
         let cloudSaveSuccess = false;
-        // [MODIFIED] (¬?11 次編¿? 檢查 skipCloudSave
+        // [MODIFIED] (┬м?11 цмбч╖и┬┐? цквцЯе skipCloudSave
         if (!skipCloudSave) {
             try {
                 await saveQuoteToCloud(dataToSave);
@@ -387,7 +389,7 @@ export class QuotePersistenceService {
         });
     }
 
-    // [MOVED] ¾?workflow-service.js 移入
+    // [MOVED] ┬╛?workflow-service.js чз╗хЕе
     handleExportCSV() {
         const dataToExport = this._getQuoteDataWithSnapshots();
         const result = this.fileService.exportToCsv(dataToExport);
@@ -396,6 +398,26 @@ export class QuotePersistenceService {
             message: result.message,
             type: notificationType,
         });
+    }
+
+    // [NEW] (v6299 Phase 4) Centralized handler for Excel generation
+    async handleGenerateExcel() {
+        try {
+            const { quoteData, ui } = this.stateService.getState();
+            // Delegate to the injected service
+            await this.excelExportService.generateExcel(quoteData, ui);
+
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Excel file generated and downloaded.',
+                type: 'info',
+            });
+        } catch (error) {
+            console.error('Error generating Excel:', error);
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Failed to generate Excel file. See console for details.',
+                type: 'error',
+            });
+        }
     }
 
     /**
@@ -414,15 +436,15 @@ export class QuotePersistenceService {
         // So we allow this method to run, as long as it's not modifying "content".
         // This method ONLY updates `status` and `creationDate`.
 
-        // 1. 立即更新本地 state，使 UI 保持同步
+        // 1. члЛхН│?┤цЦ░?мхЬ░ stateя╝Мф╜┐ UI ф┐Эц??Мцне
         this.stateService.dispatch(quoteActions.updateQuoteProperty('status', newStatus));
 
-        // 2. 獲取包含新 status 和新 creationDate 的快照
+        // 2. ?▓х??ЕхРл??status ?МцЦ░ creationDate ?Дх┐л??
         // Note: _getQuoteDataWithSnapshots() automatically updates 'creationDate' to now.
         const dataToSave = this._getQuoteDataWithSnapshots();
 
         try {
-            // 3. 儲存到火店
+            // 3. ?▓х??░чБлх║?
             // We explicitly want to save to the cloud here to share the status update.
             // We do NOT save to local file to avoid annoying download prompts for just a status change.
             const result = await saveQuoteToCloud(dataToSave);

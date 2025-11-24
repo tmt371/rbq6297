@@ -1,9 +1,8 @@
 /* FILE: 04-core-code/app-context.js */
 // [MODIFIED] (v6297 Phase 8) Import and register QuotePersistenceService.
 // [SELF-CORRECTION] fileService dependency moved to workflowService as handleFileLoad logic resides there.
-// [MODIFIED] (v6299 Gen-Xls) Register ExcelExportService and inject into WorkflowService.
-// [MODIFIED] (v6299 Phase 2) Inject configManager into ExcelExportService.
-// [MODIFIED] (v6299 Phase 3) Inject calculationService into ExcelExportService for side panel costs.
+// [MODIFIED] (v6299 Gen-Xls) Register ExcelExportService.
+// [MODIFIED] (v6299 Phase 4) Moved excelExportService injection from WorkflowService to QuotePersistenceService for architectural consistency.
 
 /**
  * @description
@@ -96,10 +95,9 @@ export class AppContext {
         this.register('focusService', focusService);
 
         // [NEW] (v6299 Gen-Xls) Initialize ExcelExportService
-        // [MODIFIED] (Phase 2 & 3) Inject configManager AND calculationService
         const excelExportService = new ExcelExportService({
             configManager,
-            calculationService // [NEW] (Phase 3)
+            calculationService
         });
         this.register('excelExportService', excelExportService);
     }
@@ -168,6 +166,7 @@ export class AppContext {
 
 
         // [NEW] (v6297 ?жш║л) ?Оцо╡ 1я╝Ъхпжф╛Лх? QuotePersistenceService
+        // [MODIFIED] (v6299 Phase 4) Inject excelExportService here for centralization
         const quotePersistenceService = new QuotePersistenceService({
             eventAggregator,
             stateService,
@@ -175,7 +174,8 @@ export class AppContext {
             authService,
             calculationService,
             configManager,
-            productFactory
+            productFactory,
+            excelExportService // [NEW] Injected here
         });
         this.register('quotePersistenceService', quotePersistenceService);
 
@@ -247,6 +247,7 @@ export class AppContext {
             });
         this.register('detailConfigView', detailConfigView);
 
+        // [MODIFIED] (v6299 Phase 4) excelExportService dependency removed from WorkflowService
         const workflowService = new WorkflowService({
             eventAggregator,
             stateService,
@@ -256,7 +257,7 @@ export class AppContext {
             detailConfigView,
             quoteGeneratorService, // [NEW] Inject the new service
             authService, // [NEW] (v6297) Inject AuthService
-            excelExportService // [NEW] (v6299 Gen-Xls) Inject ExcelExportService
+            // excelExportService // [REMOVED] (v6299 Phase 4) Moved to QuotePersistenceService
         });
         // [REMOVED]
         this.register('workflowService', workflowService);
@@ -277,8 +278,8 @@ export class AppContext {
             stateService,
             workflowService,
             quickQuoteView,
-            detailConfigView
-            // [MODIFIED] (v6297 ?жш║л) ?Оцо╡ 2 х░ЗхЬицндш?ц│ихЕе quotePersistenceService
+            detailConfigView,
+            quotePersistenceService // [MODIFIED] (v6297) Injected
         });
         this.register('appController', appController);
 

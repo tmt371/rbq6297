@@ -5,8 +5,8 @@
 // [MODIFIED] (Correction Flow Phase 2) Added handleCancelCorrectRequest.
 // [MODIFIED] (Correction Flow Phase 4) Implemented _handleCancelOrderFlow with input dialog.
 // [FIX] (Correction Flow Fix) Added setTimeout to _handleCancelOrderFlow to prevent dialog conflict.
-// [MODIFIED] (v6299 Gen-Xls) Added handleGenerateExcel.
-// [MODIFIED] (v6299 Phase 3) Update handleGenerateExcel to pass UI state.
+// [MODIFIED] (v6299 Phase 4) Removed handleGenerateExcel (moved to QuotePersistenceService).
+// [MODIFIED] (v6299 Phase 4) Removed excelExportService injection.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
@@ -33,7 +33,7 @@ export class WorkflowService {
         detailConfigView,
         quoteGeneratorService,
         authService, // [NEW] (v6297) Inject authService
-        excelExportService // [NEW] (v6299 Gen-Xls) Inject ExcelExportService
+        // excelExportService // [REMOVED] (v6299 Phase 4) Moved to QuotePersistenceService
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
@@ -43,7 +43,7 @@ export class WorkflowService {
         this.detailConfigView = detailConfigView;
         this.quoteGeneratorService = quoteGeneratorService; // [NEW] Store the injected service
         this.authService = authService; // [NEW] (v6297) Store authService
-        this.excelExportService = excelExportService; // [NEW] (v6299 Gen-Xls) Store injected service
+        // this.excelExportService = excelExportService; // [REMOVED] (v6299 Phase 4)
         this.quotePreviewComponent = null; // Will be set by AppContext
 
         console.log('WorkflowService Initialized.');
@@ -53,26 +53,7 @@ export class WorkflowService {
         this.quotePreviewComponent = component;
     }
 
-    // [MODIFIED] (v6299 Phase 3) Pass UI state for cost calculation
-    async handleGenerateExcel() {
-        try {
-            // [MODIFIED] Destructure ui from state
-            const { quoteData, ui } = this.stateService.getState();
-            // Delegate to the specific service, passing ui
-            await this.excelExportService.generateExcel(quoteData, ui);
-
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: 'Excel file generated and downloaded.',
-                type: 'info',
-            });
-        } catch (error) {
-            console.error('Error generating Excel:', error);
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: 'Failed to generate Excel file. See console for details.',
-                type: 'error',
-            });
-        }
-    }
+    // [REMOVED] (v6299 Phase 4) handleGenerateExcel has been moved to QuotePersistenceService
 
     // [NEW] ?Оцо╡ 1: х╗║ч?х╖ехЦоц╡Бч?
     async handleGenerateWorkOrder() {
