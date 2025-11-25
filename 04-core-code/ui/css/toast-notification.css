@@ -1,11 +1,13 @@
 /* File: 04-core-code/ui/css/toast-notification.css */
+/* [MODIFIED] (v6299 Tweak 9) Shifted toast container up by 50px to avoid overlapping the Right Panel Toggle. */
 
 /* --- Toast Notification Styles --- */
 #toast-container {
     position: fixed;
-    top: 50%; /* [MODIFIED] Changed from 20px to center vertically. */
+    /* [MODIFIED] Shift up by 50px from the absolute center to clear the right panel toggle */
+    top: calc(50% - 50px);
     right: 20px;
-    transform: translateY(-50%); /* [ADDED] Added to perfectly center the container. */
+    transform: translateY(-50%);
     z-index: 9999;
     display: flex;
     flex-direction: column;
@@ -18,7 +20,7 @@
     color: white;
     padding: 15px 20px;
     border-radius: 5px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     opacity: 0;
     transform: translateX(100%);
     animation: slideInAndFadeOut 4s forwards;
@@ -33,14 +35,17 @@
         opacity: 0;
         transform: translateX(100%);
     }
+
     15% {
         opacity: 1;
         transform: translateX(0);
     }
+
     85% {
         opacity: 1;
         transform: translateX(0);
     }
+
     100% {
         opacity: 0;
         transform: translateX(100%);
