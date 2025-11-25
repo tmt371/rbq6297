@@ -4,6 +4,7 @@
 // [MODIFIED] (v6299 Gen-Xls) Register ExcelExportService.
 // [MODIFIED] (v6299 Phase 4) Moved excelExportService injection from WorkflowService to QuotePersistenceService for architectural consistency.
 // [MODIFIED] (v6299 Phase 5) Inject configManager into WorkOrderStrategy for height calculation.
+// [MODIFIED] (v6297 Stage 9) Register DataPreparationService.
 
 /**
  * @description
@@ -29,19 +30,18 @@ export class AppContext {
     }
 
     /**
-     * ши╗├?ф╕А?хпжф??░хо╣?иф╕н??
-     * @param {string} name - хпж├???пф??чи?(key)
-     * @param {object} instance - шжБши╗?├з?хпж├???
+     * 註冊一個服務或組件實例。
+     * @param {string} name - 服務名稱 (key)
+     * @param {object} instance - 實例化後的物件
      */
     register(name, instance) {
-        this.instances[name] =
-            instance;
+        this.instances[name] = instance;
     }
 
     /**
-     * х╛Юхо╣?ф╕?├е?ф╕А?хпжф???
-     * @param {string} name - шжБ├?х╛Ч├?хпж├??чи??
-     * @returns {object} - ши╗├??хпжф???
+     * 獲取已註冊的服務實例。
+     * @param {string} name - 服務名稱
+     * @returns {object} - 服務實例
      */
     get(name) {
         const instance = this.instances[name];
@@ -64,6 +64,11 @@ export class AppContext {
         const configManager = new ConfigManager(eventAggregator);
         this.register('configManager', configManager);
 
+        // [NEW] (v6297 Stage 9) Initialize DataPreparationService early as it depends on ConfigManager
+        // but is a core logic service used by others (potentially).
+        const dataPreparationService = new DataPreparationService({ configManager });
+        this.register('dataPreparationService', dataPreparationService);
+
         const productFactory = new ProductFactory({ configManager });
         this.register('productFactory', productFactory);
 
@@ -85,8 +90,8 @@ export class AppContext {
             productFactory,
             configManager
         });
-        this.register('calculationService',
-            calculationService);
+        this.register('calculationService', calculationService);
+
         const fileService = new FileService({ productFactory });
         this.register('fileService', fileService);
 
@@ -153,21 +158,21 @@ export class AppContext {
         const k5TabComponent = new K5TabComponent();
         this.register('k5TabComponent', k5TabComponent);
 
-        // --- [NEW] (?цо?2) хпж├?????Generator чнЦчХе ---
+        // --- [NEW] (階段 2) 初始化 Generator 策略 ---
         // [MODIFIED] (v6299 Phase 5) Inject configManager for Work Order Logic
         const workOrderStrategy = new WorkOrderStrategy({ configManager });
         this.register('workOrderStrategy', workOrderStrategy);
 
-        // [NEW] (?цо?3) хпж├??├е?шби├???
+        // [NEW] (階段 3) 初始化原報表策略
         const originalQuoteStrategy = new OriginalQuoteStrategy();
         this.register('originalQuoteStrategy', originalQuoteStrategy);
 
-        // [NEW] (?цо?4) хпж├???GTH чнЦчХе
+        // [NEW] (階段 4) 初始化 GTH 策略
         const gthQuoteStrategy = new GthQuoteStrategy();
         this.register('gthQuoteStrategy', gthQuoteStrategy);
 
 
-        // [NEW] (v6297 ?жш║л) ?Оцо╡ 1я╝Ъхпжф╛Лх? QuotePersistenceService
+        // [NEW] (v6297 階段 7) 初始化 QuotePersistenceService
         // [MODIFIED] (v6299 Phase 4) Inject excelExportService here for centralization
         const quotePersistenceService = new QuotePersistenceService({
             eventAggregator,
@@ -183,7 +188,7 @@ export class AppContext {
 
 
         // --- [NEW] Instantiate the new QuoteGeneratorService ---
-        // [MODIFIED] (?цо?4) ц│ихЕе????strategy
+        // [MODIFIED] (階段 4) 注入所有 strategy
         const quoteGeneratorService = new QuoteGeneratorService({
             calculationService,
             workOrderStrategy,
@@ -237,23 +242,22 @@ export class AppContext {
         const driveAccessoriesView = new DriveAccessoriesView({ stateService, calculationService, eventAggregator });
 
         // --- [MODIFIED] Removed obsolete publishStateChangeCallback from DetailConfigView dependencies ---
-        const detailConfigView
-            = new DetailConfigView({
-                stateService,
-                eventAggregator,
-                k1LocationView,
-                k2FabricView,
-                k3OptionsView,
-                dualChainView,
-                driveAccessoriesView
-            });
+        const detailConfigView = new DetailConfigView({
+            stateService,
+            eventAggregator,
+            k1LocationView,
+            k2FabricView,
+            k3OptionsView,
+            dualChainView,
+            driveAccessoriesView
+        });
         this.register('detailConfigView', detailConfigView);
 
         // [MODIFIED] (v6299 Phase 4) excelExportService dependency removed from WorkflowService
         const workflowService = new WorkflowService({
             eventAggregator,
             stateService,
-            fileService, // [MODIFIED] (v6297 ?жш║л) ?кц?ф┐оцнгя╝Ъф???fileServiceя╝Мх???handleFileLoad ф╗НхЬицндц??Щф╕н
+            fileService, // [MODIFIED] (v6297 階段 7) 保留，但主要存取邏輯移至 QuotePersistenceService
             calculationService,
             productFactory,
             detailConfigView,
@@ -286,21 +290,21 @@ export class AppContext {
         this.register('appController', appController);
 
         // --- [NEW] (v6298-F4-Search) Instantiate the Search Dialog Component ---
-        // --- [NEW] ?цо?4я╝Ъхпжф╛Л├? S1/S2 хнР├???---
+        // --- [NEW] 階段 3：創建 S1/S2 視圖 ---
         const s1View = new SearchTabS1View({ eventAggregator });
         this.register('s1View', s1View);
 
         const s2View = new SearchTabS2View({ eventAggregator, stateService });
         this.register('s2View', s2View);
 
-        // --- [MODIFIED] ?цо?4я╝Ъ├? S1/S2 хнР├??ц│?чо???---
+        // --- [MODIFIED] 階段 4：創建 Search Dialog 組件 ---
         const searchDialogComponent = new SearchDialogComponent({
             containerElement: document.getElementById(DOM_IDS.SEARCH_DIALOG_CONTAINER),
             eventAggregator,
             // [MODIFIED] (v6298-F4-Search) Inject required services
             stateService,
             authService,
-            // [NEW] ?цо?4 ц│ихЕе
+            // [NEW] 階段 4 注入
             s1View: s1View,
             s2View: s2View
         });
@@ -335,7 +339,8 @@ import { WorkflowService } from './services/workflow-service.js';
 import { QuoteGeneratorService } from './services/quote-generator-service.js'; // [NEW]
 import { AuthService } from './services/auth-service.js'; // [NEW] (v6297)
 import { ExcelExportService } from './services/excel-export-service.js'; // [NEW] (v6299 Gen-Xls)
-// [NEW] (v6297 ?жш║л) ?Оцо╡ 1я╝ЪImport ?░ц???
+import { DataPreparationService } from './services/data-preparation-service.js'; // [NEW] (v6297 Stage 9)
+// [NEW] (v6297 階段 7) Import 引用
 import { QuotePersistenceService } from './services/quote-persistence-service.js';
 import { RightPanelComponent } from './ui/right-panel-component.js';
 import { QuickQuoteView } from './ui/views/quick-quote-view.js';
@@ -357,14 +362,14 @@ import { LeftPanelTabManager } from './ui/left-panel-tab-manager.js'; // [MODIFI
 import { DOM_IDS } from './config/constants.js'; // [MODIFIED]
 // [NEW] (v6298-F4-Search) Import the new search dialog component
 import { SearchDialogComponent } from './ui/search-dialog-component.js';
-// [NEW] ?цо?4я╝ЪImport S1/S2 хнР├???
+// [NEW] 階段 3：Import S1/S2 視圖
 import { SearchTabS1View } from './ui/views/search-tab-s1-view.js';
 import { SearchTabS2View } from './ui/views/search-tab-s2-view.js';
-// [NEW] (?цо?2) Import the new generator strategy
+// [NEW] (階段 2) Import the new generator strategy
 import { WorkOrderStrategy } from './services/generators/work-order-strategy.js';
-// [NEW] (?цо?3) Import the new generator strategy
+// [NEW] (階段 3) Import the new generator strategy
 import { OriginalQuoteStrategy } from './services/generators/original-quote-strategy.js';
-// [NEW] (?цо?4) Import the new generator strategy
+// [NEW] (階段 4) Import the new generator strategy
 import { GthQuoteStrategy } from './services/generators/gth-quote-strategy.js';
 
 
