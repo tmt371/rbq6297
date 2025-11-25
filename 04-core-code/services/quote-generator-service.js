@@ -1,6 +1,7 @@
 /* FILE: 04-core-code/services/quote-generator-service.js */
 // [MODIFIED] (?Оцо╡ 4) Refactored: GTH logic moved to GthQuoteStrategy.
 // [FIX] (v6299 Phase 5 Fix) Update generateWorkOrderHtml to pass raw quoteData to strategy.
+// [FIX] (v6299 Phase 7 Fix) Reverted CSS injection; CSS is now embedded in the HTML template.
 
 import { paths } from '../config/paths.js';
 import { populateTemplate, formatCustomerInfo } from '../utils/template-utils.js';
@@ -31,6 +32,7 @@ export class QuoteGeneratorService {
         this.detailedItemListRow = '';
         this.workOrderTemplate = '';
         this.workOrderRowTemplate = '';
+        // [REMOVED] this.workOrderCss = '';
 
         this.actionBarHtml = `
      <div id="action-bar">
@@ -42,7 +44,10 @@ export class QuoteGeneratorService {
     }
 
     async _loadTemplates() {
-        if (this.quoteTemplate && this.detailsTemplate && this.gmailTemplate && this.quoteTemplateRow && this.gmailTemplateCard && this.quoteClientScript && this.gmailClientScript && this.detailedItemListRow && this.workOrderTemplate && this.workOrderRowTemplate) {
+        if (this.quoteTemplate && this.detailsTemplate && this.gmailTemplate &&
+            this.quoteTemplateRow && this.gmailTemplateCard && this.quoteClientScript &&
+            this.gmailClientScript && this.detailedItemListRow && this.workOrderTemplate &&
+            this.workOrderRowTemplate) {
             return;
         }
         console.log("QuoteGeneratorService: First click detected, fetching templates...");
@@ -59,6 +64,7 @@ export class QuoteGeneratorService {
                 this.detailedItemListRow,
                 this.workOrderTemplate,
                 this.workOrderRowTemplate
+                // [REMOVED] CSS fetch
             ] = await Promise.all([
                 fetch(paths.partials.quoteTemplate).then(res => res.text()),
                 fetch(paths.partials.detailedItemList).then(res => res.text()),
@@ -69,7 +75,7 @@ export class QuoteGeneratorService {
                 fetch(paths.partials.gmailClientScript).then(res => res.text()),
                 fetch(paths.partials.detailedItemListRow).then(res => res.text()),
                 fetch(paths.partials.workOrderTemplate).then(res => res.text()),
-                fetch(paths.partials.workOrderTemplateRow).then(res => res.text()),
+                fetch(paths.partials.workOrderTemplateRow).then(res => res.text())
             ]);
             console.log("QuoteGeneratorService: All templates fetched.");
         } catch (error) {
@@ -88,21 +94,18 @@ export class QuoteGeneratorService {
             return null;
         }
 
-        // [FIX] Pass raw quoteData and ui to the strategy so it can perform sorting and calculations correctly.
-        // We no longer pass 'templateData' because the strategy needs access to 'uiMetadata' for LF checks
-        // and 'priceMatrix' (via configManager) which requires raw data.
         const workOrderTableRows = this.workOrderStrategy.generateRows(
             quoteData,
             ui,
             this.workOrderRowTemplate
         );
 
-        // We still need templateData for the summary/header fields (customer name, totals, etc.)
         const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData);
 
         const populatedData = {
             ...templateData,
             workOrderTableRows: workOrderTableRows
+            // [REMOVED] cssStyles injection
         };
 
         let finalHtml = populateTemplate(this.workOrderTemplate, populatedData);
@@ -150,15 +153,9 @@ export class QuoteGeneratorService {
 
         finalHtml = finalHtml.replace(
             '<body>',
-            `<body><script>${this.gmailClientScript}</script>` // Inject script at top of body or replace body end
-        ).replace('</body>', ''); // Remove old body tag to avoid duplication if appending
+            `<body><script>${this.gmailClientScript}</script>`
+        ).replace('</body>', '');
 
-        // Actually, better to just append script before closing body
-        // Resetting for clean append:
-        // finalHtml += `<script>${this.gmailClientScript}</script>`; 
-        // But the template usually has </body>. Let's stick to previous logic:
-        // finalHtml = finalHtml.replace('</body>', `<script>${this.gmailClientScript}</script></body>`);
-        // Re-implementing the verified logic from previous file:
         finalHtml = finalHtml.replace('</body>', `<script>${this.gmailClientScript}</script></body>`);
 
         return finalHtml;

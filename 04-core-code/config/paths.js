@@ -1,5 +1,6 @@
 /* FILE: 04-core-code/config/paths.js */
-// [MODIFIED] (階段 2) Added path for workOrderTemplateRow.
+// [MODIFIED] (?Оцо╡ 2) Added path for workOrderTemplateRow.
+// [MODIFIED] (v6299 Phase 7 Fix) Reverted workOrderCss path (CSS is now embedded).
 
 export const paths = {
     partials: {
@@ -21,10 +22,11 @@ export const paths = {
         loginComponent: './04-core-code/ui/partials/login-component.html',
         // [NEW] (v6298-F4-Search) Add path for the new search dialog
         searchDialog: './04-core-code/ui/partials/search-dialog.html',
-        // [NEW] (階段 1) Add path for the work order template
+        // [NEW] (?Оцо╡ 1) Add path for the work order template
         workOrderTemplate: './04-core-code/ui/partials/work-order-template.html',
-        // [NEW] (階段 2) Add path for the work order row template
+        // [NEW] (?Оцо╡ 2) Add path for the work order row template
         workOrderTemplateRow: './04-core-code/ui/partials/work-order-template-row.html',
+        // [REMOVED] workOrderCss path is no longer needed as styles are embedded
     },
     // [NEW] Add paths for new refactored tabs
     tabs: {

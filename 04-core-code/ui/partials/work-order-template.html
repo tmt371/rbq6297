@@ -5,10 +5,495 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Work Order</title>
-    <link rel="stylesheet" href="./04-core-code/ui/css/work-order.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        /* [MODIFIED] (v6299 Phase 7 Fix 2) Styles embedded back into HTML to support Blob URL rendering */
+        /* [MODIFIED] (v6299 Phase 10 Tweak) Adjusted font sizes and column widths */
+        /* [MODIFIED] (v6299 Phase 11 Fix) Fixed font size calculation (pixels instead of %) */
+        /* [MODIFIED] (v6299 Phase 12 Fix) Reduced print zoom to 75% to fit A4 Landscape */
+        /* [MODIFIED] (v6299 Phase 13 Optimization) Reset zoom to 98% for readability, adjusted font/cols */
+        /* [MODIFIED] (v6299 Phase 14 Final Fix) Zoom 87%, Font 13px, Widened Header Cols */
+
+        /* --- 1. Base Variables & Settings --- */
+        :root {
+            --primary-color: #1a237e;
+            --border-dark-grey: #555555;
+            --border-light-grey: #dddddd;
+            --header-bg-color: #E6E6E6;
+        }
+
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .page-container {
+            /* [MODIFIED] Increased width by ~10% (900px -> 1000px) */
+            max-width: 1000px;
+            margin: auto;
+            padding: 10px;
+        }
+
+        .content-wrapper {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            border: 2px solid #a0d3e8;
+        }
+
+        /* --- 2. Headers --- */
+        .main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 40px;
+        }
+
+        .main-header h1 {
+            border-bottom: none;
+            padding-bottom: 0;
+            margin: 0;
+            color: #444;
+        }
+
+        .quote-number {
+            font-size: 16px;
+            color: #555;
+        }
+
+        h2 {
+            border-top: 2px solid #eee;
+            padding-top: 20px;
+            padding-bottom: 0;
+            margin-top: 40px;
+            margin-bottom: 0;
+            color: #444;
+        }
+
+        /* --- 3. Tables --- */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            border: 2px solid var(--border-dark-grey);
+            table-layout: fixed;
+        }
+
+        th,
+        td {
+            border: 1px solid var(--border-light-grey);
+            padding: 6px 8px;
+            font-size: 13px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        thead th {
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        /* [FIX] Specific font reduction for content cells */
+        .detailed-list-table td:nth-child(4),
+        .detailed-list-table td:nth-child(5),
+        .detailed-list-table td:nth-child(9),
+        .detailed-list-table td:nth-child(15) {
+            font-size: 11px;
+        }
+
+        tfoot {
+            font-weight: bold;
+        }
+
+        tfoot td {
+            border-top: 2px solid #ccc;
+        }
+
+        .table-title {
+            background-color: var(--header-bg-color);
+            color: #333;
+            font-weight: bold;
+            font-size: 16px;
+            border-bottom: 2px solid var(--border-light-grey);
+        }
+
+        .total-row {
+            background-color: var(--header-bg-color);
+            font-weight: bold;
+        }
+
+        /* --- 4. Utility Classes --- */
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .table-scroll-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .appendix-flex-container {
+            display: flex;
+            gap: 20px;
+            margin-top: 40px;
+            align-items: flex-start;
+        }
+
+        .appendix-flex-container>.table-scroll-wrapper {
+            flex: 0 0 auto;
+            max-width: 400px;
+            min-width: 272px;
+        }
+
+        .appendix-flex-container>.legend {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        /* --- 5. Legend & Summary Keys --- */
+        .legend {
+            margin-top: 40px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .color-swatch {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 1px solid #999;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        .summary-key-table {
+            width: 100%;
+            border: none;
+            table-layout: auto;
+            margin-top: 0;
+        }
+
+        .summary-key-table>tbody>tr>td {
+            border: none;
+            padding: 0;
+            vertical-align: top;
+        }
+
+        .summary-key-table .key-column {
+            width: 40%;
+            padding-right: 10px;
+        }
+
+        .summary-key-table .summary-column {
+            width: 60%;
+        }
+
+        .summary-key-table h3 {
+            margin-top: 0;
+            margin-bottom: 8px;
+        }
+
+        .summary-key-table p {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        /* --- 6. Cost Summary Table --- */
+        .cost-summary-table {
+            width: 100%;
+            border: 1px solid var(--border-dark-grey);
+            table-layout: fixed;
+            margin-top: 0;
+        }
+
+        .cost-summary-table th,
+        .cost-summary-table td {
+            border: 1px solid var(--border-light-grey);
+            font-size: 12px;
+            padding: 5px 6px;
+        }
+
+        .cost-summary-table th {
+            background-color: var(--header-bg-color);
+        }
+
+        .cost-summary-table tfoot td {
+            font-weight: bold;
+            background-color: var(--header-bg-color);
+            border-top: 2px solid var(--border-dark-grey);
+            color: #c0392b;
+        }
+
+        /* --- 7. Background Colors --- */
+        .detailed-list-table .bg-blockout {
+            background-color: #f0f0f0 !important;
+        }
+
+        .detailed-list-table .bg-screen {
+            background-color: #e0f7fa !important;
+        }
+
+        .detailed-list-table .bg-light-filter {
+            background-color: #ffe4e1 !important;
+        }
+
+        /* --- 8. Summary Row Classes --- */
+        .wo-summary-row {
+            font-weight: bold;
+            background-color: #f0f2f5;
+            border-top: 2px solid #555;
+        }
+
+        .wo-summary-label {
+            text-align: right;
+            padding-right: 10px;
+        }
+
+        .wo-text-red {
+            color: #c0392b;
+        }
+
+        .wo-text-small {
+            font-size: 0.8em;
+        }
+
+        /* --- [NEW] PDF Download Button --- */
+        #btn-download-pdf {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #2e7d32;
+            color: white;
+            font-weight: bold;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            font-size: 14px;
+        }
+
+        #btn-download-pdf:hover {
+            background-color: #1b5e20;
+        }
+
+        /* --- 9. Responsive --- */
+        @media (max-width: 850px) {
+            .appendix-flex-container {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-container {
+                padding: 10px;
+            }
+
+            .content-wrapper {
+                padding: 15px;
+            }
+
+            .main-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
+            }
+
+            .table-scroll-wrapper {
+                overflow-x: hidden;
+            }
+
+            .detailed-list-table {
+                border: none;
+                display: block;
+                table-layout: auto;
+            }
+
+            .detailed-list-table thead {
+                border: none;
+                clip: rect(0 0 0 0);
+                height: 1px;
+                margin: -1px;
+                overflow: hidden;
+                padding: 0;
+                position: absolute;
+                width: 1px;
+            }
+
+            .detailed-list-table tr {
+                display: block;
+                margin-bottom: 15px;
+                border: 1px solid var(--border-light-grey);
+                border-radius: 5px;
+                padding: 0;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            }
+
+            .detailed-list-table td {
+                display: flex;
+                justify-content: space-between;
+                padding: 10px 15px;
+                border: none;
+                border-bottom: 1px solid var(--border-light-grey);
+                text-align: right;
+            }
+
+            .detailed-list-table tr td:last-child {
+                border-bottom: none;
+            }
+
+            .detailed-list-table td:before {
+                content: attr(data-label);
+                font-weight: 600;
+                text-align: left;
+                padding-right: 15px;
+            }
+
+            .detailed-list-table td:first-of-type {
+                background-color: var(--header-bg-color);
+                color: #333;
+                font-weight: bold;
+                border-radius: 4px 4px 0 0;
+            }
+
+            .detailed-list-table td:first-of-type::before {
+                color: #333;
+            }
+
+            .motorised-accessories-table {
+                table-layout: auto;
+                border: 1px solid var(--border-dark-grey);
+            }
+
+            .summary-key-table>tbody>tr {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+
+        /* --- 10. Print Optimization --- */
+        @media print {
+            #btn-download-pdf {
+                display: none;
+            }
+
+            @page {
+                size: landscape;
+                margin: 5mm;
+            }
+
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            body {
+                background-color: #ffffff;
+                width: 100%;
+                zoom: 87%;
+            }
+
+            .page-container {
+                max-width: 100% !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                page-break-before: always;
+                box-shadow: none !important;
+            }
+
+            .content-wrapper {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+
+            .detailed-list-table tr,
+            .motorised-accessories-table,
+            .legend,
+            .appendix-flex-container {
+                page-break-inside: avoid;
+            }
+
+            .detailed-list-table .bg-blockout,
+            .detailed-list-table .bg-screen,
+            .detailed-list-table .bg-light-filter,
+            .wo-summary-row {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .detailed-list-table {
+                display: table !important;
+                table-layout: fixed !important;
+                width: 100% !important;
+            }
+
+            .detailed-list-table thead {
+                display: table-header-group !important;
+                position: static !important;
+                height: auto !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: auto !important;
+                border: none !important;
+                clip: rect(auto, auto, auto, auto) !important;
+            }
+
+            .detailed-list-table tr {
+                display: table-row !important;
+                margin-bottom: 0 !important;
+                border: 1px solid var(--border-light-grey) !important;
+                box-shadow: none !important;
+            }
+
+            .detailed-list-table td {
+                display: table-cell !important;
+                justify-content: flex-start !important;
+                padding: 8px 4px !important;
+                border-bottom: 1px solid var(--border-light-grey) !important;
+                font-size: 13px !important;
+            }
+
+            .detailed-list-table th {
+                padding: 6px 4px !important;
+            }
+
+            .detailed-list-table td:nth-child(4),
+            .detailed-list-table td:nth-child(5),
+            .detailed-list-table td:nth-child(9),
+            .detailed-list-table td:nth-child(15) {
+                font-size: 11px !important;
+            }
+
+            .detailed-list-table td:before {
+                content: none !important;
+                display: none !important;
+            }
+        }
+    </style>
 </head>
 
 <body>
+    <button id="btn-download-pdf">Download PDF</button>
 
     <div class="page-container">
         <div class="content-wrapper">
@@ -23,25 +508,28 @@
 
 
             <div class="table-scroll-wrapper">
-                <table class="detailed-list-table">
+                <table id="wo-main-table" class="detailed-list-table">
                     <colgroup>
-                        <col style="width: 4%;">
-                        <col style="width: 4%;">
-                        <col style="width: 14%;">
-                        <col style="width: 14%;">
-                        <col style="width: 6%;">
-                        <col style="width: 6%;">
-                        <col style="width: 6%;">
-                        <col style="width: 6%;">
-                        <col style="width: 6%;">
-                        <col style="width: 6%;">
+                        <col style="width: 4.5%;">
+                        <col style="width: 4.5%;">
+                        <col style="width: 7%;">
                         <col style="width: 8%;">
                         <col style="width: 8%;">
-                        <col style="width: 8%;">
+                        <col style="width: 5%;">
+                        <col style="width: 5%;">
+                        <col style="width: 5%;">
+                        <col style="width: 4.5%;">
+                        <col style="width: 4.5%;">
+                        <col style="width: 5%;">
+                        <col style="width: 6%;">
+                        <col style="width: 4.5%;">
+                        <col style="width: 6.5%;">
+                        <col style="width: 12%;">
+                        <col style="width: 9.5%;">
                     </colgroup>
                     <thead>
                         <tr class="table-title">
-                            <th colspan="13">Roller Blinds - Work Order</th>
+                            <th colspan="16">Roller Blinds - Work Order</th>
                         </tr>
                         <tr>
                             <th>NO</th>
@@ -51,12 +539,14 @@
                             <th>F-Color</th>
                             <th>W</th>
                             <th>H</th>
+                            <th>Over</th>
+                            <th>O/I</th>
                             <th>L/R</th>
-                            <th>over</th>
-                            <th>dual</th>
+                            <th>Dual</th>
+                            <th>Chain</th>
                             <th>HD</th>
-                            <th>chain</th>
-                            <th>motor</th>
+                            <th>Motor</th>
+                            <th>Location</th>
                             <th>PRICE</th>
                         </tr>
                     </thead>
@@ -70,7 +560,7 @@
 
                 <div class="table-scroll-wrapper">
 
-                    <table class="motorised-accessories-table">
+                    <table id="wo-acce-table" class="motorised-accessories-table">
                         <colgroup>
                             <col style="width: auto;">
                             <col style="width: 25%;">
@@ -145,7 +635,7 @@
                                     <p><strong>Dual:</strong> Double Bracket</p>
                                 </td>
                                 <td class="summary-column">
-                                    <table class="cost-summary-table">
+                                    <table id="wo-cost-table" class="cost-summary-table">
                                         <thead>
                                             <tr>
                                                 <th>ITEM</th>
@@ -182,6 +672,194 @@
         </div>
 
     </div>
+
+    <script>
+        document.getElementById('btn-download-pdf').addEventListener('click', function () {
+            const { jsPDF } = window.jspdf;
+
+            // 1. Setup A4 Landscape Doc (297mm x 210mm)
+            const doc = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            // [NEW] (v6299 Phase 26) Absolute coordinate system for A4 Landscape
+            const PAGE_WIDTH = 297;
+            const LEFT_MARGIN = 10;
+            const RIGHT_MARGIN = 10; // Though we use calculation, keep margin consistent
+            const TABLE_WIDTH = 277; // 297 - 10 - 10 (Exact width of main table)
+            const TABLE_RIGHT_X = LEFT_MARGIN + TABLE_WIDTH; // 287
+
+            const quoteId = document.querySelector('.quote-number').innerText.split(':')[1].trim();
+            doc.setFontSize(18);
+            doc.text("Work Order", LEFT_MARGIN, 15);
+            doc.setFontSize(12);
+            doc.text(`Quote No: ${quoteId}`, LEFT_MARGIN, 22);
+
+            // --- Main Table ---
+            doc.autoTable({
+                html: '#wo-main-table',
+                startY: 30,
+                // [MODIFIED] Use calculated margins to force exact width
+                margin: { left: LEFT_MARGIN, right: RIGHT_MARGIN },
+                theme: 'grid',
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 1,
+                    valign: 'middle',
+                    halign: 'center',
+                    lineColor: [85, 85, 85],
+                    lineWidth: 0.1
+                },
+                bodyStyles: {
+                    fillColor: [255, 255, 255]
+                },
+                headStyles: {
+                    fillColor: [230, 230, 230],
+                    textColor: [51, 51, 51],
+                    fontStyle: 'bold'
+                },
+                // [MODIFIED] Recalculated column widths in MM to sum to exactly 277mm
+                // Previous sum 274. Added 3mm to F-Name, F-Color, Location.
+                columnStyles: {
+                    0: { cellWidth: 12 }, // NO (4.5%) -> ~12mm
+                    1: { cellWidth: 12 }, // # (4.5%) -> ~12mm
+                    2: { cellWidth: 19 }, // TYPE (7%) -> ~19mm
+                    3: { cellWidth: 23, halign: 'left' }, // F-Name (8% + 1mm) -> ~23mm
+                    4: { cellWidth: 23, halign: 'left' }, // F-Color (8% + 1mm) -> ~23mm
+                    5: { cellWidth: 14 }, // W (5%) -> ~14mm
+                    6: { cellWidth: 14 }, // H (5%) -> ~14mm
+                    7: { cellWidth: 14 }, // Over (5%) -> ~14mm
+                    8: { cellWidth: 12 }, // O/I (4.5%) -> ~12mm
+                    9: { cellWidth: 12 }, // L/R (4.5%) -> ~12mm
+                    10: { cellWidth: 14 }, // Dual (5%) -> ~14mm
+                    11: { cellWidth: 17 }, // Chain (6%) -> ~17mm
+                    12: { cellWidth: 12 }, // HD (4.5%) -> ~12mm
+                    13: { cellWidth: 18 }, // Motor (6.5%) -> ~18mm
+                    14: { cellWidth: 34, halign: 'left' }, // Location (12% + 1mm) -> ~34mm
+                    15: { cellWidth: 27, halign: 'right' }  // Price (9.5%) -> ~27mm
+                    // Sum = 12+12+19+23+23+14+14+14+12+12+14+17+12+18+34+27 = 277mm
+                },
+                didParseCell: function (data) {
+                    if (data.section === 'body') {
+                        const rowElement = data.row.raw;
+                        if (rowElement) {
+                            const domTable = document.getElementById('wo-main-table');
+                            const domRows = domTable.querySelectorAll('tbody tr');
+                            const currentRow = domRows[data.row.index];
+
+                            if (currentRow) {
+                                const fabricClassCell = currentRow.querySelector('td:nth-child(4)');
+                                if (fabricClassCell) {
+                                    // [FIX] Only apply background color to columns 1 (#) to 4 (F-Color)
+                                    // Note: data.column.index is 0-based. So indices 1, 2, 3, 4.
+                                    if ([1, 2, 3, 4].includes(data.column.index)) {
+                                        if (fabricClassCell.classList.contains('bg-light-filter')) {
+                                            data.cell.styles.fillColor = [255, 230, 230];
+                                        } else if (fabricClassCell.classList.contains('bg-blockout')) {
+                                            data.cell.styles.fillColor = [240, 240, 240];
+                                        } else if (fabricClassCell.classList.contains('bg-screen')) {
+                                            data.cell.styles.fillColor = [224, 247, 250];
+                                        }
+                                    }
+                                }
+                                if (currentRow.classList.contains('wo-summary-row')) {
+                                    data.cell.styles.fontStyle = 'bold';
+                                    data.cell.styles.fillColor = [240, 242, 245];
+                                    if (data.column.index === 13 || data.column.index === 15) {
+                                        data.cell.styles.textColor = [192, 57, 43];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const finalY = doc.lastAutoTable.finalY || 40;
+            const sectionStartY = finalY + 15;
+
+            // --- Left Side: Accessories Table ---
+            doc.text("Motorised Package Summary", LEFT_MARGIN, finalY + 10);
+
+            doc.autoTable({
+                html: '#wo-acce-table',
+                startY: sectionStartY,
+                margin: { left: LEFT_MARGIN },
+                tableWidth: 80,
+                theme: 'grid',
+                // [FIX] Ensure white body for Accessories table too
+                bodyStyles: { fillColor: [255, 255, 255] },
+                styles: { fontSize: 8, cellPadding: 1 },
+                headStyles: { fillColor: [230, 230, 230], textColor: [51, 51, 51] },
+                // [FIX v6299 Phase 29] Set Footer Styles
+                footStyles: {
+                    fillColor: [230, 230, 230],
+                    textColor: [51, 51, 51],
+                    fontStyle: 'bold',
+                    halign: 'right'
+                },
+                columnStyles: {
+                    2: { halign: 'right' }
+                }
+            });
+
+            // --- Right Side: Cost Table & Legend (Container) ---
+            const BOX_WIDTH = 115; // [MODIFIED] Narrower box for tighter look
+            const BOX_X = TABLE_RIGHT_X - BOX_WIDTH; // Align Right Edge with Table
+            const COST_TABLE_WIDTH = 60;
+
+            // Draw the Grey Container Box
+            doc.setDrawColor(160, 211, 232);
+            doc.setFillColor(255, 255, 255);
+            doc.roundedRect(BOX_X, sectionStartY - 5, BOX_WIDTH, 50, 2, 2, 'FD');
+
+            // Render Cost Table (Right Aligned inside Box)
+            const costTableX = TABLE_RIGHT_X - COST_TABLE_WIDTH - 2;
+
+            doc.autoTable({
+                html: '#wo-cost-table',
+                startY: sectionStartY,
+                margin: { left: costTableX },
+                tableWidth: COST_TABLE_WIDTH,
+                theme: 'grid',
+                bodyStyles: { fillColor: [255, 255, 255] },
+                styles: { fontSize: 8, cellPadding: 1 },
+                headStyles: { fillColor: [230, 230, 230], textColor: [51, 51, 51] },
+                columnStyles: {
+                    1: { halign: 'right' }
+                },
+                footStyles: { fillColor: [230, 230, 230], textColor: [192, 57, 43], fontStyle: 'bold', halign: 'right' }
+            });
+
+            // Render Legend (Left Aligned inside Box)
+            const legendX = BOX_X + 5;
+            const legendY = sectionStartY + 5;
+
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'bold');
+            doc.text("Abbreviations Key", legendX, legendY);
+            doc.setFont(undefined, 'normal');
+            doc.setFontSize(9);
+
+            const drawLegendItem = (text, color, y) => {
+                doc.setDrawColor(153, 153, 153);
+                doc.setFillColor(...color);
+                doc.rect(legendX, y - 3, 4, 4, 'FD');
+                doc.text(text, legendX + 6, y);
+            };
+
+            drawLegendItem("Blockout (BO)", [240, 240, 240], legendY + 6);
+            drawLegendItem("Screen (SN)", [224, 247, 250], legendY + 11);
+            drawLegendItem("Light Filter (LF)", [255, 230, 230], legendY + 16);
+            doc.text("HD: Heavy-Duty Winder", legendX, legendY + 21);
+            doc.text("Dual: Double Bracket", legendX, legendY + 26);
+
+
+            doc.save(`WorkOrder_${quoteId}.pdf`);
+        });
+    </script>
 
 </body>
 
