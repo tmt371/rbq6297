@@ -1,16 +1,27 @@
 /* File: 04-core-code/ui/css/toast-notification.css */
 /* [MODIFIED] (v6299 Tweak 9) Shifted toast container up by 50px to avoid overlapping the Right Panel Toggle. */
+/* [MODIFIED] (v6299 Tweak 10) Changed anchor from top to bottom to make stack grow upwards. */
 
 /* --- Toast Notification Styles --- */
 #toast-container {
     position: fixed;
-    /* [MODIFIED] Shift up by 50px from the absolute center to clear the right panel toggle */
-    top: calc(50% - 50px);
+    /* [MODIFIED] Anchor to bottom instead of top.
+       50% is the vertical center (waist).
+       +50px moves the anchor point UP by 50px.
+       This ensures the *bottom-most* toast is always 50px above the toggle handle. */
+    bottom: calc(50% + 50px);
     right: 20px;
-    transform: translateY(-50%);
+
+    /* [REMOVED] top: calc(50% - 50px); */
+    /* [REMOVED] transform: translateY(-50%); */
+
     z-index: 9999;
     display: flex;
     flex-direction: column;
+
+    /* [NEW] Ensure items stack from the bottom up visually */
+    justify-content: flex-end;
+
     align-items: flex-end;
     gap: 10px;
 }
