@@ -6803,6 +6803,8 @@ node_modules/
     <script type="module" src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js"></script>
     <script type="module" src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js"></script>
     <script type="module" src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+
     <link rel="icon" href="data:,">
 </head>
 
@@ -7588,36 +7590,39 @@ export default {
 
 --- FILE START: 04-core-code/app-context.js ---
 /* FILE: 04-core-code/app-context.js */
-// [MODIFIED] (v6297 ?¶Ë∫´) ?éÊÆµ 1ÔºöImport ‰∏¶Ë®ª?äÊñ∞??QuotePersistenceService??
-// [SELF-CORRECTION] ‰æùË≥¥ `fileService` ‰ªçË¢´‰øùÁ???`workflowService` ‰∏≠Ô??†ÁÇ∫ `handleFileLoad` ‰ªçÁî± `workflowService` ?ïÁ???
+// [MODIFIED] (v6297 Phase 8) Import and register QuotePersistenceService.
+// [SELF-CORRECTION] fileService dependency moved to workflowService as handleFileLoad logic resides there.
+// [MODIFIED] (v6299 Gen-Xls) Register ExcelExportService.
+// [MODIFIED] (v6299 Phase 4) Moved excelExportService injection from WorkflowService to QuotePersistenceService for architectural consistency.
+// [MODIFIED] (v6299 Phase 5) Inject configManager into WorkOrderStrategy for height calculation.
 
 /**
  * @description
- * AppContext ?Ê≠??®Á?√•???å√?Ë≥¥Ê≥®?ÂÆ???DI Container)??
- * ÂÆÉ√??Ë≤??åÂª∫Á´ã„Äç‰∏¶Ë®ª√????√¶???(Services) ??UI ?‰ª?(Components)??
- * 1. Âª∫√? Services (‰æã√? StateService, CalculationService)??
- * 2. Âª∫√? UI Components (‰æã√? QuickQuoteView, RightPanelComponent)??
- * 3. Â∞áÈÄô√?ÂØ¶√? (instances) ‰øù√??√§??‰∏≠Â§Æ?ªË?Ë°?(this.instances) ‰∏≠‚Ç¨?
+ * AppContext acts as the central Dependency Injection (DI) Container for the application.
+ * It is responsible for instantiating and registering all core Services and UI Components.
  *
- * ?Á®ÆÊ®°√•??Â•??(‰æùË≥¥Ê≥®ÂÖ•):
- * - ?Ëß??ç√??‰ª∂‰?√©?Ë¶ÅÁü•??å√?‰Ωï„ÄçÂª∫Á´ã„ÄåÂÖ∂‰ªñ√?Ë≥¥„Äç‚Ç¨?
- * ‰æã√?Ôºå`AppController` ‰∏ç√?¬¶?`new WorkflowService()`ÔºåÂè™?Ë¶Å√? AppContext?√®?Ê±Ç„ÄçÂ∑≤Á∂ì√??√ß? `workflowService` ÂØ¶√???
- * - ??ØÊ∏¨Ë©??ç√???≤√??√•?Ê∏¨Ë©¶?√Ø???ëÂèØ‰ª•√????Ê®???mock) ‰∏¶Êõø??AppContext ‰∏≠√??ÂØ?√•???
- * - ?√©?‰∏≠ÁÆ°??ç√?????©‰ª∂√ß?Âª∫√??Ëº?√©?‰∏≠Âú®Ê≠§√?‰æøÊñºÁÆ°√??Á∂≠Ë≠∑??
+ * Core Responsibilities:
+ * 1. Initialize Services (e.g., StateService, CalculationService).
+ * 2. Initialize UI Components (e.g., QuickQuoteView, RightPanelComponent).
+ * 3. Store these instances in a centralized registry (this.instances) for global access.
  *
- * Example:
- * `main.js` (ÁµÑ√?¬ª? ??AppContext Ë´ã√?Âª∫√?Â•Ω√?????∂¬?(Services, Components)¬º?
- * ?√•?Â∞áÈÄô√??‰ª?(‰æã√? `quickQuoteView`, `appController`) ‰∫§Áµ¶ `UIManager` (Á∏Ω√??? ?√ß?Ë£ù√?Ê∏≤√?????
- * */
+ * Key Benefits:
+ * - Decoupling: Components (e.g., AppController) request dependencies rather than instantiating them.
+ * - Testing: Allows for easy injection of mock services during unit testing.
+ * - Order Management: Ensures components are initialized in the correct order to satisfy dependencies.
+ *
+ * Example Usage:
+ * main.js initializes AppContext to bootstrap the app, then retrieves instances like UIManager.
+ */
 export class AppContext {
     constructor() {
         this.instances = {};
     }
 
     /**
-     * Ë®ª√?‰∏Ä?ÂØ¶‰??∞ÂÆπ?®‰∏≠??
-     * @param {string} name - ÂØ¶√???Ø‰??Á®?(key)
-     * @param {object} instance - Ë¶ÅË®ª?√ß?ÂØ¶√???
+     * ?–∏?ó‚????ï–??–ø–∂????ë—Ö–æ‚ï£?–∏??ï–??
+     * @param {string} name - ?–ø–∂????–ø????–∏?(key)
+     * @param {object} instance - ?–∂??–∏???ú–??–ø–∂????
      */
     register(name, instance) {
         this.instances[name] =
@@ -7625,9 +7630,9 @@ export class AppContext {
     }
 
     /**
-     * ÂæûÂÆπ?‰∏?√•?‰∏Ä?ÂØ¶‰???
-     * @param {string} name - Ë¶Å√?Âæó√?ÂØ¶√??Á®??
-     * @returns {object} - Ë®ª√??ÂØ¶‰???
+     * ??õ–Æ—Ö–æ‚ï£?????ú–???ï–??–ø–∂????
+     * @param {string} name - ?–∂?????õ–ß‚???–ø–∂????–∏??
+     * @returns {object} - ?–∏?ó‚????–ø–∂????
      */
     get(name) {
         const instance = this.instances[name];
@@ -7680,6 +7685,13 @@ export class AppContext {
             stateService
         });
         this.register('focusService', focusService);
+
+        // [NEW] (v6299 Gen-Xls) Initialize ExcelExportService
+        const excelExportService = new ExcelExportService({
+            configManager,
+            calculationService
+        });
+        this.register('excelExportService', excelExportService);
     }
 
     initializeUIComponents() {
@@ -7693,6 +7705,8 @@ export class AppContext {
         const focusService = this.get('focusService');
         const fileService = this.get('fileService');
         const authService = this.get('authService'); // [NEW] (v6297) Get AuthService
+        // [NEW] (v6299 Gen-Xls) Get ExcelExportService
+        const excelExportService = this.get('excelExportService');
 
         // --- [NEW] Instantiate LeftPanelTabManager (Phase 6 Refactor) ---
         const leftPanelElement = document.getElementById(DOM_IDS.LEFT_PANEL);
@@ -7730,20 +7744,22 @@ export class AppContext {
         const k5TabComponent = new K5TabComponent();
         this.register('k5TabComponent', k5TabComponent);
 
-        // --- [NEW] (?ÊÆ?2) ÂØ¶√?????Generator Á≠ñÁï• ---
-        const workOrderStrategy = new WorkOrderStrategy();
+        // --- [NEW] (??–æ?2) ?–ø–∂??????Generator ?–Ω–¶?–•–µ ---
+        // [MODIFIED] (v6299 Phase 5) Inject configManager for Work Order Logic
+        const workOrderStrategy = new WorkOrderStrategy({ configManager });
         this.register('workOrderStrategy', workOrderStrategy);
 
-        // [NEW] (?ÊÆ?3) ÂØ¶√??√•?Ë°®√???
+        // [NEW] (??–æ?3) ?–ø–∂????ú–??–±–∏????
         const originalQuoteStrategy = new OriginalQuoteStrategy();
         this.register('originalQuoteStrategy', originalQuoteStrategy);
 
-        // [NEW] (?ÊÆ?4) ÂØ¶√???GTH Á≠ñÁï•
+        // [NEW] (??–æ?4) ?–ø–∂????GTH ?–Ω–¶?–•–µ
         const gthQuoteStrategy = new GthQuoteStrategy();
         this.register('gthQuoteStrategy', gthQuoteStrategy);
 
 
-        // [NEW] (v6297 ?¶Ë∫´) ?éÊÆµ 1ÔºöÂØ¶‰æãÂ? QuotePersistenceService
+        // [NEW] (v6297 ?–∂??ë–? ???–æ??1??ù–™—Ö–ø–∂—Ñ‚???? QuotePersistenceService
+        // [MODIFIED] (v6299 Phase 4) Inject excelExportService here for centralization
         const quotePersistenceService = new QuotePersistenceService({
             eventAggregator,
             stateService,
@@ -7751,13 +7767,14 @@ export class AppContext {
             authService,
             calculationService,
             configManager,
-            productFactory
+            productFactory,
+            excelExportService // [NEW] Injected here
         });
         this.register('quotePersistenceService', quotePersistenceService);
 
 
         // --- [NEW] Instantiate the new QuoteGeneratorService ---
-        // [MODIFIED] (?ÊÆ?4) Ê≥®ÂÖ•????strategy
+        // [MODIFIED] (??–æ?4) ??Ç–∏—Ö–ï–????strategy
         const quoteGeneratorService = new QuoteGeneratorService({
             calculationService,
             workOrderStrategy,
@@ -7823,16 +7840,17 @@ export class AppContext {
             });
         this.register('detailConfigView', detailConfigView);
 
+        // [MODIFIED] (v6299 Phase 4) excelExportService dependency removed from WorkflowService
         const workflowService = new WorkflowService({
             eventAggregator,
             stateService,
-            fileService, // [MODIFIED] (v6297 ?¶Ë∫´) ?™Ê?‰øÆÊ≠£Ôºö‰???fileServiceÔºåÂ???handleFileLoad ‰ªçÂú®Ê≠§Ê??ô‰∏≠
+            fileService, // [MODIFIED] (v6297 ?–∂??ë–? ?–∫????ê–æ—Ü–Ω–≥—è‚?–™????fileService??ù–ú—???handleFileLoad ??ó–ù—Ö–¨–∏—Ü–Ω–¥—??–©??ï–?
             calculationService,
             productFactory,
             detailConfigView,
             quoteGeneratorService, // [NEW] Inject the new service
-            authService // [NEW] (v6297) Inject AuthService
-
+            authService, // [NEW] (v6297) Inject AuthService
+            // excelExportService // [REMOVED] (v6299 Phase 4) Moved to QuotePersistenceService
         });
         // [REMOVED]
         this.register('workflowService', workflowService);
@@ -7853,27 +7871,27 @@ export class AppContext {
             stateService,
             workflowService,
             quickQuoteView,
-            detailConfigView
-            // [MODIFIED] (v6297 ?¶Ë∫´) ?éÊÆµ 2 Â∞áÂú®Ê≠§Ë?Ê≥®ÂÖ• quotePersistenceService
+            detailConfigView,
+            quotePersistenceService // [MODIFIED] (v6297) Injected
         });
         this.register('appController', appController);
 
         // --- [NEW] (v6298-F4-Search) Instantiate the Search Dialog Component ---
-        // --- [NEW] ?ÊÆ?4ÔºöÂØ¶‰æã√? S1/S2 Â≠ê√???---
+        // --- [NEW] ??–æ?4??ù–™—Ö–ø–∂—Ñ‚???? S1/S2 ?–Ω?????---
         const s1View = new SearchTabS1View({ eventAggregator });
         this.register('s1View', s1View);
 
         const s2View = new SearchTabS2View({ eventAggregator, stateService });
         this.register('s2View', s2View);
 
-        // --- [MODIFIED] ?ÊÆ?4Ôºö√? S1/S2 Â≠ê√??Ê≥?ÁÆ???---
+        // --- [MODIFIED] ??–æ?4??ù–™‚?? S1/S2 ?–Ω????????–æ???---
         const searchDialogComponent = new SearchDialogComponent({
             containerElement: document.getElementById(DOM_IDS.SEARCH_DIALOG_CONTAINER),
             eventAggregator,
             // [MODIFIED] (v6298-F4-Search) Inject required services
             stateService,
             authService,
-            // [NEW] ?ÊÆ?4 Ê≥®ÂÖ•
+            // [NEW] ??–æ?4 ??Ç–∏—Ö–ï–?
             s1View: s1View,
             s2View: s2View
         });
@@ -7907,7 +7925,8 @@ import { FileService } from './services/file-service.js';
 import { WorkflowService } from './services/workflow-service.js';
 import { QuoteGeneratorService } from './services/quote-generator-service.js'; // [NEW]
 import { AuthService } from './services/auth-service.js'; // [NEW] (v6297)
-// [NEW] (v6297 ?¶Ë∫´) ?éÊÆµ 1ÔºöImport ?∞Ê???
+import { ExcelExportService } from './services/excel-export-service.js'; // [NEW] (v6299 Gen-Xls)
+// [NEW] (v6297 ?–∂??ë–? ???–æ??1??ù–™Import ??ë—???
 import { QuotePersistenceService } from './services/quote-persistence-service.js';
 import { RightPanelComponent } from './ui/right-panel-component.js';
 import { QuickQuoteView } from './ui/views/quick-quote-view.js';
@@ -7929,14 +7948,14 @@ import { LeftPanelTabManager } from './ui/left-panel-tab-manager.js'; // [MODIFI
 import { DOM_IDS } from './config/constants.js'; // [MODIFIED]
 // [NEW] (v6298-F4-Search) Import the new search dialog component
 import { SearchDialogComponent } from './ui/search-dialog-component.js';
-// [NEW] ?ÊÆ?4ÔºöImport S1/S2 Â≠ê√???
+// [NEW] ??–æ?4??ù–™Import S1/S2 ?–Ω?????
 import { SearchTabS1View } from './ui/views/search-tab-s1-view.js';
 import { SearchTabS2View } from './ui/views/search-tab-s2-view.js';
-// [NEW] (?ÊÆ?2) Import the new generator strategy
+// [NEW] (??–æ?2) Import the new generator strategy
 import { WorkOrderStrategy } from './services/generators/work-order-strategy.js';
-// [NEW] (?ÊÆ?3) Import the new generator strategy
+// [NEW] (??–æ?3) Import the new generator strategy
 import { OriginalQuoteStrategy } from './services/generators/original-quote-strategy.js';
-// [NEW] (?ÊÆ?4) Import the new generator strategy
+// [NEW] (??–æ?4) Import the new generator strategy
 import { GthQuoteStrategy } from './services/generators/gth-quote-strategy.js';
 
 
@@ -7956,11 +7975,13 @@ import { K5TabComponent } from './ui/tabs/k5-tab/k5-tab-component.js';
 
 --- FILE START: 04-core-code/app-controller.js ---
 /* FILE: 04-core-code/app-controller.js */
-// [MODIFIED] (v6297 ?¶Ë∫´) ?éÊÆµ 2ÔºöÊ≥®??quotePersistenceService ‰∏¶È?ÂÆöÂ? F4 ‰∫ã‰ª∂??
+// [MODIFIED] (v6297 ?–∂??ë–? ???–æ??2??ù–™—Ü‚?–∏??quotePersistenceService ??ï–∂—??–æ–™?? F4 ??ë–õ—Ñ‚????
 // [MODIFIED] (F4 Status Phase 3) Subscribe to USER_REQUESTED_UPDATE_STATUS.
 // [MODIFIED] (Correction Flow Phase 2) Subscribe to USER_REQUESTED_CANCEL_CORRECT.
 // [MODIFIED] (Correction Flow Phase 4) Subscribe to USER_REQUESTED_EXECUTE_CANCELLATION.
 // [MODIFIED] (Correction Flow Fix) Subscribe to USER_REQUESTED_EXIT_CORRECTION_MODE.
+// [MODIFIED] (v6299 Gen-Xls) Subscribe to USER_REQUESTED_GENERATE_EXCEL.
+// [MODIFIED] (v6299 Phase 4) Redirect USER_REQUESTED_GENERATE_EXCEL to quotePersistenceService.
 
 import { EVENTS, STORAGE_KEYS } from './config/constants.js';
 import * as uiActions from './actions/ui-actions.js';
@@ -7973,14 +7994,14 @@ export class AppController {
         quickQuoteView,
         detailConfigView,
         workflowService,
-        quotePersistenceService // [NEW] (v6297 ?¶Ë∫´) Ê≥®ÂÖ•?çÂ?
+        quotePersistenceService // [NEW] (v6297 ?–∂??ë–? ??Ç–∏—Ö–ï–????
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService; // Still needed for _getFullState and _handleAutoSave
         this.quickQuoteView = quickQuoteView;
         this.detailConfigView = detailConfigView;
         this.workflowService = workflowService;
-        this.quotePersistenceService = quotePersistenceService; // [NEW] (v6297 ?¶Ë∫´) ?≤Â??çÂ?
+        this.quotePersistenceService = quotePersistenceService; // [NEW] (v6297 ?–∂??ë–? ??ì—?????
 
         this.autoSaveTimerId = null;
         this.subscriptions = []; // [NEW] (v6298-fix-4) Store subscriptions
@@ -8211,23 +8232,29 @@ export class AppController {
 
     // [NEW] Centralized subscription for all F4 actions, delegating to WorkflowService.
     _subscribeF4Events() {
-        // [MODIFIED] (v6297 ?¶Ë∫´) ?éÊÆµ 2ÔºöÈ?ÂÆöÂ? SAVE ‰∫ã‰ª∂
+        // [MODIFIED] (v6297 ?–∂??ë–? ???–æ??2??ù–™—??–æ–™?? SAVE ??ë–õ—Ñ‚???
         this._subscribe(EVENTS.USER_REQUESTED_SAVE, () =>
             this.quotePersistenceService.handleSaveToFile()
         );
-        // [MODIFIED] (v6297 ?¶Ë∫´) ?éÊÆµ 2ÔºöÈ?ÂÆöÂ? SAVE_AS_NEW_VERSION ‰∫ã‰ª∂
+        // [MODIFIED] (v6297 ?–∂??ë–? ???–æ??2??ù–™—??–æ–™?? SAVE_AS_NEW_VERSION ??ë–õ—Ñ‚???
         this._subscribe(EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION, () =>
             this.quotePersistenceService.handleSaveAsNewVersion()
         );
-        // [NEW] ?éÊÆµ 1: Á∂ÅÂ?Â∑•ÂñÆ‰∫ã‰ª∂ (Ê≠§‰?‰ª∂Áî± workflowService ?ïÁ?)
+        // [NEW] ???–æ??1: ??¢–ë—???ñ–µ—Ö–¶–æ—Ñ‚????ó‚ï¢ (?–Ω–¥????ó‚ï¢?–§??workflowService ?–•??)
         this._subscribe(EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, () =>
             this.workflowService.handleGenerateWorkOrder()
         );
-        // [MODIFIED] (v6297 ?¶Ë∫´) ?éÊÆµ 2ÔºöÈ?ÂÆöÂ? EXPORT_CSV ‰∫ã‰ª∂
+        // [NEW] (v6299 Gen-Xls) Connect the new Excel generation event
+        // [MODIFIED] (v6299 Phase 4) Now delegates to quotePersistenceService
+        this._subscribe(EVENTS.USER_REQUESTED_GENERATE_EXCEL, () =>
+            this.quotePersistenceService.handleGenerateExcel()
+        );
+
+        // [MODIFIED] (v6297 ?–∂??ë–? ???–æ??2??ù–™—??–æ–™?? EXPORT_CSV ??ë–õ—Ñ‚???
         this._subscribe(EVENTS.USER_REQUESTED_EXPORT_CSV, () =>
             this.quotePersistenceService.handleExportCSV()
         );
-        // (Ê≠§‰?‰ª∂Áî± workflowService ?ïÁ?)
+        // (?–Ω–¥????ó‚ï¢?–§??workflowService ?–•??)
         this._subscribe(EVENTS.USER_REQUESTED_LOAD, () =>
             this.workflowService.handleUserRequestedLoad()
         );
@@ -8241,7 +8268,7 @@ export class AppController {
             EVENTS.USER_REQUESTED_SEARCH_DIALOG,
             () => this.workflowService.handleSearchDialogRequest()
         );
-        // (Ê≠§‰?‰ª∂Áî± workflowService ?ïÁ?)
+        // (?–Ω–¥????ó‚ï¢?–§??workflowService ?–•??)
         this._subscribe(EVENTS.USER_REQUESTED_RESET, () =>
             this.workflowService.handleReset()
         );
@@ -9461,6 +9488,7 @@ export const QUOTE_ACTION_TYPES = {
 // [MODIFIED] (Correction Flow Phase 4) Added USER_REQUESTED_EXECUTE_CANCELLATION.
 // [MODIFIED] (Correction Flow Fix) Added USER_REQUESTED_EXIT_CORRECTION_MODE.
 // [MODIFIED] (F1 Motor Split) Added W-Motor IDs and Dialog Inputs.
+// [MODIFIED] (v6299 Gen-Xls) Added USER_REQUESTED_GENERATE_EXCEL and F4_BTN_GENERATE_XLS.
 
 /**
  * @fileoverview Centralized constants for the application.
@@ -9485,6 +9513,7 @@ export const EVENTS = {
     USER_REQUESTED_PRINTABLE_QUOTE: 'userRequestedPrintableQuote',
     USER_REQUESTED_GMAIL_QUOTE: 'userRequestedGmailQuote', // [NEW]
     SHOW_QUOTE_PREVIEW: 'showQuotePreview',
+
 
     // --- User Actions: Quick Quote View ---
     NUMERIC_KEY_PRESSED: 'numericKeyPressed',
@@ -9532,8 +9561,11 @@ export const EVENTS = {
     USER_CHOSE_LOAD_DIRECTLY: 'userChoseLoadDirectly',
     TRIGGER_FILE_LOAD: 'triggerFileLoad',
     FILE_LOADED: 'fileLoaded',
-    // [NEW] ?ÊÆ?1 (Â∑•ÂñÆ)
+    // [NEW] ??–æ?1 (??ñ–µ—Ö–¶–?
     USER_REQUESTED_GENERATE_WORK_ORDER: 'userRequestedGenerateWorkOrder',
+    // [NEW] (v6299 Gen-Xls)
+    USER_REQUESTED_GENERATE_EXCEL: 'userRequestedGenerateExcel',
+
 
     // --- [NEW] v6298 F4 & Auth Events ---
     USER_REQUESTED_LOGOUT: 'userRequestedLogout',
@@ -9541,11 +9573,11 @@ export const EVENTS = {
     USER_REQUESTED_SEARCH_DIALOG: 'userRequestedSearchDialog',
     // [NEW] (v6298-F4-Search) New event for the advanced dialog
     SHOW_SEARCH_DIALOG: 'showSearchDialog',
-    // --- [NEW] ?ÊÆ?3ÔºöS1/S2 ‰∫í√?‰∫ã‰ª∂ ---
+    // --- [NEW] ??–æ?3??ù–™S1/S2 ??ë–¢‚????ë–õ—Ñ‚???---
     USER_REQUESTED_EXECUTE_SEARCH: 'userRequestedExecuteSearch',
     SEARCH_RESULTS_SUCCESSFUL: 'searchResultsSuccessful',
-    USER_REQUESTED_CLOSE_SEARCH_DIALOG: 'userRequestedCloseSearchDialog', // [NEW] ?ÊÆ?3 S2View Ë´ã√?
-    USER_REQUESTED_RELOGIN: 'userRequestedRelogin', // [NEW] (¬¨?11 Ê¨°Á∑®¬ø?
+    USER_REQUESTED_CLOSE_SEARCH_DIALOG: 'userRequestedCloseSearchDialog', // [NEW] ??–æ?3 S2View ?–ª???
+    USER_REQUESTED_RELOGIN: 'userRequestedRelogin', // [NEW] (?¨–?11 ?–º–±??ñ–∏‚î¨??
 
     // [NEW] (F4 Status Phase 3)
     USER_REQUESTED_UPDATE_STATUS: 'userRequestedUpdateStatus',
@@ -9640,7 +9672,8 @@ export const DOM_IDS = {
     // --- [NEW] v6298 F4 Panel Elements ---
     F4_BTN_SEARCH_DIALOG: 'f4-key-search-dialog',
     F4_BTN_LOGOUT: 'f4-key-logout',
-    F4_BTN_RELOGIN: 'f4-key-relogin', // [NEW] (¬¨?11 Ê¨°Á∑®¬ø?
+    F4_BTN_RELOGIN: 'f4-key-relogin', // [NEW] (?¨–?11 ?–º–±??ñ–∏‚î¨??
+    F4_BTN_GENERATE_XLS: 'f4-key-generate-xls', // [NEW] (v6299 Gen-Xls)
 
     // --- [NEW] v6298 Search Dialog Elements ---
     SEARCH_DIALOG_CONTAINER: 'search-dialog-container',
@@ -9662,6 +9695,7 @@ export const DOM_IDS = {
     // --- [NEW] v6298 Login Page Elements ---
     FORGOT_PASSWORD_LINK: 'forgot-password-link',
     // --- End v6298 ---
+
 
     // --- Dialog-specific Elements ---
     DIALOG_INPUT_1CH: 'dialog-input-1ch',
@@ -11667,6 +11701,511 @@ describe('CalculationService (Refactored)', () => {
 });
 --- FILE END ---
 
+--- FILE START: 04-core-code/services/excel-export-service.js ---
+/* FILE: 04-core-code/services/excel-export-service.js */
+// [NEW] (v6299 Phase 1) New service to handle Excel (.xlsx) generation using ExcelJS.
+// [MODIFIED] (v6299 Phase 2) Implemented 'work-sheet' generation with sorting and dimension correction logic.
+// [MODIFIED] (v6299 Phase 3) Added visual styling and Side Panel cost summary.
+// [FIX] (Phase 3 Fix) Passed 'ui' state to _generateWorkSheet to fix ReferenceError.
+// [MODIFIED] (v6299 Phase 4 Fix) Updated Side Panel to 3 columns (P,Q,R) with full item breakdown.
+// [MODIFIED] (v6299 Phase 4 Refinement) Added Color Legend and removed "Light-filter" prefix from F-Name.
+// [MODIFIED] (v6299 Phase 4 Tweak 2) Added TYPE column, lighter pink, shifted Side Panel, removed Legend.
+// [MODIFIED] (v6299 Print Optimization) Added pageSetup for A4 Landscape Fit-to-Width.
+
+export class ExcelExportService {
+    constructor({ configManager, calculationService }) {
+        this.configManager = configManager;
+        this.calculationService = calculationService;
+        console.log("ExcelExportService Initialized with ConfigManager and CalculationService.");
+    }
+
+    /**
+     * Main entry point to generate and download the Excel file.
+     * @param {object} quoteData - The full quote data object.
+     * @param {object} ui - The UI state for cost calculation.
+     */
+    async generateExcel(quoteData, ui) {
+        if (!window.ExcelJS) {
+            console.error("ExcelJS library not loaded.");
+            return;
+        }
+
+        const workbook = new ExcelJS.Workbook();
+        workbook.creator = 'Ez Blinds Quote System';
+        workbook.created = new Date();
+
+        // Calculate Costs for Side Panel
+        const f1Costs = this.calculationService.calculateF1Costs(quoteData, ui);
+        const f2Summary = this.calculationService.calculateF2Summary(quoteData, ui);
+
+        // 1. Create Work Sheet (Calculated Data + Styles)
+        this._generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui);
+
+        // 2. Create Data Sheet (Raw Data)
+        this._generateDataSheet(workbook, quoteData);
+
+        // 3. Trigger Download
+        const buffer = await workbook.xlsx.writeBuffer();
+        this._triggerDownload(buffer, this._generateFileName(quoteData));
+    }
+
+    /**
+     * Generates the 'work-sheet' for factory production.
+     * Applies sorting, dimension corrections, STYLES, and SIDE PANEL.
+     */
+    _generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui) {
+        const sheet = workbook.addWorksheet('work-sheet');
+
+        // --- [NEW] (Print Optimization) Set Print Area & Scale ---
+        sheet.pageSetup = {
+            paperSize: 9, // 9 = A4
+            orientation: 'landscape',
+            fitToPage: true,
+            fitToWidth: 1,  // Force width to 1 page
+            fitToHeight: 0, // 0 = Automatic height (maintain aspect ratio, span pages if long)
+            showGridLines: true
+        };
+        // Optimize margins for maximum space
+        sheet.pageMargins = {
+            left: 0.25, right: 0.25,
+            top: 0.4, bottom: 0.4,
+            header: 0.3, footer: 0.3
+        };
+
+        // --- 1. Define Columns (A~P) ---
+        // [MODIFIED] Added 'TYPE' column at index 2 (Column C)
+        const columns = [
+            'NO', '#', 'TYPE', 'F-Name', 'F-Color', 'Width', 'Height',
+            'Over', 'O/I', 'L/R', 'Dual', 'Chain', 'Winder', 'Motor',
+            'Location', 'Price'
+        ];
+        const headerRow = sheet.addRow(columns);
+
+        // Style Header Row
+        headerRow.eachCell((cell) => {
+            cell.font = { bold: true };
+            cell.alignment = { horizontal: 'center' };
+            cell.fill = {
+                type: 'pattern',
+                pattern: 'solid',
+                fgColor: { argb: 'FFD3D3D3' } // Light Grey Header
+            };
+            cell.border = {
+                top: { style: 'thin' },
+                left: { style: 'thin' },
+                bottom: { style: 'thin' },
+                right: { style: 'thin' }
+            };
+        });
+
+        // --- 2. Prepare & Sort Items ---
+        const rawItems = quoteData.products[quoteData.currentProduct].items;
+        const lfModifiedRowIndexes = quoteData.uiMetadata?.lfModifiedRowIndexes || [];
+
+        const processableItems = rawItems
+            .map((item, index) => ({ ...item, originalIndex: index + 1 }))
+            .filter(item => item.width && item.height);
+
+        const sortedItems = this._sortItemsForWorkOrder(processableItems, lfModifiedRowIndexes);
+
+        // --- 3. Populate Rows with Corrections & Styles ---
+        sortedItems.forEach((item, newIndex) => {
+            const originalIndex = item.originalIndex - 1;
+            const isLF = lfModifiedRowIndexes.includes(originalIndex);
+            const fabricType = item.fabricType || '';
+
+            const { correctedWidth, correctedHeight } = this._calculateProductionDimensions(item);
+
+            // Remove "Light-filter" prefix from Fabric Name
+            let fabricName = this._sanitize(item.fabric);
+            fabricName = fabricName.replace(/^Light-filter\s+/i, '');
+
+            // Determine TYPE Label
+            let typeLabel = '';
+            if (isLF) {
+                typeLabel = "L'filter";
+            } else if (fabricType.startsWith('B')) {
+                typeLabel = "Blockout";
+            } else if (fabricType === 'SN') {
+                typeLabel = "Screen";
+            }
+
+            const rowData = [
+                newIndex + 1,
+                item.originalIndex,
+                typeLabel,                     // TYPE
+                fabricName,                    // F-Name (Cleaned)
+                this._sanitize(item.color),
+                correctedWidth,
+                correctedHeight,
+                this._sanitize(item.over),
+                this._sanitize(item.oi),
+                this._sanitize(item.lr),
+                this._sanitize(item.dual),
+                item.chain,
+                this._sanitize(item.winder),
+                this._sanitize(item.motor),
+                this._sanitize(item.location),
+                item.linePrice
+            ];
+
+            const row = sheet.addRow(rowData);
+
+            // Apply Row Styling
+            let argbColor = null;
+            if (isLF) {
+                // Lighter Pink
+                argbColor = 'FFFFE6E6';
+            } else if (fabricType.startsWith('B')) {
+                argbColor = 'FFE0E0E0'; // Light Grey for Blockout
+            } else if (fabricType === 'SN') {
+                argbColor = 'FFE0FFFF'; // Light Cyan/Blue for Screen
+            }
+
+            row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                // Apply Borders
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+                // Center align most columns
+                // Name=4, Color=5, Location=15 are Left aligned
+                if (colNumber !== 4 && colNumber !== 5 && colNumber !== 15) {
+                    cell.alignment = { horizontal: 'center' };
+                }
+
+                // Apply Background Color
+                if (argbColor) {
+                    cell.fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: argbColor }
+                    };
+                }
+            });
+        });
+
+        // --- 4. Side Panel Generation (Columns Q, R, S) ---
+        const qtys = f1Costs.qtys || {};
+
+        // Acce Sum
+        const acceSum = (f1Costs.winderCost || 0) + (f1Costs.dualComboCost || 0) + (f1Costs.slimCost || 0);
+
+        // E-Acce Sum
+        const eAcceSum =
+            (f1Costs.bMotorCost || 0) +
+            (f1Costs.wMotorCost || 0) +
+            (f1Costs.remote1chCost || 0) +
+            (f1Costs.remote16chCost || 0) +
+            (f1Costs.chargerCost || 0) +
+            (f1Costs.cordCost || 0) +
+            (f1Costs.wifiCost || 0);
+
+        // RB Price Logic
+        const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
+        const discount = (ui && ui.f1) ? (ui.f1.discountPercentage || 0) : 0;
+        const rbPriceDiscounted = retailTotal * (1 - (discount / 100));
+
+        const subTotal = f1Costs.componentTotal + rbPriceDiscounted;
+        const gst = subTotal * 0.1;
+        const total = subTotal + gst;
+
+        // Define Side Panel Data Rows
+        const sidePanelRows = [
+            // Block A: Mechanical
+            { label: 'HD Winder', qty: qtys.winder || 0, value: f1Costs.winderCost || 0 },
+            { label: 'Dual Combo', qty: qtys.combo || 0, value: f1Costs.dualComboCost || 0 },
+            { label: 'Dual Slim', qty: qtys.slim || 0, value: f1Costs.slimCost || 0 },
+            { label: 'Acce Sum', qty: '', value: acceSum, isBold: true, bg: 'FFEFEFEF' },
+
+            { label: '', qty: '', value: '' }, // Spacer
+
+            // Block B: Motorization
+            { label: 'B-Motor', qty: qtys.b_motor || 0, value: f1Costs.bMotorCost || 0 },
+            { label: 'W-Motor', qty: qtys.w_motor || 0, value: f1Costs.wMotorCost || 0 },
+            { label: 'Remote 1Ch', qty: qtys.remote1ch || 0, value: f1Costs.remote1chCost || 0 },
+            { label: 'Remote 16Ch', qty: qtys.remote16ch || 0, value: f1Costs.remote16chCost || 0 },
+            { label: 'Charger', qty: qtys.charger || 0, value: f1Costs.chargerCost || 0 },
+            { label: '3M Cord', qty: qtys.cord || 0, value: f1Costs.cordCost || 0 },
+            { label: 'Wifi Hub', qty: qtys.wifi || 0, value: f1Costs.wifiCost || 0 },
+            { label: 'E-Acce Sum', qty: '', value: eAcceSum, isBold: true, bg: 'FFEFEFEF' },
+
+            { label: '', qty: '', value: '' }, // Spacer
+
+            // Block C: Roller Blind
+            { label: 'RB Retail', qty: '', value: retailTotal },
+            { label: 'Discount %', qty: `${discount}%`, value: '' },
+            { label: 'RB Price', qty: '', value: rbPriceDiscounted, isBold: true, bg: 'FFEFEFEF' },
+
+            { label: '', qty: '', value: '' }, // Spacer
+
+            // Block D: Final Summary
+            { label: 'SubTotal', qty: '', value: subTotal },
+            { label: 'GST', qty: '10%', value: gst },
+            { label: 'TOTAL', qty: '', value: total, isBold: true, bg: 'FFFFE0E0', color: 'FFDC143C' }
+        ];
+
+        // Render Side Panel
+        const startRow = 2;
+        const labelCol = 17; // Q
+        const colQ = 18; // R
+        const colR = 19; // S
+
+        sheet.getColumn(labelCol).width = 18;
+        sheet.getColumn(colQ).width = 10;
+        sheet.getColumn(colR).width = 15;
+
+        const headerP = sheet.getCell(1, labelCol);
+        headerP.value = 'Item';
+        headerP.font = { bold: true };
+        headerP.border = { bottom: { style: 'thin' } };
+
+        const headerQ = sheet.getCell(1, colQ);
+        headerQ.value = 'Qty';
+        headerQ.font = { bold: true };
+        headerQ.alignment = { horizontal: 'center' };
+        headerQ.border = { bottom: { style: 'thin' } };
+
+        const headerR = sheet.getCell(1, colR);
+        headerR.value = 'Amount';
+        headerR.font = { bold: true };
+        headerR.alignment = { horizontal: 'right' };
+        headerR.border = { bottom: { style: 'thin' } };
+
+        sidePanelRows.forEach((data, index) => {
+            const currentRow = startRow + index;
+            const row = sheet.getRow(currentRow);
+
+            // Cell P: Label
+            const cellP = row.getCell(labelCol);
+            cellP.value = data.label;
+            cellP.border = { left: { style: 'thin' } };
+            if (data.isBold) cellP.font = { bold: true };
+
+            // Cell Q: Quantity
+            const cellQ = row.getCell(colQ);
+            cellQ.value = data.qty;
+            cellQ.alignment = { horizontal: 'center' };
+            if (data.isBold) cellQ.font = { bold: true };
+
+            // Cell R: Amount
+            const cellR = row.getCell(colR);
+            cellR.value = (data.value !== '' && data.value !== null) ? data.value : '';
+            if (typeof data.value === 'number') {
+                cellR.numFmt = '$#,##0.00';
+            }
+            cellR.border = { right: { style: 'thin' } };
+            if (data.isBold) cellR.font = { bold: true };
+            if (data.color) cellR.font = { bold: true, color: { argb: data.color } };
+
+            if (data.bg) {
+                const fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: data.bg } };
+                cellP.fill = fill;
+                cellQ.fill = fill;
+                cellR.fill = fill;
+                const borderStyle = { style: 'thin' };
+                cellP.border = { top: borderStyle, bottom: borderStyle, left: { style: 'thin' } };
+                cellQ.border = { top: borderStyle, bottom: borderStyle };
+                cellR.border = { top: borderStyle, bottom: borderStyle, right: { style: 'thin' } };
+            }
+        });
+    }
+
+    _sortItemsForWorkOrder(items, lfIndexes) {
+        const typeCounts = {};
+        items.forEach(item => {
+            const type = item.fabricType || 'Unknown';
+            typeCounts[type] = (typeCounts[type] || 0) + 1;
+        });
+
+        const getCategory = (item) => {
+            const originalIndex = item.originalIndex - 1;
+            if (lfIndexes.includes(originalIndex)) return 3; // LF Last
+            const type = item.fabricType || '';
+            if (type.startsWith('B')) return 1; // Blockout First
+            if (type === 'SN') return 2; // Screen Second
+            return 4; // Others
+        };
+
+        return items.sort((a, b) => {
+            const catA = getCategory(a);
+            const catB = getCategory(b);
+            if (catA !== catB) return catA - catB;
+
+            const countA = typeCounts[a.fabricType] || 0;
+            const countB = typeCounts[b.fabricType] || 0;
+            if (countA !== countB) return countB - countA;
+
+            if (a.fabricType !== b.fabricType) {
+                return (a.fabricType || '').localeCompare(b.fabricType || '');
+            }
+            return a.originalIndex - b.originalIndex;
+        });
+    }
+
+    _calculateProductionDimensions(item) {
+        let width = item.width;
+        if (item.oi === 'IN') {
+            width = width - 4;
+        } else if (item.oi === 'OUT') {
+            width = width - 2;
+        }
+
+        let height = item.height;
+        const matrix = this.configManager.getPriceMatrix(item.fabricType);
+        if (matrix && matrix.drops) {
+            const nextDrop = matrix.drops.find(d => d > item.height);
+            if (nextDrop) {
+                height = nextDrop - 5;
+            } else {
+                console.warn(`No larger drop found for height ${item.height}.`);
+            }
+        }
+        return { correctedWidth: width, correctedHeight: height };
+    }
+
+    _generateDataSheet(workbook, quoteData) {
+        const sheet = workbook.addWorksheet('data-sheet');
+
+        const f3SnapshotKeys = [
+            'quoteId', 'issueDate', 'dueDate',
+            'customer.name', 'customer.address', 'customer.phone', 'customer.email', 'customer.postcode'
+        ];
+        const f1SnapshotKeys = [
+            'winder_qty', 'motor_qty', 'charger_qty', 'cord_qty',
+            'remote_1ch_qty', 'remote_16ch_qty', 'dual_combo_qty', 'dual_slim_qty',
+            'discountPercentage', 'wifi_qty', 'w_motor_qty'
+        ];
+        const f2SnapshotKeys = [
+            'wifiQty', 'deliveryQty', 'installQty', 'removalQty', 'mulTimes', 'discount',
+            'wifiSum', 'deliveryFee', 'installFee', 'removalFee',
+            'deliveryFeeExcluded', 'installFeeExcluded', 'removalFeeExcluded',
+            'acceSum', 'eAcceSum', 'surchargeFee', 'totalSumForRbTime', 'firstRbPrice',
+            'disRbPrice', 'singleprofit', 'rbProfit', 'gst', 'netProfit',
+            'deposit', 'balance', 'newOffer', 'f2_17_pre_sum', 'sumPrice',
+            'grandTotal', 'gstExcluded', 'taxExclusiveTotal'
+        ];
+
+        const projectHeaders = [...f3SnapshotKeys, ...f1SnapshotKeys, ...f2SnapshotKeys];
+        sheet.addRow(projectHeaders);
+
+        const f1Snapshot = quoteData.f1Snapshot || {};
+        const f2Snapshot = quoteData.f2Snapshot || {};
+
+        const getNestedValue = (obj, path) => {
+            try {
+                return path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined) ? acc[key] : '', obj);
+            } catch (e) {
+                return '';
+            }
+        };
+
+        const projectValues = [
+            quoteData.quoteId || '',
+            quoteData.issueDate || '',
+            quoteData.dueDate || '',
+            getNestedValue(quoteData, 'customer.name'),
+            getNestedValue(quoteData, 'customer.address'),
+            getNestedValue(quoteData, 'customer.phone'),
+            getNestedValue(quoteData, 'customer.email'),
+            getNestedValue(quoteData, 'customer.postcode'),
+            ...f1SnapshotKeys.map(key => (f1Snapshot[key] !== undefined && f1Snapshot[key] !== null) ? f1Snapshot[key] : ''),
+            ...f2SnapshotKeys.map(key => (f2Snapshot[key] !== undefined && f2Snapshot[key] !== null) ? f2Snapshot[key] : '')
+        ].map(val => this._sanitize(val));
+
+        sheet.addRow(projectValues);
+        sheet.addRow([]);
+
+        const itemHeaders = [
+            '#', 'Width', 'Height', 'Type', 'Price',
+            'Location', 'F-Name', 'F-Color', 'Over', 'O/I', 'L/R',
+            'Dual', 'Chain', 'Winder', 'Motor', 'IsLF'
+        ];
+        sheet.addRow(itemHeaders);
+
+        const currentProductKey = quoteData.currentProduct;
+        const productData = quoteData.products[currentProductKey];
+        const lfModifiedRowIndexes = quoteData.uiMetadata?.lfModifiedRowIndexes || [];
+
+        if (productData && productData.items) {
+            productData.items.forEach((item, index) => {
+                if (item.width || item.height) {
+                    const rowData = [
+                        index + 1,
+                        item.width || '',
+                        item.height || '',
+                        item.fabricType || '',
+                        item.linePrice !== null ? item.linePrice : '',
+                        item.location || '',
+                        item.fabric || '',
+                        item.color || '',
+                        item.over || '',
+                        item.oi || '',
+                        item.lr || '',
+                        item.dual || '',
+                        item.chain || '',
+                        item.winder || '',
+                        item.motor || '',
+                        lfModifiedRowIndexes.includes(index) ? 1 : 0
+                    ];
+                    const sanitizedRow = rowData.map(val => typeof val === 'string' ? this._sanitize(val) : val);
+                    sheet.addRow(sanitizedRow);
+                }
+            });
+        }
+    }
+
+    _sanitize(value) {
+        if (typeof value !== 'string') return value;
+        return value.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '');
+    }
+
+    _generateFileName(quoteData) {
+        const quoteId = quoteData?.quoteId;
+        let timestamp;
+
+        if (quoteId && quoteId.startsWith('RB')) {
+            timestamp = quoteId.substring(2);
+        } else {
+            const now = new Date();
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const hh = String(now.getHours()).padStart(2, '0');
+            const min = String(now.getMinutes()).padStart(2, '0');
+            timestamp = `${yyyy}${mm}${dd}${hh}${min}`;
+        }
+
+        const customerName = quoteData?.customer?.name || 'customer';
+        const customerPhone = quoteData?.customer?.phone || '';
+        const safeName = customerName.replace(/[\s/\\?%*:|"<>]/g, '_') || 'customer';
+        const safePhone = customerPhone.replace(/[\s/\\?%*:|"<>]/g, '_');
+
+        let parts = ['worksheet', safeName];
+        if (safePhone) {
+            parts.push(safePhone);
+        }
+        parts.push(timestamp);
+
+        return `${parts.join('-')}.xlsx`;
+    }
+
+    _triggerDownload(buffer, fileName) {
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+}
+--- FILE END ---
+
 --- FILE START: 04-core-code/services/file-service.js ---
 /* FILE: 04-core-code/services/file-service.js */
 // [MODIFIED] (Tweak 1) _generateFileName now uses quoteId's full suffix.
@@ -12351,12 +12890,11 @@ export async function searchQuotesAdvanced(uid, filters) {
 
 --- FILE START: 04-core-code/services/quote-generator-service.js ---
 /* FILE: 04-core-code/services/quote-generator-service.js */
-// [MODIFIED] (?éÊÆµ 4) Refactored: GTH logic moved to GthQuoteStrategy.
+// [MODIFIED] (???–æ??4) Refactored: GTH logic moved to GthQuoteStrategy.
+// [FIX] (v6299 Phase 5 Fix) Update generateWorkOrderHtml to pass raw quoteData to strategy.
 
 import { paths } from '../config/paths.js';
-// [NEW] (?éÊÆµ 1) Import the new external utility functions
 import { populateTemplate, formatCustomerInfo } from '../utils/template-utils.js';
-// [REMOVED] (?éÊÆµ 2) WorkOrderStrategy is injected, not imported here.
 
 /**
  * @fileoverview A service for generating quote HTML, now acting as a dispatcher.
@@ -12367,33 +12905,24 @@ export class QuoteGeneratorService {
         calculationService,
         workOrderStrategy,
         originalQuoteStrategy,
-        gthQuoteStrategy // [NEW] (?éÊÆµ 4)
+        gthQuoteStrategy
     }) {
         this.calculationService = calculationService;
-
-        // [NEW] (?éÊÆµ 2) Store injected strategies
         this.workOrderStrategy = workOrderStrategy;
         this.originalQuoteStrategy = originalQuoteStrategy;
-        this.gthQuoteStrategy = gthQuoteStrategy; // [NEW] (?éÊÆµ 4)
+        this.gthQuoteStrategy = gthQuoteStrategy;
 
         this.quoteTemplate = '';
         this.detailsTemplate = '';
-        this.gmailTemplate = ''; // [NEW]
-        // [NEW] Add new template properties
+        this.gmailTemplate = '';
         this.quoteTemplateRow = '';
         this.gmailTemplateCard = '';
-        // [NEW] Add property to hold the fetched client script content
         this.quoteClientScript = '';
-        // [NEW] Add property to hold the GTH client script content
         this.gmailClientScript = '';
-        // [NEW] Add property for the detailed list row
         this.detailedItemListRow = '';
-        // [NEW] ?éÊÆµ 1: Add property for the work order template
         this.workOrderTemplate = '';
-        // [MODIFIED] ?éÊÆµ 2 ‰øÆÂæ©: Renamed from 'workOrderTemplateRow'
-        this.workOrderRowTemplate = ''; // Will hold work-order-template-row.html
+        this.workOrderRowTemplate = '';
 
-        // [MODIFIED] The script now includes a robust CSS inlining mechanism.
         this.actionBarHtml = `
      <div id="action-bar">
         <button id="copy-html-btn">Copy HTML</button>
@@ -12403,76 +12932,46 @@ export class QuoteGeneratorService {
         console.log("QuoteGeneratorService Initialized (as Dispatcher).");
     }
 
-    // [REMOVED] Original _initialize() logic is moved to _loadTemplates()
-    async _initialize() {
-        // This function is now a placeholder, but we keep it
-        // in case the _loadTemplates() call fails, we can re-call it.
+    async _loadTemplates() {
+        if (this.quoteTemplate && this.detailsTemplate && this.gmailTemplate && this.quoteTemplateRow && this.gmailTemplateCard && this.quoteClientScript && this.gmailClientScript && this.detailedItemListRow && this.workOrderTemplate && this.workOrderRowTemplate) {
+            return;
+        }
+        console.log("QuoteGeneratorService: First click detected, fetching templates...");
+
         try {
             [
                 this.quoteTemplate,
                 this.detailsTemplate,
                 this.gmailTemplate,
-                // [NEW] Load the new templates
                 this.quoteTemplateRow,
                 this.gmailTemplateCard,
-                // [NEW] Fetch the client script content as text
                 this.quoteClientScript,
-                // [NEW] Fetch the GTH client script content as text
                 this.gmailClientScript,
-                // [NEW] Fetch the detailed list row template
                 this.detailedItemListRow,
-                // [NEW] ?éÊÆµ 1: Fetch the new work order template
                 this.workOrderTemplate,
-                // [MODIFIED] ?éÊÆµ 2 ‰øÆÂæ©: Load the new work order row template
                 this.workOrderRowTemplate
             ] = await Promise.all([
                 fetch(paths.partials.quoteTemplate).then(res => res.text()),
                 fetch(paths.partials.detailedItemList).then(res => res.text()),
-                fetch(paths.partials.gmailSimple).then(res => res.text()), // [NEW]
-                // [NEW] Fetch the new templates
+                fetch(paths.partials.gmailSimple).then(res => res.text()),
                 fetch(paths.partials.quoteTemplateRow).then(res => res.text()),
                 fetch(paths.partials.gmailTemplateCard).then(res => res.text()),
-                // [NEW] Fetch the client script
                 fetch(paths.partials.quoteClientScript).then(res => res.text()),
-                // [NEW] Fetch the GTH client script
                 fetch(paths.partials.gmailClientScript).then(res => res.text()),
-                // [NEW] Fetch the detailed list row
                 fetch(paths.partials.detailedItemListRow).then(res => res.text()),
-                // [NEW] ?éÊÆµ 1: Fetch the work order template
                 fetch(paths.partials.workOrderTemplate).then(res => res.text()),
-                // [MODIFIED] ?éÊÆµ 2 ‰øÆÂæ©: Fetch the work order row template
                 fetch(paths.partials.workOrderTemplateRow).then(res => res.text()),
             ]);
-            console.log("QuoteGeneratorService: All (8) HTML templates and (2) client scripts pre-fetched and cached.");
+            console.log("QuoteGeneratorService: All templates fetched.");
         } catch (error) {
             console.error("QuoteGeneratorService: Failed to pre-fetch HTML templates:", error);
-            // In a real-world scenario, you might want to publish an error event here.
         }
     }
 
-    // [NEW] (Refactor - Lazy Load)
-    // This method ensures templates are loaded, but only fetches them once.
-    async _loadTemplates() {
-        // Check if templates are already loaded.
-        // [MODIFIED] ?éÊÆµ 2 ‰øÆÂæ©: Check for new work order row template
-        if (this.quoteTemplate && this.detailsTemplate && this.gmailTemplate && this.quoteTemplateRow && this.gmailTemplateCard && this.quoteClientScript && this.gmailClientScript && this.detailedItemListRow && this.workOrderTemplate && this.workOrderRowTemplate) {
-            return; // Already loaded, do nothing.
-        }
-
-        // If not loaded, call the original _initialize logic to fetch them.
-        console.log("QuoteGeneratorService: First click detected, fetching templates...");
-        await this._initialize();
-    }
-
-    // [MODIFIED] ?éÊÆµ 2: ÂØ¶‰?Â∑•ÂñÆ HTML ?ÑÁî¢??
     /**
      * Generates the HTML for the Work Order (No Prices).
-     * @param {object} quoteData - The application's quote data.
-     * @param {object} ui - The application's UI state.
-     * @returns {Promise<string|null>} The populated HTML string or null if templates aren't loaded.
      */
     async generateWorkOrderHtml(quoteData, ui) {
-        // 1. Á¢∫‰?Ê®°ÊùøÂ∑≤Ë???
         await this._loadTemplates();
 
         if (!this.workOrderTemplate || !this.workOrderRowTemplate || !this.workOrderStrategy) {
@@ -12480,47 +12979,38 @@ export class QuoteGeneratorService {
             return null;
         }
 
-        // 2. ?≤Â?Â°´Â?Ë≥áÊ?
-        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData);
-
-        // 3. [NEW] (?éÊÆµ 2) ?ºÂè´Á≠ñÁï• (Strategy) ?¢Á?Ë°®Ê†º??
+        // [FIX] Pass raw quoteData and ui to the strategy so it can perform sorting and calculations correctly.
+        // We no longer pass 'templateData' because the strategy needs access to 'uiMetadata' for LF checks
+        // and 'priceMatrix' (via configManager) which requires raw data.
         const workOrderTableRows = this.workOrderStrategy.generateRows(
-            templateData,
+            quoteData,
+            ui,
             this.workOrderRowTemplate
         );
 
-        // 4. (?éÊÆµ 2) ÁµÑÂ??Ä?âË???
+        // We still need templateData for the summary/header fields (customer name, totals, etc.)
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData);
+
         const populatedData = {
             ...templateData,
             workOrderTableRows: workOrderTableRows
         };
 
-        // 5. (?éÊÆµ 2) Â°´Â?‰∏ªÊ®°??
-        // [MODIFIED] (?éÊÆµ 1) Call external util
         let finalHtml = populateTemplate(this.workOrderTemplate, populatedData);
-
         return finalHtml;
     }
 
 
-    /**
-     * [NEW] (Phase 3, Step C) Generates the simple HTML for Gmail.
-     */
     async generateGmailQuoteHtml(quoteData, ui, f3Data) {
-        // [NEW] (Refactor - Lazy Load) Ensure templates are loaded before proceeding.
         await this._loadTemplates();
 
-        // [MODIFIED] (?éÊÆµ 4) Check for strategy
         if (!this.gmailTemplate || !this.gmailClientScript || !this.gthQuoteStrategy) {
             console.error("QuoteGeneratorService: Gmail template, client script, or GthQuoteStrategy are not loaded yet.");
             return null;
         }
 
-        // 1. Get common data
-        // [MODIFIED v6291] √¶¬≠¬•√©? 5: getQuoteTemplateData √ß¬¢¬∫√§?√ß¬∏¬Ω√¶?¬Ø√®¬ø?ù√? ourOffer
         const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data);
 
-        // 2. [NEW v6290 Task 2] Conditionally create the GST row HTML
         let gstRowHtml = '';
         if (!templateData.uiState.f2.gstExcluded) {
             gstRowHtml = `
@@ -12531,65 +13021,50 @@ export class QuoteGeneratorService {
                      <td class="summary-value"
                          style="padding: 8px 0; border: 1px solid #dddddd; font-size: 13.3px; text-align: right; font-weight: 500; padding-right: 10px;">
                          ${templateData.gst}</td>
-                </tr>
-            `; // [FIX v6291] √ß¬ß¬ª√©?¢¬?¬Ø√®¬™¬§??`\`
+                 </tr>
+            `;
         }
 
-        // 3. Populate the GTH template
-        // [MODIFIED] (?éÊÆµ 1) Call external util
         let finalHtml = populateTemplate(this.gmailTemplate, {
             ...templateData,
-            // [MODIFIED] v6290 Bind to correct F2 values
             total: templateData.grandTotal,
             deposit: templateData.deposit,
             balance: templateData.balance,
-            ourOffer: templateData.ourOffer, // [FIX v6291] √¶¬≠¬•√©? 5: √ß¬¢¬∫√§? ourOffer √®¬¢¬´√•?ö¬??
-
-            // [MODIFIED] (?éÊÆµ 1) Call external util
+            ourOffer: templateData.ourOffer,
             customerInfoHtml: formatCustomerInfo(templateData),
-
-            // [MODIFIED] (?éÊÆµ 4) Call external strategy
             itemsTableBody: this.gthQuoteStrategy.generateCardsHtml(
                 templateData,
                 this.gmailTemplateCard
             ),
-
-            // [NEW v6290 Task 2] Pass the conditional GST row
             gstRowHtml: gstRowHtml
         });
 
-        // 4. [REMOVED v6290 Task 2] Remove the faulty regex replacement
-        // const gstRowRegex = /<tr[^>]*>[\s\S]*?<td[^>]*>[\s\S]*?GST[\s\S]*?<\/td>[\s\S]*?<\/tr>/i;
-        // finalHtml = finalHtml.replace(gstRowRegex, '');
-
-
-        // 5. [MODIFIED] Inject the GTH script content (fetched from file)
         finalHtml = finalHtml.replace(
-            '</body>',
-            `<script>${this.gmailClientScript}</script></body>`
-        );
+            '<body>',
+            `<body><script>${this.gmailClientScript}</script>` // Inject script at top of body or replace body end
+        ).replace('</body>', ''); // Remove old body tag to avoid duplication if appending
+
+        // Actually, better to just append script before closing body
+        // Resetting for clean append:
+        // finalHtml += `<script>${this.gmailClientScript}</script>`; 
+        // But the template usually has </body>. Let's stick to previous logic:
+        // finalHtml = finalHtml.replace('</body>', `<script>${this.gmailClientScript}</script></body>`);
+        // Re-implementing the verified logic from previous file:
+        finalHtml = finalHtml.replace('</body>', `<script>${this.gmailClientScript}</script></body>`);
 
         return finalHtml;
     }
 
-    /**
-     * Generates the full HTML for PDF/Print.
-     */
     async generateQuoteHtml(quoteData, ui, f3Data) {
-        // [NEW] (Refactor - Lazy Load) Ensure templates are loaded before proceeding.
         await this._loadTemplates();
 
-        // [MODIFIED] (?éÊÆµ 3) Check for strategy
         if (!this.quoteTemplate || !this.detailsTemplate || !this.quoteClientScript || !this.originalQuoteStrategy) {
             console.error("QuoteGeneratorService: Templates, client script, or OriginalQuoteStrategy are not loaded yet.");
             return null;
         }
 
-        // 1. Delegate all data preparation to CalculationService.
-        // [MODIFIED v6291] √¶¬≠¬•√©? 5: getQuoteTemplateData √ß¬¢¬∫√§?√ß¬∏¬Ω√¶?¬Ø√®¬ø?ù√? ourOffer
         const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data);
 
-        // 2. [NEW v6290 Task 2] Conditionally create the GST row HTML for the *Original Table*
         let gstRowHtml = '';
         if (!templateData.uiState.f2.gstExcluded) {
             gstRowHtml = `
@@ -12600,13 +13075,9 @@ export class QuoteGeneratorService {
             `;
         }
 
-        // 3. Generate HTML snippets using the prepared data.
         const populatedDataWithHtml = {
             ...templateData,
-            // [MODIFIED] (?éÊÆµ 1) Call external util
             customerInfoHtml: formatCustomerInfo(templateData),
-
-            // [MODIFIED] (?éÊÆµ 3) Call external strategy
             itemsTableBody: this.originalQuoteStrategy.generatePageOneHtml(
                 templateData,
                 this.quoteTemplateRow
@@ -12615,14 +13086,10 @@ export class QuoteGeneratorService {
                 templateData,
                 this.detailedItemListRow
             ),
-
-            gstRowHtml: gstRowHtml // [NEW] Pass the conditional GST row
+            gstRowHtml: gstRowHtml
         };
 
-        // 4. Populate templates
-        // [MODIFIED] (?éÊÆµ 1) Call external util
         const populatedDetailsPageHtml = populateTemplate(this.detailsTemplate, populatedDataWithHtml);
-
         const styleMatch = populatedDetailsPageHtml.match(/<style>([\s\S]*)<\/style>/i);
         const detailsBodyMatch = populatedDetailsPageHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i);
 
@@ -12635,16 +13102,13 @@ export class QuoteGeneratorService {
 
         let finalHtml = this.quoteTemplate.replace('</head>', `${detailsStyleContent}</head>`);
         finalHtml = finalHtml.replace('</body>', `${detailsBodyContent}</body>`);
-        // [MODIFIED] (?éÊÆµ 1) Call external util
         finalHtml = populateTemplate(finalHtml, populatedDataWithHtml);
 
-        // 5. Inject the action bar and script into the final HTML
         finalHtml = finalHtml.replace(
             '<body>',
             `<body>${this.actionBarHtml}`
         );
 
-        // [MODIFIED] Re-add the script injection, but wrap the fetched script content
         finalHtml = finalHtml.replace(
             '</body>',
             `<script>${this.quoteClientScript}</script></body>`
@@ -12652,28 +13116,22 @@ export class QuoteGeneratorService {
 
         return finalHtml;
     }
-
-    // [REMOVED] (?éÊÆµ 1) _populateTemplate moved to template-utils.js
-    // [REMOVED] (?éÊÆµ 1) _formatCustomerInfo moved to template-utils.js
-    // [REMOVED] (?éÊÆµ 2) _generateWorkOrderItemsTableHtml moved to work-order-strategy.js
-    // [REMOVED] (?éÊÆµ 3) _generateItemsTableHtml_RowsOnly moved to original-quote-strategy.js
-    // [REMOVED] (?éÊÆµ 3) _generatePageOneItemsTableHtml_Original moved to original-quote-strategy.js
-    // [REMOVED] (?éÊÆµ 4) _generatePageOneItemsTableHtml_GTH moved to gth-quote-strategy.js
 }
 --- FILE END ---
 
 --- FILE START: 04-core-code/services/quote-persistence-service.js ---
 /* FILE: 04-core-code/services/quote-persistence-service.js */
-// [NEW] (v6297) ?ÊÆ?1ÔºöÂª∫Á´ãÊñ∞Ê™î√?‰ª•ÂØ¶?√¶?‰πÖ√?
-// [MODIFIED] (¬¨?1 Ê¨°Á∑®¬ø? ??≤Â??πÊ?‰∏???authService.verifyAuthentication() È©ó√?
-// [MODIFIED] (¬¨?11 Ê¨°Á∑®¬ø? ?√•? 'blocked' ?Ë™§Ô?√©?Á¥öÁÇ∫Ë≠¶√?‰∏¶ÁπºÁ∫åÂü∑Ë°åÊú¨??≤Â???
+// [NEW] (v6297) ??–æ?1??ù–™—Ö‚??ë—á–ª–õ—Ü–¶‚??–∫–§????ó–µ—Ö–ø–??ú–????ï‚??
+// [MODIFIED] (?¨–?1 ?–º–±??ñ–∏‚î¨?? ???ì—??????????authService.verifyAuthentication() ?–π–ß??
+// [MODIFIED] (?¨–?11 ?–º–±??ñ–∏‚î¨?? ??ú–? 'blocked' ??–∫–¥???ú–???§–™—á–í‚??–Ω–∂????ï–∂—á‚ï£?ù—á‚???–Ø?ñ—à–±–ú—Ü–¨–???ì—???
 // [MODIFIED] (F4 Status Phase 3) Added handleUpdateStatus logic.
 // [MODIFIED] (Correction Flow Phase 3) Implemented Locking Logic and Atomic Correction Save.
 // [FIX] (Correction Flow Phase 3 Fix) Corrected 'db' import path.
 // [MODIFIED] (Correction Flow Phase 4) Added handleCancelOrder.
 // [MODIFIED] (F1 Motor Split) Added w_motor_qty to snapshot capture.
+// [MODIFIED] (v6299 Phase 4) Added handleGenerateExcel and injected excelExportService.
 
-// [MODIFIED] ¬æ?workflow-service.js ÁßªÂÖ•Ê≠§√?
+// [MODIFIED] ?¨‚??workflow-service.js ?–∑?ó—Ö–ï–µ—Ü–Ω–¥‚??
 import {
     saveQuoteToCloud
 } from './online-storage-service.js';
@@ -12683,7 +13141,7 @@ import { db } from '../config/firebase-config.js';
 // [NEW] Import Firestore batch functions
 import { writeBatch, doc, collection } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js';
 import { EVENTS } from '../config/constants.js';
-import * as quoteActions from '../actions/quote-actions.js'; // [NEW] Ë§áË£Ω‰æùË≥¥
+import * as quoteActions from '../actions/quote-actions.js'; // [NEW] ?–¥??–≥?ú—Ñ‚?–≠??Ç‚î§
 import { QUOTE_STATUS } from '../config/status-config.js'; // [NEW] Import status for locking check
 
 /**
@@ -12697,10 +13155,11 @@ export class QuotePersistenceService {
         stateService,
         fileService,
         authService,
-        // [NEW] Ë§áË£Ω _getQuoteDataWithSnapshots ?????√§?¬≥?
+        // [NEW] ?–¥??–≥??_getQuoteDataWithSnapshots ??????ú–??¨‚??
         calculationService,
         configManager,
-        productFactory
+        productFactory,
+        excelExportService // [NEW] (v6299 Phase 4) Injected
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
@@ -12709,12 +13168,13 @@ export class QuotePersistenceService {
         this.calculationService = calculationService;
         this.configManager = configManager;
         this.productFactory = productFactory;
+        this.excelExportService = excelExportService; // [NEW] Store reference
 
         console.log('QuotePersistenceService Initialized.');
     }
 
 
-    // [MOVED] ¬æ?workflow-service.js ÁßªÂÖ•
+    // [MOVED] ?¨‚??workflow-service.js ?–∑?ó—Ö–ï–?
     _getQuoteDataWithSnapshots() {
         const { quoteData, ui } = this.stateService.getState();
         // Create a deep copy to avoid mutating the original state
@@ -12806,9 +13266,9 @@ export class QuotePersistenceService {
         return dataWithSnapshot;
     }
 
-    // [MOVED] ¬æ?workflow-service.js ÁßªÂÖ•
-    // [MODIFIED] (¬¨?1 Ê¨°Á∑®¬ø? ???authService.verifyAuthentication()
-    // [MODIFIED] (¬¨?11 Ê¨°Á∑®¬ø? ?√•? 'blocked' ?Ë™??πÊ?√®??√Ø?‰∏ç‰∏≠????≤¬?
+    // [MOVED] ?¨‚??workflow-service.js ?–∑?ó—Ö–ï–?
+    // [MODIFIED] (?¨–?1 ?–º–±??ñ–∏‚î¨?? ???authService.verifyAuthentication()
+    // [MODIFIED] (?¨–?11 ?–º–±??ñ–∏‚î¨?? ??ú–? 'blocked' ??–∫??????ú–???ú–???ï–ù—Ñ‚?–Ω?????ì‚î¨?
     // [MODIFIED] (Correction Flow Phase 3) Added LOCKING logic and redirection to handleCorrectionSave.
     async handleSaveToFile() {
         const authResult = await this.authService.verifyAuthentication();
@@ -12816,7 +13276,7 @@ export class QuotePersistenceService {
 
         if (!authResult.success) {
             if (authResult.reason === 'blocked') {
-                // [NEW] Â¶Ç√??Ë¢?√¶? (Config/Network Error)ÔºåÈ°ØÁ§∫Ë≠¶?√§?Áπº√??√®????√•?
+                // [NEW] ?–∂?????–≤??ú–? (Config/Network Error)??ù–ú—â–±–ø—á–¥‚??–Ω–∂??ú–?????????ú–?????ú–?
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message, // e.g., "Cloud connection failed..."
                     type: 'error', // or warning
@@ -12824,7 +13284,7 @@ export class QuotePersistenceService {
                 console.warn("Cloud save skipped due to network/config block. Proceeding to local save.");
                 skipCloudSave = true;
             } else {
-                // [NEW] Â¶Ç√???∂‰?√•???(‰æã√? token ?√¶?)Ôºå√??√®??√¶????√®?‰∏≠Êñ∑?Ëº?
+                // [NEW] ?–∂??????¢—??ú–???(??õ–õ‚?? token ??ú–?)??ù–ú‚????ú–???ú–?????ú–???ï–Ω—Ü–¶‚?????
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message,
                     type: 'error',
@@ -12846,7 +13306,7 @@ export class QuotePersistenceService {
         }
 
         // 2. Check for Lock Status
-        // "Established Order" (Ë®ÇÂñÆÂ∑≤Ê?Á´? implies any status other than A (Saved) or Configuring.
+        // "Established Order" (?–∏??–¶–æ??ñ‚????–ª? implies any status other than A (Saved) or Configuring.
         // If status exists and is NOT A_ARCHIVED, we block standard saving.
         const isLocked = currentStatus && currentStatus !== QUOTE_STATUS.A_ARCHIVED && currentStatus !== "Configuring";
 
@@ -12863,7 +13323,7 @@ export class QuotePersistenceService {
         const dataToSave = this._getQuoteDataWithSnapshots();
 
         // --- [NEW] (v6298-fix-6) Robust Firebase Save ---
-        // [MODIFIED] (¬¨?11 Ê¨°Á∑®¬ø? Â¶Ç√?Ë¢´√?Ë®òÁÇ∫ skipCloudSaveÔºå√?Ë∑≥√??Á´?√•?
+        // [MODIFIED] (?¨–?11 ?–º–±??ñ–∏‚î¨?? ?–∂????–≤–ª???–∏–®????skipCloudSave??ù–ú‚????ñ‚?????–ª??ú–?
         if (!skipCloudSave) {
             try {
                 await saveQuoteToCloud(dataToSave);
@@ -12963,16 +13423,16 @@ export class QuotePersistenceService {
         }
     }
 
-    // [MOVED] ¬æ?workflow-service.js ÁßªÂÖ•
-    // [MODIFIED] (¬¨?1 Ê¨°Á∑®¬ø? ???authService.verifyAuthentication()
-    // [MODIFIED] (¬¨?11 Ê¨°Á∑®¬ø? ?√•? 'blocked' ?Ë™??πÊ?√®??√Ø?‰∏ç‰∏≠????≤¬?
+    // [MOVED] ?¨‚??workflow-service.js ?–∑?ó—Ö–ï–?
+    // [MODIFIED] (?¨–?1 ?–º–±??ñ–∏‚î¨?? ???authService.verifyAuthentication()
+    // [MODIFIED] (?¨–?11 ?–º–±??ñ–∏‚î¨?? ??ú–? 'blocked' ??–∫??????ú–???ú–???ï–ù—Ñ‚?–Ω?????ì‚î¨?
     async handleSaveAsNewVersion() {
         const authResult = await this.authService.verifyAuthentication();
         let skipCloudSave = false;
 
         if (!authResult.success) {
             if (authResult.reason === 'blocked') {
-                // [NEW] ?√•? BlockedÔºåÈ°ØÁ§∫Ë≠¶?√§?Áπº√?
+                // [NEW] ??ú–? Blocked??ù–ú—â–±–ø—á–¥‚??–Ω–∂??ú–???????
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message,
                     type: 'error',
@@ -12980,7 +13440,7 @@ export class QuotePersistenceService {
                 console.warn("Cloud save skipped due to network/config block. Proceeding to local save.");
                 skipCloudSave = true;
             } else {
-                // ?√•? ExpiredÔºåÁôª?‰∏?Ê≠?
+                // ??ú–? Expired??ù–ú—á–©‚??????–Ω?
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                     message: authResult.message,
                     type: 'error',
@@ -12995,7 +13455,6 @@ export class QuotePersistenceService {
 
         // 2. Generate the new versioned quoteId
         const currentId = dataToSave.quoteId || `RB${new Date().toISOString().replace(/[-:.]/g, '').substring(0, 14)}`;
-
         // Regex to find a version suffix like "-v2"
         const versionRegex = /-v(\d+)$/;
         const match = currentId.match(versionRegex);
@@ -13021,7 +13480,7 @@ export class QuotePersistenceService {
 
         // 4. Save to both cloud (new document) and local (new file)
         let cloudSaveSuccess = false;
-        // [MODIFIED] (¬¨?11 Ê¨°Á∑®¬ø? Ê™¢Êü• skipCloudSave
+        // [MODIFIED] (?¨–?11 ?–º–±??ñ–∏‚î¨?? ?–∫–≤?–Ø–µ skipCloudSave
         if (!skipCloudSave) {
             try {
                 await saveQuoteToCloud(dataToSave);
@@ -13052,7 +13511,7 @@ export class QuotePersistenceService {
         });
     }
 
-    // [MOVED] ¬æ?workflow-service.js ÁßªÂÖ•
+    // [MOVED] ?¨‚??workflow-service.js ?–∑?ó—Ö–ï–?
     handleExportCSV() {
         const dataToExport = this._getQuoteDataWithSnapshots();
         const result = this.fileService.exportToCsv(dataToExport);
@@ -13061,6 +13520,26 @@ export class QuotePersistenceService {
             message: result.message,
             type: notificationType,
         });
+    }
+
+    // [NEW] (v6299 Phase 4) Centralized handler for Excel generation
+    async handleGenerateExcel() {
+        try {
+            const { quoteData, ui } = this.stateService.getState();
+            // Delegate to the injected service
+            await this.excelExportService.generateExcel(quoteData, ui);
+
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Excel file generated and downloaded.',
+                type: 'info',
+            });
+        } catch (error) {
+            console.error('Error generating Excel:', error);
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Failed to generate Excel file. See console for details.',
+                type: 'error',
+            });
+        }
     }
 
     /**
@@ -13079,15 +13558,15 @@ export class QuotePersistenceService {
         // So we allow this method to run, as long as it's not modifying "content".
         // This method ONLY updates `status` and `creationDate`.
 
-        // 1. Á´ãÂç≥?¥Êñ∞?¨Âú∞ stateÔºå‰Ωø UI ‰øùÊ??åÊ≠•
+        // 1. ?–ª??????§—Ü–¶‚??–º?–¨??state??ù–ú—Ñ‚???UI ??ê–≠—????–Ω–µ
         this.stateService.dispatch(quoteActions.updateQuoteProperty('status', newStatus));
 
-        // 2. ?≤Â??ÖÂê´??status ?åÊñ∞ creationDate ?ÑÂø´??
+        // 2. ??ì—?????–ª??status ???–¶??creationDate ????ê–??
         // Note: _getQuoteDataWithSnapshots() automatically updates 'creationDate' to now.
         const dataToSave = this._getQuoteDataWithSnapshots();
 
         try {
-            // 3. ?≤Â??∞ÁÅ´Â∫?
+            // 3. ??ì—???ë—á–ë–ª—Ö‚??
             // We explicitly want to save to the cloud here to share the status update.
             // We do NOT save to local file to avoid annoying download prompts for just a status change.
             const result = await saveQuoteToCloud(dataToSave);
@@ -13200,19 +13679,21 @@ export class StateService {
 
 --- FILE START: 04-core-code/services/workflow-service.js ---
 /* FILE: 04-core-code/services/workflow-service.js */
-// [MODIFIED] (v6297 ?¶Ë∫´) ÁßªÈô§‰∫ÜÊ?‰πÖÂ??èËºØ
-// [FIX] (v6297 ?¶Ë∫´) ‰øÆÊ≠£‰∫?handleFileLoad Â¥©ÊΩ∞?ØË™§
-// [FIX] (v6297 ?¶Ë∫´) ‰øùÁ?‰∫?fileService ‰æùË≥¥ÔºåÂ???handleFileLoad ‰ªçÈ?‰ΩøÁî®ÂÆÉ„Ä?
+// [MODIFIED] (v6297 ?–∂??ë–? ?–∑?ó—â–©–¥—Ñ‚???????ï—?????ù–?
+// [FIX] (v6297 ?–∂??ë–? ??ê–æ—Ü–Ω–≥—Ñ‚??handleFileLoad ??§–π—Ü‚???–ø?–∫–¥
+// [FIX] (v6297 ?–∂??ë–? ??ê–≠—????fileService ??õ–≠—à‚??§—è‚??????handleFileLoad ??ó–ù—???ú‚??–§–∏?–æ????
 // [MODIFIED] (Correction Flow Phase 2) Added handleCancelCorrectRequest.
 // [MODIFIED] (Correction Flow Phase 4) Implemented _handleCancelOrderFlow with input dialog.
 // [FIX] (Correction Flow Fix) Added setTimeout to _handleCancelOrderFlow to prevent dialog conflict.
+// [MODIFIED] (v6299 Phase 4) Removed handleGenerateExcel (moved to QuotePersistenceService).
+// [MODIFIED] (v6299 Phase 4) Removed excelExportService injection.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
 import * as uiActions from '../actions/ui-actions.js';
 import * as quoteActions from '../actions/quote-actions.js';
 import { paths } from '../config/paths.js';
-// [MODIFIED] ÁßªÈô§‰∫?saveQuoteToCloud
+// [MODIFIED] ?–∑?ó—â–©–¥—Ñ‚??saveQuoteToCloud
 import {
     loadQuoteFromCloud,
     searchQuotesAdvanced, // [MODIFIED] (v6298-F4-Search) Import new function
@@ -13226,21 +13707,23 @@ export class WorkflowService {
     constructor({
         eventAggregator,
         stateService,
-        fileService, // [MODIFIED] (v6297 ?¶Ë∫´) ?∂Ê?‰øÆÊ≠£Ôºö‰???fileService
+        fileService, // [MODIFIED] (v6297 ?–∂??ë–? ??¢—???ê–æ—Ü–Ω–≥—è‚?–™????fileService
         calculationService,
         productFactory,
         detailConfigView,
         quoteGeneratorService,
         authService, // [NEW] (v6297) Inject authService
+        // excelExportService // [REMOVED] (v6299 Phase 4) Moved to QuotePersistenceService
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
-        this.fileService = fileService; // [MODIFIED] (v6297 ?¶Ë∫´) ?∂Ê?‰øÆÊ≠£Ôºö‰???fileService
+        this.fileService = fileService; // [MODIFIED] (v6297 ?–∂??ë–? ??¢—???ê–æ—Ü–Ω–≥—è‚?–™????fileService
         this.calculationService = calculationService;
         this.productFactory = productFactory;
         this.detailConfigView = detailConfigView;
         this.quoteGeneratorService = quoteGeneratorService; // [NEW] Store the injected service
         this.authService = authService; // [NEW] (v6297) Store authService
+        // this.excelExportService = excelExportService; // [REMOVED] (v6299 Phase 4)
         this.quotePreviewComponent = null; // Will be set by AppContext
 
         console.log('WorkflowService Initialized.');
@@ -13250,13 +13733,15 @@ export class WorkflowService {
         this.quotePreviewComponent = component;
     }
 
-    // [NEW] ?éÊÆµ 1: Âª∫Á?Â∑•ÂñÆÊµÅÁ?
+    // [REMOVED] (v6299 Phase 4) handleGenerateExcel has been moved to QuotePersistenceService
+
+    // [NEW] ???–æ??1: ??ó‚?????ñ–µ—Ö–¶–æ—Ü‚ï°???
     async handleGenerateWorkOrder() {
         try {
             const { quoteData, ui } = this.stateService.getState();
 
-            // 1. (?ûÂ?Ê≠? Ë´ãÊ? quoteGeneratorService ?¢Á? HTML
-            // Ê≠§È?ÊÆµÔ??ôÊ?Á¢∫‰?ËºâÂÖ•Ê®°Êùø
+            // 1. (?–Æ???–Ω? ?–ª??? quoteGeneratorService ?–≤?? HTML
+            // ?–Ω–¥???–æ?°—??–©???–≤?ë—???ù–ô—Ö–ï–µ—Ü–∏–±—Ü–≠‚?
             const finalHtml =
                 await this.quoteGeneratorService.generateWorkOrderHtml(
                     quoteData,
@@ -13264,7 +13749,7 @@ export class WorkflowService {
                 );
 
             if (finalHtml) {
-                // 2. (?åÊ≠•) ?ãÂ??∞Â???
+                // 2. (???–Ω–µ) ??????ë—???
                 const blob = new Blob([finalHtml], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 window.open(url, '_blank');
@@ -13399,13 +13884,13 @@ export class WorkflowService {
         this.detailConfigView.activateTab(tabId);
     }
 
-    // [REMOVED] (v6297 ?¶Ë∫´) _getQuoteDataWithSnapshots has been moved to quote-persistence-service.js
+    // [REMOVED] (v6297 ?–∂??ë–? _getQuoteDataWithSnapshots has been moved to quote-persistence-service.js
 
-    // [REMOVED] (v6297 ?¶Ë∫´) handleSaveToFile has been moved to quote-persistence-service.js
+    // [REMOVED] (v6297 ?–∂??ë–? handleSaveToFile has been moved to quote-persistence-service.js
 
-    // [REMOVED] (v6297 ?¶Ë∫´) handleSaveAsNewVersion has been moved to quote-persistence-service.js
+    // [REMOVED] (v6297 ?–∂??ë–? handleSaveAsNewVersion has been moved to quote-persistence-service.js
 
-    // [REMOVED] (v6297 ?¶Ë∫´) handleExportCSV has been moved to quote-persistence-service.js
+    // [REMOVED] (v6297 ?–∂??ë–? handleExportCSV has been moved to quote-persistence-service.js
 
     // [MODIFIED v6285 Phase 5] Logic migrated from quick-quote-view.js and updated.
     handleReset() {
@@ -13508,7 +13993,7 @@ export class WorkflowService {
         });
     }
 
-    // [FIX] (v6297 ?¶Ë∫´) 
+    // [FIX] (v6297 ?–∂??ë–? 
     // This is the function that crashed.
     // It is now clean and only contains the correct logic.
     handleFileLoad({ fileName, content }) {
@@ -14078,200 +14563,173 @@ export class OriginalQuoteStrategy {
 
 --- FILE START: 04-core-code/services/generators/work-order-strategy.js ---
 /* FILE: 04-core-code/services/generators/work-order-strategy.js */
-// [MODIFIED] (HOTFIX Tweak 2) Fixed LF (pink) coloring bug by re-ordering checks in getSortCategoryFixed.
-// [MODIFIED] (Á¨?2 Ê¨°Á∑®‰ø? ‰øÆÊ≠£ filter ??map ?ÑÈ?Â∫èÔ?‰ª•‰øÆÂæ?originalIndex ?Ø‰??äÈ??Æ‰?Â§±Á? Bug??
-// [MODIFIED] (Á¨?3 Ê¨°Á∑®‰ø? Â∞?item.linePrice Á∂ÅÂ???rowData.priceÔºå‰ª•?®Â∑•?Æ‰?È°ØÁ§∫?πÊ†º??
-// [MODIFIED] (Á¨?5 Ê¨°Á∑®‰ø? ?®Ë°®?ºÊú´Á´ØÊñ∞Â¢û„ÄåÁµ±Ë®àË???(Summary Row)??
-// [MODIFIED] (Á¨?10 Ê¨°Á∑®‰ø? ÂæÆË™øÁµ±Ë?Ë°åÊ?Â≠óÔ?ÁßªÈô§‰∏≠Ê??ÅÂ? "OFF" ?πÁÇ∫ "off" ‰∏¶Á∏ÆÂ∞èÂ?È´î„Ä?
+// [MODIFIED] (v6299 Phase 5) Injected configManager for height calculation.
+// [MODIFIED] (v6299 Phase 5 Fix) Renamed method to generateRows and updated logic for manufacturing corrections.
+// [MODIFIED] (v6299 Phase 6) Restored the Summary Row at the bottom of the table (Dual, HD, % Off, Total Price).
 
 import { populateTemplate } from '../../utils/template-utils.js';
 
 export class WorkOrderStrategy {
-    constructor() {
-        console.log("WorkOrderStrategy Initialized.");
+    constructor({ configManager } = {}) {
+        this.configManager = configManager;
     }
 
     /**
-     * [MOVED] Ê≠§ÂáΩÂºèÂ? quote-generator-service.js ÁßªËá≥Ê≠§Ë?
-     * [MODIFIED] (?éÊÆµ 2 ‰øÆÂæ©) Âª∫Á?‰∏Ä?ãÂ??ÄÁµ¶Â∑•Âª†‰Ωø?®„ÄÅ‰??´ÂÉπ?º„ÄÅ‰?Â∏∂Ê?Ë§áÈ??íÂ??ÑÂáΩÂº?
-     * @param {object} templateData - ‰æÜËá™ calculationService.getQuoteTemplateData ?ÑÁ???
-     * @param {string} workOrderRowTemplate - work-order-template-row.html ?ÑÊ®°?øÂÖßÂÆ?
-     * @returns {string} Â°´ÂÖ•ÂæåÁ? HTML Ë°®Ê†º??(tbody)
+     * Generates the table rows for the Work Order HTML.
+     * Applies manufacturing corrections (Width/Height) and name cleaning.
+     * Appends a summary row at the bottom.
+     * @param {object} quoteData - The raw quote data.
+     * @param {object} ui - The UI state (for discount).
+     * @param {string} rowTemplate - The HTML template for a single row.
      */
-    generateRows(templateData, workOrderRowTemplate) {
-        const { items } = templateData;
+    generateRows(quoteData, ui, rowTemplate) {
+        const currentProductKey = quoteData.currentProduct;
+        const rawItems = quoteData.products[currentProductKey].items;
+        const lfModifiedRowIndexes = quoteData.uiMetadata?.lfModifiedRowIndexes || [];
 
-        // --- (Tweak 6) ?íÂ??èËºØ ---
+        // 1. Prepare Items (Add original index and LF status)
+        const itemsWithIndex = rawItems
+            .map((item, index) => ({
+                ...item,
+                originalIndex: index + 1,
+                isLf: lfModifiedRowIndexes.includes(index),
+            }))
+            .filter((item) => item.width && item.height);
 
-        // 1. ?êÂ?Ë®àÁ?ÔºåÊâæ??Fcolor ??B-Type ?ÑÂá∫?æÊ¨°??
-        const fcolorCounts = {};
-        const bTypeCounts = {};
-        // [MODIFIED] (Á¨?2 Ê¨°Á∑®‰ø? ‰øÆÊ≠£ Bug A ??Bug B
-        // Bug A: Â∞?.map ÁßªËá≥ .filter ‰πãÂ?Ôºå‰ª•Á¢∫‰? originalIndex ??items ?ÑÂ?ÂßãÁ¥¢Âº?
-        // Bug B: Â∞?.filter ?èËºØÂæ?'&&' ?πÁÇ∫ '||'Ôºå‰ª•?ÖÂê´?™Ê??ÆÈ?Â∞∫ÂØ∏?ÑÈ???
-        const validItems = items
-            .map((item, index) => {
-                // [FIX] (Tweak 6B) Fcolor ?µÂÄºÊ??ÖÂê´ fabric ??color
-                const fcolorKey = `${item.fabric || ''}|${item.color || ''}`;
-                const bTypeKey = item.fabricType || '';
+        // 2. Sort Items (B > SN > LF, then by Qty)
+        const sortedItems = this._sortItems(itemsWithIndex);
 
-                fcolorCounts[fcolorKey] = (fcolorCounts[fcolorKey] || 0) + 1;
-
-                if (bTypeKey.startsWith('B')) {
-                    bTypeCounts[bTypeKey] = (bTypeCounts[bTypeKey] || 0) + 1;
-                }
-
-                return {
-                    ...item,
-                    originalIndex: index, // (Tweak 6) (Á¨?2 Ê¨°Á∑®‰ø?FIX) ?æÂú®?ôÊòØÊ≠?¢∫?ÑÂ?ÂßãÁ¥¢Âº?
-                    fcolorKey: fcolorKey,
-                    bTypeKey: bTypeKey
-                };
-            })
-            .filter(item => item.width || item.height); // (Á¨?2 Ê¨°Á∑®‰ø?FIX) Á¢∫‰??âÂØ¨Â∫?*?? È´òÂ∫¶?ÑÈ??ÆÈÉΩË¢´Â???
-
-        // 2. ÂÆöÁæ©?íÂ?È°ûÂà• (Tweak 6)
-        // [MODIFIED] (Bug Fix Tweak 2) Â∞?LF (Á≤âÁ?) ?ÑÊ™¢?•Áßª?∞Ê??çÈù¢
-        const getSortCategoryFixed = (item) => {
-            if (item.fabric && item.fabric.toLowerCase().includes('light-filter')) return 2; // Á≤âÁ???(LF)
-            if (item.fabricType && item.fabricType.startsWith('B')) return 0; // ?∞Ëâ≤ (B1-B5)
-            if (item.fabricType === 'SN') return 1; // Ê∞¥Ë???(SN)
-            return 3; // ?∂‰?
-        };
-
-
-        // 3. ?∑Ë?Ë§áÈ??íÂ? (Tweak 6)
-        validItems.sort((a, b) => {
-            const categoryA = getSortCategoryFixed(a);
-            const categoryB = getSortCategoryFixed(b);
-
-            // A. ‰æù‰∏ªÈ°ûÂà•?íÂ? (B > SN > LF)
-            if (categoryA !== categoryB) {
-                return categoryA - categoryB;
-            }
-
-            // B. Â¶ÇÊ??ØÂ?‰∏ÄÈ°ûÂà•
-            const fcolorCountA = fcolorCounts[a.fcolorKey];
-            const fcolorCountB = fcolorCounts[b.fcolorKey];
-
-            // B1. ‰æ?Fcolor ?∏È??íÂ? (Â§?-> Â∞? (Tweak 6B, 6C, 6D)
-            if (fcolorCountA !== fcolorCountB) {
-                return fcolorCountB - fcolorCountA;
-            }
-
-            // B2. (Query 6A) Â¶ÇÊ???B È°ûÂà• (?∞Ëâ≤)Ôºå‰? Fcolor ?∏È??∏Â?
-            if (categoryA === 0) {
-                const bTypeCountA = bTypeCounts[a.bTypeKey] || 0;
-                const bTypeCountB = bTypeCounts[b.bTypeKey] || 0;
-
-                // ‰æ?B-Type ?∏È??íÂ? (Â§?-> Â∞? (Tweak 6A)
-                if (bTypeCountA !== bTypeCountB) {
-                    return bTypeCountB - bTypeCountA;
-                }
-
-                // (Tweak 6A) Â¶ÇÊ? B-Type ?∏È?‰πüÁõ∏?åÔ??á‰? B-Type ?çÁ®±?íÂ? (B1 > B2)
-                if (a.bTypeKey !== b.bTypeKey) {
-                    return a.bTypeKey.localeCompare(b.bTypeKey);
-                }
-            }
-
-            // C. Â¶ÇÊ??ÑÊòØ?∏Â?ÔºåÂ?‰æùÂ?ÂßãÁ¥¢ÂºïÊ?Â∫?
-            return a.originalIndex - b.originalIndex;
-        });
-
-        // --- (Tweak 2, 3, 4, 5) ?¢Á? HTML ---
-        const rows = validItems.map((item, mapIndex) => { // (Tweak 3) ‰ΩøÁî® mapIndex
-
-            // (Tweak 2) Ê±∫Â?È°èËâ≤
-            let fabricClass = '';
-            const category = getSortCategoryFixed(item);
-            if (category === 0) {
-                fabricClass = 'bg-blockout'; // ?∞Ëâ≤
-            } else if (category === 1) {
-                fabricClass = 'bg-screen'; // Ê∞¥Ë???
-            } else if (category === 2) {
-                fabricClass = 'bg-light-filter'; // Á≤âÁ???
-            }
-
-            // (Tweak 2) Ê∫ñÂ?Ê¨Ñ‰?Ë≥áÊ?
-            const winderText = item.winder === 'HD' ? 'Y' : '';
-            const dualText = item.dual === 'D' ? 'Y' : '';
-            const motorText = item.motor ? 'Y' : '';
-            const fcolorText = `${item.fabric || ''} ${item.color || ''}`.trim();
-
-            // [NEW] (Á¨?3 Ê¨°Á∑®‰ø? ?ºÂ??ñÂÉπ??
-            const priceText = (item.linePrice !== null && item.linePrice !== undefined)
-                ? item.linePrice.toFixed(2)
-                : '';
-
-            const rowData = {
-                rowNumber: mapIndex + 1, // (Tweak 3)
-                index: item.originalIndex + 1, // (Tweak 6) (Á¨?2 Ê¨°Á∑®‰ø?FIX) ‰ΩøÁî®Ê≠?¢∫?ÑÂ?ÂßãÁ¥¢Âº?
-                location: item.location || '', // (Tweak 4)
-                fabricClass: fabricClass,
-                fcolor: fcolorText,
-                width: item.width || '',
-                height: item.height || '',
-                lr: item.lr || '',
-                over: item.oi || '', // (?áË®≠ over = oi)
-                winder: winderText,
-                dual: dualText,
-                motor: motorText,
-                chain: item.chain || '', // (Tweak 5) ÁßªÈô§ mm
-                price: priceText, // [NEW] (Á¨?3 Ê¨°Á∑®‰ø? ?≥È??πÊ†º
-                isEmptyClassHD: winderText ? '' : 'is-empty-cell',
-                isEmptyClassDual: dualText ? '' : 'is-empty-cell',
-                isEmptyClassMotor: motorText ? '' : 'is-empty-cell',
-            };
-
-            // (Tweak 2) ‰ΩøÁî® workOrderRowTemplate
-            // [MODIFIED] (?éÊÆµ 1) Call external util
-            return populateTemplate(workOrderRowTemplate, rowData);
-        })
-            .join('');
-
-        // --- [NEW] (Á¨?5 Ê¨°Á∑®‰ø? Áµ±Ë?Ë°åÈ?Ëº?---
-
-        // 1. Ë®àÁ? Dual, HD, ??Price Á∏ΩÂ?
+        // --- [NEW] Initialize Counters for Summary Row ---
         let dualCount = 0;
         let hdCount = 0;
-        let priceTotal = 0;
+        let totalListPrice = 0;
 
-        validItems.forEach(item => {
-            if (item.dual === 'D') {
-                dualCount++;
-            }
-            if (item.winder === 'HD') {
-                hdCount++;
-            }
-            if (item.linePrice !== null && item.linePrice !== undefined) {
-                priceTotal += item.linePrice;
-            }
-        });
+        // 3. Generate HTML Rows
+        const rowsHtml = sortedItems.map((item, index) => {
+            // --- Calculate Stats ---
+            if (item.dual === 'D') dualCount++;
+            if (item.winder === 'HD') hdCount++;
+            if (item.linePrice) totalListPrice += item.linePrice;
 
-        const dualValue = dualCount / 2;
+            // --- Manufacturing Logic ---
+            // A. Width & Height Correction
+            const { mWidth, mHeight } = this._calculateManufacturingDimensions(item);
 
-        // 2. ?≤Â??òÊâ£ X (‰æÜËá™ F1)
-        const discountX = templateData.uiState?.f1?.discountPercentage || 0;
+            // B. Name Cleaning
+            let cleanFabricName = item.fabric || '';
+            cleanFabricName = cleanFabricName.replace(/^Light-filter\s+/i, '');
 
-        // 3. Ë®àÁ??òÊâ£ÂæåÁ? Price
-        const finalPrice = priceTotal * ((100 - discountX) / 100);
+            // C. Combine Name + Color
+            const fcolor = `${cleanFabricName} ${item.color || ''}`.trim();
 
-        // 4. Âª∫Á? HTML Â≠ó‰∏≤ (??13 Ê¨?
-        // [MODIFIED] (Á¨?10 Ê¨°Á∑®‰ø? ‰øÆÊîπ <td> 1 (ÁßªÈô§‰∏≠Ê?) ??<td> 12 (‰øÆÊîπ OFF)
+            const rowData = {
+                rowNumber: index + 1,
+                index: item.originalIndex,
+                location: item.location || '',
+                fcolor: fcolor,
+                width: mWidth,
+                height: mHeight,
+                lr: item.lr || '',
+                over: item.over || '', // Roll direction
+                dual: item.dual === 'D' ? 'Y' : '',
+                winder: item.winder === 'HD' ? 'Y' : '',
+                chain: item.chain || '',
+                motor: item.motor ? 'Y' : '',
+                price: item.linePrice ? `$${item.linePrice.toFixed(2)}` : '',
+                // Add CSS classes for styling
+                fabricClass: this._getRowClass(item),
+                isEmptyClassDual: item.dual === 'D' ? '' : 'is-empty-cell',
+                isEmptyClassHD: item.winder === 'HD' ? '' : 'is-empty-cell',
+                isEmptyClassMotor: item.motor ? '' : 'is-empty-cell'
+            };
+
+            return populateTemplate(rowTemplate, rowData);
+        }).join('');
+
+        // --- [NEW] Generate Summary Row HTML ---
+        const dualPairs = Math.floor(dualCount / 2);
+        const discountPercentage = ui.f1?.discountPercentage || 0;
+        const discountedTotal = totalListPrice * (1 - (discountPercentage / 100));
+
         const summaryRowHtml = `
             <tr class="summary-row" style="font-weight: bold; background-color: #f0f2f5; border-top: 2px solid #555;">
                 <td data-label="NO" class="text-center" colspan="8" style="text-align: right; padding-right: 10px;">(Summary)</td>
-                <td data-label="dual" class="text-center">${dualValue}</td>
+                <td data-label="dual" class="text-center">${dualPairs}</td>
                 <td data-label="HD" class="text-center">${hdCount}</td>
                 <td data-label="chain" class="text-center"></td>
-                <td data-label="motor" class="text-center" style="font-size: 0.9em; color: #c0392b;">${discountX} %<span style="font-size: 90%;">off</span></td>
-                <td data-label="PRICE" class="text-right" style="color: #c0392b;">${finalPrice.toFixed(2)}</td>
+                <td data-label="motor" class="text-center" style="font-size: 0.9em; color: #c0392b;">${discountPercentage} %<span style="font-size: 90%;">off</span></td>
+                <td data-label="PRICE" class="text-right" style="color: #c0392b;">$${discountedTotal.toFixed(2)}</td>
             </tr>
         `;
 
-        // 5. ?ÑÂ???rows ‰∏¶Ë???
-        return rows + summaryRowHtml;
+        return rowsHtml + summaryRowHtml;
+    }
+
+    _calculateManufacturingDimensions(item) {
+        // 1. Width Correction
+        let mWidth = item.width;
+        if (item.oi === 'IN') {
+            mWidth = mWidth - 4;
+        } else if (item.oi === 'OUT') {
+            mWidth = mWidth - 2;
+        }
+
+        // 2. Height Correction (Chart Lookup)
+        let mHeight = item.height;
+        if (this.configManager) {
+            const matrix = this.configManager.getPriceMatrix(item.fabricType);
+            if (matrix && matrix.drops) {
+                // Find the drop closest to X but LARGER than X (Next Drop)
+                const nextDrop = matrix.drops.find(d => d > item.height);
+
+                if (nextDrop) {
+                    mHeight = nextDrop - 5;
+                }
+            }
+        }
+
+        return { mWidth, mHeight };
+    }
+
+    _sortItems(items) {
+        const typeCounts = {};
+        items.forEach((item) => {
+            const type = item.fabricType || 'Unknown';
+            typeCounts[type] = (typeCounts[type] || 0) + 1;
+        });
+
+        const getCategory = (item) => {
+            if (item.isLf) return 3; // LF Last
+            const type = item.fabricType || '';
+            if (type.startsWith('B')) return 1; // Blockout First
+            if (type === 'SN') return 2; // Screen Second
+            return 4; // Others
+        };
+
+        return items.sort((a, b) => {
+            const catA = getCategory(a);
+            const catB = getCategory(b);
+            if (catA !== catB) return catA - catB;
+
+            // Secondary: Quantity Descending
+            const countA = typeCounts[a.fabricType] || 0;
+            const countB = typeCounts[b.fabricType] || 0;
+            if (countA !== countB) return countB - countA;
+
+            // Tertiary: Group by Type Name
+            if (a.fabricType !== b.fabricType) {
+                return (a.fabricType || '').localeCompare(b.fabricType || '');
+            }
+            return a.originalIndex - b.originalIndex;
+        });
+    }
+
+    _getRowClass(item) {
+        if (item.isLf) return 'bg-light-filter';
+        const type = item.fabricType || '';
+        if (type.startsWith('B')) return 'bg-blockout';
+        if (type === 'SN') return 'bg-screen';
+        return '';
     }
 }
 --- FILE END ---
@@ -17669,7 +18127,7 @@ export class UIManager {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    /* Áµ±‰??ìË? */
+    /* ??°‚????–£?? */
 }
 
 /* [NEW] New F4 grid group styles */
@@ -17685,9 +18143,9 @@ export class UIManager {
 /* [NEW] Style for the "Save" group border */
 .f4-group-save {
     border: 2px solid #166534;
-    /* Ê∑±Á???*/
+    /* ??ñ‚?????*/
     background-color: #f0fdf4;
-    /* ?ûÂ∏∏Ê∑°Á?Á∂†Ëâ≤?åÊôØ */
+    /* ?–Æ??ï‚???ñ–±—???¢–∞—à–ô‚????–©–ø */
     padding: 10px;
     border-radius: 4px;
 }
@@ -17707,7 +18165,7 @@ export class UIManager {
     height: 1px;
     background-color: var(--panel-border-color);
     margin: 5px 0;
-    /* ‰∏ä‰??ìË? */
+    /* ??ï–ö—??–£?? */
 }
 
 /* [NEW] Generic .f4-button style for the new layout */
@@ -17732,7 +18190,7 @@ export class UIManager {
 /* [NEW] Color classes for buttons */
 .f4-button.btn-green {
     background-color: #dcfce7;
-    /* Ê∑°Á? */
+    /* ??ñ–±—? */
     border-color: #a7f3d0;
 }
 
@@ -17742,7 +18200,7 @@ export class UIManager {
 
 .f4-button.btn-orange {
     background-color: #ffedd5;
-    /* Ê∑∫Ê? */
+    /* ??ñ‚??? */
     border-color: #fed7aa;
 }
 
@@ -17752,7 +18210,7 @@ export class UIManager {
 
 .f4-button.btn-pink {
     background-color: #fee2e2;
-    /* Á≤âÁ? */
+    /* ??ì–ô—? */
     border-color: #fecaca;
 }
 
@@ -17762,7 +18220,7 @@ export class UIManager {
 
 .f4-button.btn-red {
     background-color: #ef4444;
-    /* Á¥ÖËâ≤ */
+    /* ??§–ï—à–ô‚? */
     color: white;
     font-weight: bold;
     border-color: #dc2626;
@@ -17791,6 +18249,11 @@ export class UIManager {
     border-color: #fca5a5;
     color: #fee2e2;
     opacity: 0.6;
+}
+
+/* [NEW] (v6299 Gen-Xls) Utility class to span 2 columns in F4 grid */
+.f4-span-2 {
+    grid-column: span 2;
 }
 
 /* [NEW] (Correction Flow Fix) Correction Controls Container */
@@ -18320,16 +18783,29 @@ export class UIManager {
 
 --- FILE START: 04-core-code/ui/css/toast-notification.css ---
 /* File: 04-core-code/ui/css/toast-notification.css */
+/* [MODIFIED] (v6299 Tweak 9) Shifted toast container up by 50px to avoid overlapping the Right Panel Toggle. */
+/* [MODIFIED] (v6299 Tweak 10) Changed anchor from top to bottom to make stack grow upwards. */
 
 /* --- Toast Notification Styles --- */
 #toast-container {
     position: fixed;
-    top: 50%; /* [MODIFIED] Changed from 20px to center vertically. */
+    /* [MODIFIED] Anchor to bottom instead of top.
+       50% is the vertical center (waist).
+       +50px moves the anchor point UP by 50px.
+       This ensures the *bottom-most* toast is always 50px above the toggle handle. */
+    bottom: calc(50% + 50px);
     right: 20px;
-    transform: translateY(-50%); /* [ADDED] Added to perfectly center the container. */
+
+    /* [REMOVED] top: calc(50% - 50px); */
+    /* [REMOVED] transform: translateY(-50%); */
+
     z-index: 9999;
     display: flex;
     flex-direction: column;
+
+    /* [NEW] Ensure items stack from the bottom up visually */
+    justify-content: flex-end;
+
     align-items: flex-end;
     gap: 10px;
 }
@@ -18339,7 +18815,7 @@ export class UIManager {
     color: white;
     padding: 15px 20px;
     border-radius: 5px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     opacity: 0;
     transform: translateX(100%);
     animation: slideInAndFadeOut 4s forwards;
@@ -18354,14 +18830,17 @@ export class UIManager {
         opacity: 0;
         transform: translateX(100%);
     }
+
     15% {
         opacity: 1;
         transform: translateX(0);
     }
+
     85% {
         opacity: 1;
         transform: translateX(0);
     }
+
     100% {
         opacity: 0;
         transform: translateX(100%);
@@ -20909,7 +21388,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
             <div class="f4-group-tools">
                 <button id="f4-key-generate-work-order" class="f4-button">Gen-Order</button>
-                <button id="f4-btn-cancel-correct" class="f4-button btn-danger">Cancel / Correct</button>
+                <button id="f4-key-generate-xls" class="f4-button btn-green">Gen-Xls</button>
+
+                <button id="f4-btn-cancel-correct" class="f4-button btn-danger f4-span-2">Cancel / Correct</button>
 
                 <div id="f4-correction-controls" class="f4-correction-controls is-hidden">
                     <button id="f4-btn-correction-set" class="f4-button btn-blue">SET</button>
@@ -23163,7 +23644,9 @@ export class DriveAccessoriesView {
 --- FILE END ---
 
 --- FILE START: 04-core-code/ui/views/dual-chain-view.js ---
-// File: 04-core-code/ui/views/dual-chain-view.js
+/* FILE: 04-core-code/ui/views/dual-chain-view.js */
+// [MODIFIED] (v6299 Phase 8 Fix) Added logic to reset F1 Dual override when K5 Dual is toggled.
+// This ensures K5 changes always trigger F1 auto-recalculation, fixing the "stuck count" bug after loading.
 
 import { EVENTS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -23216,7 +23699,7 @@ export class DualChainView {
             this._calculateAndStoreDualPrice();
         }
 
-        // [MODIFIED] (v6294 K5) (Ê≠•È? 6) Also exit mode if newMode is null
+        // [MODIFIED] (v6294 K5) Also exit mode if newMode is null
         if (!newMode) {
             this.stateService.dispatch(uiActions.setTargetCell(null));
             this.stateService.dispatch(uiActions.clearDualChainInputValue());
@@ -23225,7 +23708,6 @@ export class DualChainView {
 
     /**
      * [NEW] This method PURELY calculates the price and updates state. It contains NO validation logic.
-     * This is the key to achieving real-time updates without premature warnings.
      */
     _calculateAndStoreDualPrice() {
         const items = this._getItems();
@@ -23241,7 +23723,6 @@ export class DualChainView {
 
     /**
      * [NEW] This method PURELY validates the selection. It does NOT calculate any price.
-     * It is only called when the user tries to exit the dual mode.
      */
     _validateDualSelection() {
         const items = this._getItems();
@@ -23251,7 +23732,6 @@ export class DualChainView {
             }
             return acc;
         }, []);
-
         const dualCount = selectedIndexes.length;
 
         if (dualCount > 0 && dualCount % 2 !== 0) {
@@ -23295,7 +23775,7 @@ export class DualChainView {
         const valueToSave = value === '' ? null : valueAsNumber;
         this.stateService.dispatch(quoteActions.updateItemProperty(currentTarget.rowIndex, currentTarget.column, valueToSave));
 
-        // [MODIFIED] (v6294 K5) (Ê≠•È? 5) Automatically exit mode after successful entry
+        // [MODIFIED] (v6294 K5) Automatically exit mode after successful entry
         this.stateService.dispatch(uiActions.setDualChainMode(null));
         this.stateService.dispatch(uiActions.setTargetCell(null));
         this.stateService.dispatch(uiActions.clearDualChainInputValue());
@@ -23318,15 +23798,20 @@ export class DualChainView {
             const newValue = item.dual === 'D' ? '' : 'D';
             this.stateService.dispatch(quoteActions.updateItemProperty(rowIndex, 'dual', newValue));
 
+            // [NEW] (v6299 Phase 8 Fix)
+            // When modifying Dual configuration in K5, force F1 Distribution to reset to Auto (null).
+            // This ensures F1 counts (Combo/Slim) automatically sync with the new item count,
+            // fixing the bug where loaded snapshots (with fixed numbers) prevented updates.
+            this.stateService.dispatch(uiActions.setF1DualDistribution(null, null));
+
             this._calculateAndStoreDualPrice();
         }
 
         if (dualChainMode === 'chain' && column === 'chain') {
             this.stateService.dispatch(uiActions.setTargetCell({ rowIndex, column: 'chain' }));
 
-            // (Ê≠•È? 4) Focus logic is now handled here
             setTimeout(() => {
-                const inputBox = document.getElementById('k5-input-display'); // [MODIFIED] Correct ID 'k5-input-display'
+                const inputBox = document.getElementById('k5-input-display');
                 if (inputBox) {
                     inputBox.focus();
                     inputBox.select();
@@ -23337,7 +23822,6 @@ export class DualChainView {
 
     /**
      * [REVISED] This method is called by the main DetailConfigView when the K5 tab becomes active.
-     * It now correctly synchronizes all accessory prices from the K4 state.
      */
     activate() {
         this.stateService.dispatch(uiActions.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'location', 'dual', 'chain']));
@@ -24680,6 +25164,7 @@ export class F3QuotePrepView {
 // [MODIFIED] (Correction Flow Phase 1) Added Cancel/Correct button logic.
 // [MODIFIED] (Correction Flow Fix) Added SET/Exit buttons and Correction Mode UI logic.
 // [MODIFIED] (Correction Flow Phase 5) Implemented Locking UI Logic (Disable Save/SaveAs when locked).
+// [MODIFIED] (v6299 Gen-Xls) Added logic for Gen-Xls button.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 // [NEW] (F4 Status Phase 2) Import status constants
@@ -24743,6 +25228,7 @@ export class F4ActionsView {
                 'f1-key-save': query('#f1-key-save'),
                 'f4-key-save-as-new': query('#f4-key-save-as-new'),
                 'f4-key-generate-work-order': query('#f4-key-generate-work-order'),
+                'f4-key-generate-xls': query(`#${DOM_IDS.F4_BTN_GENERATE_XLS}`), // [NEW] (v6299 Gen-Xls)
                 'f1-key-export': query('#f1-key-export'),
                 'f1-key-load': query('#f1-key-load'),
                 'f4-key-load-cloud': query(`#${DOM_IDS.F4_BTN_SEARCH_DIALOG}`),
@@ -24758,6 +25244,7 @@ export class F4ActionsView {
             'f1-key-save': EVENTS.USER_REQUESTED_SAVE,
             'f4-key-save-as-new': EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION,
             'f4-key-generate-work-order': EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER,
+            'f4-key-generate-xls': EVENTS.USER_REQUESTED_GENERATE_EXCEL, // [NEW] (v6299 Gen-Xls)
             'f1-key-export': EVENTS.USER_REQUESTED_EXPORT_CSV,
             'f1-key-load': EVENTS.USER_REQUESTED_LOAD,
             'f4-key-load-cloud': EVENTS.USER_REQUESTED_SEARCH_DIALOG,
@@ -24854,7 +25341,8 @@ export class F4ActionsView {
                 'f4-key-save-as-new',
                 'f1-key-export',
                 'f1-key-load',
-                'f4-key-load-cloud' // Search
+                'f4-key-load-cloud', // Search
+                'f4-key-generate-xls' // [NEW] (v6299 Gen-Xls) Disable Gen-Xls in Correction Mode
             ];
             allFileOps.forEach(id => setButtonState(id, true));
 
@@ -24896,7 +25384,8 @@ export class F4ActionsView {
         const isLocked = lockedStates.includes(status);
 
         // Reset standard buttons first (Enable all)
-        ['f1-key-save', 'f4-key-save-as-new', 'f1-key-export', 'f1-key-load', 'f4-key-load-cloud'].forEach(id => setButtonState(id, false));
+        // [MODIFIED] (v6299 Gen-Xls) Added generate-xls to reset list
+        ['f1-key-save', 'f4-key-save-as-new', 'f1-key-export', 'f1-key-load', 'f4-key-load-cloud', 'f4-key-generate-xls'].forEach(id => setButtonState(id, false));
 
         // Apply Lock: Disable Save and Save As if locked
         if (isLocked) {
@@ -26972,12 +27461,13 @@ export class SearchTabS2View {
 /* FILE: 04-core-code/utils/csv-parser.js */
 // [MODIFIED] (v6295-fix) Added F2 snapshot support and fixed null/string handling.
 // [MODIFIED] (F1 Motor Split Fix) Added w_motor_qty to f1SnapshotKeys to ensure persistence on load.
+// [FIX] (CSV Export) Added sanitation for invisible unicode characters (e.g., U+202C) to prevent Excel parsing errors.
 
 /**
  * @fileoverview Utility functions for parsing and stringifying CSV data.
  */
 
-// [FIX] Â∞éÂÖ•Ê≠?¢∫??initialState Ê®°ÊùøÔºå‰ª•‰øÆÂæ© csvToData_OldFormat ??ReferenceError
+// [FIX] ??ë–û—Ö–ï–µ—Ü–?–≤???initialState ?–∏–±?–≠?ê—è‚????ó–µ—Ñ‚?–æ??õ–?csvToData_OldFormat ??ReferenceError
 import { initialState } from '../config/initial-state.js';
 
 // [MODIFIED v6285 Phase 5] Define the exact keys and order for all snapshot data
@@ -27027,6 +27517,27 @@ export function dataToCsv(quoteData) {
 
     if (!productData || !productData.items) return "";
 
+    // --- [NEW] Helper: Sanitize and format value for CSV ---
+    const processCsvValue = (value) => {
+        let strValue = (value === null || value === undefined) ? '' : String(value);
+
+        // 1. Remove invisible Unicode control characters (e.g., U+202C from phone numbers)
+        // eslint-disable-next-line no-control-regex
+        strValue = strValue.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '');
+
+        // 2. Escape double quotes by doubling them
+        strValue = strValue.replace(/"/g, '""');
+
+        // 3. Replace newlines with spaces to keep row integrity
+        strValue = strValue.replace(/\n/g, ' ');
+
+        // 4. Quote the string if it contains special CSV characters
+        if (strValue.includes(',') || strValue.includes(' ') || strValue.includes('"')) {
+            return `"${strValue}"`;
+        }
+        return strValue;
+    };
+
     // --- [MODIFIED v6295-fix] Create Project Summary Header and Row (F1, F2, F3) ---
     const projectHeaders = [...f3SnapshotKeys, ...f1SnapshotKeys, ...f2SnapshotKeys];
 
@@ -27053,14 +27564,7 @@ export function dataToCsv(quoteData) {
             const value = f2Snapshot[key];
             return (value !== null && value !== undefined) ? value : '';
         })
-    ].map(value => {
-        // [MODIFIED] Âº∑Âà∂ CSV Ëº∏Âá∫?ÑÈ?Ëº?        let strValue = (value === null || value === undefined) ? '' : String(value);
-        strValue = strValue.replace(/"/g, '""'); // 1. ËΩâÁæ©?ßÈÉ®?ôÂ???        strValue = strValue.replace(/\n/g, ' '); // 2. ?øÊ??õË?Á¨?        // 3. [FIX] Â¶ÇÊ??ÖÂê´?óË??ÅÁ©∫?ºÊ?ÂºïË?ÔºåÂ?‰ΩøÁî®ÂºïË??ÖË£π
-        if (strValue.includes(',') || strValue.includes(' ') || strValue.includes('"')) {
-            return `"${strValue}"`;
-        }
-        return strValue;
-    });
+    ].map(processCsvValue); // [FIX] Apply sanitation
 
     // --- Create Item Header and Rows ---
     const itemHeaders = [
@@ -27090,17 +27594,7 @@ export function dataToCsv(quoteData) {
                 lfModifiedRowIndexes.includes(index) ? 1 : 0
             ];
 
-            return rowData.map(value => {
-                // [MODIFIED] Âº∑Âà∂ CSV Ëº∏Âá∫?ÑÈ?Ëº?(?åÊ®£?âÁî®?ºÊ≠§)
-                let strValue = (value === null || value === undefined) ? '' : String(value);
-                strValue = strValue.replace(/"/g, '""');
-                strValue = strValue.replace(/\n/g, ' ');
-
-                if (strValue.includes(',') || strValue.includes(' ') || strValue.includes('"')) {
-                    return `"${strValue}"`;
-                }
-                return strValue;
-            }).join(',');
+            return rowData.map(processCsvValue).join(','); // [FIX] Apply sanitation
         }
         return null;
     }).filter(row => row !== null);
@@ -27118,13 +27612,16 @@ export function dataToCsv(quoteData) {
 
 
 /**
- * [PRIVATE] ËºîÂä©?ΩÊï∏Ôºå‰Ωø?®Ê≠£Ë¶èË°®Á§∫Â?‰æÜÊ≠£Á¢∫Ëß£??CSV Ë°åÔ?‰∏¶Ë??ÜÂ??´Âú®ÂºïË??ßÁ??óË??? * @param {string} line - ?ÆË? CSV Â≠ó‰∏≤?? * @returns {Array<string>} - Ëß??ÂæåÁ?Ê¨Ñ‰?????? */
+ * [PRIVATE] ??ù–§—Ö–ö–??ú—Ü–•‚???ù–ú—Ñ‚???–∏?–Ω–≥?–∂??–±–∏?–¥?ë—???õ–ñ—Ü–Ω–≥—á–≤‚??–∑–≥??CSV ?–±?????ï–∂—??????–ª?–¨–∏??ù–•—??–∑???–ß????
+ * @param {string} line - ?–æ?? CSV ?–Ω–ß??ï‚???
+ * @returns {Array<string>} - ?–∑????õ–ú—??–º????????
+ */
 function _parseCsvLine(line) {
     const values = [];
 
-    // [FIX] ‰øÆÊ≠£ RegexÔº?    // 1. ÁßªÈô§Á¨¨‰??ãÁæ§Áµ?(?:^|,) ÂæåÊñπÂ§öÈ???|ÔºåÈÄôÊ?Â∞éËá¥?πÈ??ØË™§
-    // 2. Â∞áÁ¨¨‰∫åÂÄãÁæ§ÁµÑÊîπ?∫Ê??≤Áæ§Áµ?((...))ÔºåÁ¢∫‰ø?match[1] ÂßãÁ??ÖÂê´?ëÂÄëÊÉ≥Ë¶ÅÁ?Ê¨Ñ‰??ßÂÆπ
-    const regex = /(?:^|,)((?:"(?:[^"]|"")*"|[^,]*))/g;
+    // [FIX] ??ê–æ—Ü–Ω–?Regex???
+    // 1. ?–∑?ó—â–©–¥—á–º–º—?????õ–¥—á‚ï°?(?:^|,) ??õ–ú—Ü–¶‚ï£?–¥–™????|??ù–ú—â–ê–©—???ë–û—à–ó‚î§?????–ø?–∫–¥
+    // 2. ??ë–ó—á–º–º—Ñ‚???????õ–¥—á‚ï°??–§???ë—???ì—á‚?–¥???((...))??ù–ú—á–≤‚????match[1] ?–∑???????–ª?–°??–°???Ç—à–∂–ë—??–º????–∑?–æ??    const regex = /(?:^|,)((?:"(?:[^"]|"")*"|[^,]*))/g;
     let match;
 
     while (match = regex.exec(line)) {
@@ -27132,19 +27629,20 @@ function _parseCsvLine(line) {
 
         let value = match[1];
 
-        // [FIX] ÁßªÈô§‰∏Ä?ãÈåØË™§Á??èËºØÔºåmatch[1] (?ïÁç≤Áæ§Á?) ‰∏çÊ??ÖÂê´Ë°åÈ??ÑÈÄóË?
+        // [FIX] ?–∑?ó—â–©–¥—Ñ‚??????–ø?–∫–¥??????ù–ø—è‚??match[1] (?–•???ì—á‚?–¥??) ??ï–ù—?????–ª?–±???????–ß??
         // if (value.startsWith(',')) {
         //     value = value.substring(1);
         // }
 
-        // ÁßªÈô§ÂºïË?‰∏¶Â?ËΩâÁæ©
+        // ?–∑?ó—â–©–¥—Ö‚?–•????ï–∂—???ú–ô—á‚?–π
         if (value.startsWith('"') && value.endsWith('"')) {
             value = value.substring(1, value.length - 1).replace(/""/g, '"');
         }
         values.push(value.trim());
     }
 
-    // ?ïÁ?Ë°åÂ∞æ?ØÁ©∫Ê¨Ñ‰??ÑÊ?Ê≥?    if (line.endsWith(',')) {
+    // ?–•???–±???ë‚??–ø?–π?ë—Ü–º–î—????????
+    if (line.endsWith(',')) {
         values.push('');
     }
 
@@ -27183,11 +27681,12 @@ export function csvToData(csvString) {
 
         projectHeaders.forEach((header, index) => {
             const value = projectValues[index] || null;
-            if (value === null || value === '') return; // [MODIFIED] Ê™¢Êü•Á©∫ÂÄ?            let finalValue;
+            if (value === null || value === '') return; // [MODIFIED] ?–∫–≤?–Ø–µ?–π?ë—Ö–?
+            let finalValue;
 
             // [FIX] (v6295-fix) Determine data type based on which key array it's in
             if (f1SnapshotKeys.includes(header) || f2SnapshotKeys.includes(header)) {
-                // Â¶ÇÊ???F1 ??F2 keyÔºåÂ?Ë©¶Ë??õÁÇ∫?∏Â?
+                // ?–∂?????F1 ??F2 key??ù–ú—??–π–∂???–´?????ï—?
                 const numValue = parseFloat(value);
                 if (!isNaN(numValue)) {
                     finalValue = numValue;
@@ -27201,7 +27700,8 @@ export function csvToData(csvString) {
                     finalValue = value; // Keep as string if not num/bool (e.g. for f2.wifiQty which is text "null")
                 }
             } else {
-                // Â¶ÇÊ???F3 key (Â≠ó‰∏≤)ÔºåÁõ¥?•Ë≥¶??                finalValue = value;
+                // ?–∂?????F3 key (?–Ω–ß??ï‚?)??ù–ú—á–´‚î§?–µ??Ç–??
+                finalValue = value;
             }
 
             // [FIX] (v6295-fix) Handle 'null' strings being converted to null
@@ -27209,7 +27709,9 @@ export function csvToData(csvString) {
                 f2Snapshot[header] = null;
                 return;
             }
-            if (finalValue === null) return; // ‰∏çÂÑ≤Â≠òÁÑ°?àÂÄ?            // Assign to the correct snapshot object
+            if (finalValue === null) return; // ??ï–ù—Ö–î‚??–Ω–®??–±?????
+
+            // Assign to the correct snapshot object
             if (f1SnapshotKeys.includes(header)) {
                 f1Snapshot[header] = finalValue;
             } else if (f2SnapshotKeys.includes(header)) { // [NEW] (v6295-fix)
@@ -27234,9 +27736,11 @@ export function csvToData(csvString) {
                 return;
             }
 
-            // [FIX] ‰ΩøÁî®Ê≠?¢∫??CSV Ëß????            const values = _parseCsvLine(trimmedLine);
+            // [FIX] ??ú‚??–§–∏?–Ω?–≤???CSV ?–∑????
+            const values = _parseCsvLine(trimmedLine);
 
-            // [FIX] ÁßªÈô§ÂºïË? (ËºîÂä©?ΩÊï∏Â∑≤ÂÖßÂµåËá≥ _parseCsvLine)
+            // [FIX] ?–∑?ó—â–©–¥—Ö‚?–•?? (??ù–§—Ö–ö–??ú—Ü–•‚???ñ‚???–∑??°–ú—à–ó‚? _parseCsvLine)
+
             const item = {
                 itemId: `item-${Date.now()}-${items.length}`,
                 width: parseInt(values[1], 10) || null,

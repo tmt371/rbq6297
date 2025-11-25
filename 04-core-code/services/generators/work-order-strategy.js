@@ -1,7 +1,8 @@
 /* FILE: 04-core-code/services/generators/work-order-strategy.js */
 // [MODIFIED] (v6299 Phase 5) Injected configManager for height calculation.
 // [MODIFIED] (v6299 Phase 5 Fix) Renamed method to generateRows and updated logic for manufacturing corrections.
-// [MODIFIED] (v6299 Phase 6) Restored the Summary Row at the bottom of the table (Dual, HD, % Off, Total Price).
+// [MODIFIED] (v6299 Phase 6) Restored the Summary Row at the bottom of the table.
+// [MODIFIED] (v6299 Phase 7) Refactored Summary Row to use CSS classes instead of inline styles.
 
 import { populateTemplate } from '../../utils/template-utils.js';
 
@@ -35,7 +36,7 @@ export class WorkOrderStrategy {
         // 2. Sort Items (B > SN > LF, then by Qty)
         const sortedItems = this._sortItems(itemsWithIndex);
 
-        // --- [NEW] Initialize Counters for Summary Row ---
+        // --- Initialize Counters for Summary Row ---
         let dualCount = 0;
         let hdCount = 0;
         let totalListPrice = 0;
@@ -82,19 +83,19 @@ export class WorkOrderStrategy {
             return populateTemplate(rowTemplate, rowData);
         }).join('');
 
-        // --- [NEW] Generate Summary Row HTML ---
+        // --- [MODIFIED] (Phase 7) Generate Summary Row HTML using CSS classes ---
         const dualPairs = Math.floor(dualCount / 2);
         const discountPercentage = ui.f1?.discountPercentage || 0;
         const discountedTotal = totalListPrice * (1 - (discountPercentage / 100));
 
         const summaryRowHtml = `
-            <tr class="summary-row" style="font-weight: bold; background-color: #f0f2f5; border-top: 2px solid #555;">
-                <td data-label="NO" class="text-center" colspan="8" style="text-align: right; padding-right: 10px;">(Summary)</td>
+            <tr class="wo-summary-row">
+                <td data-label="NO" class="wo-summary-label" colspan="8">(Summary)</td>
                 <td data-label="dual" class="text-center">${dualPairs}</td>
                 <td data-label="HD" class="text-center">${hdCount}</td>
                 <td data-label="chain" class="text-center"></td>
-                <td data-label="motor" class="text-center" style="font-size: 0.9em; color: #c0392b;">${discountPercentage} %<span style="font-size: 90%;">off</span></td>
-                <td data-label="PRICE" class="text-right" style="color: #c0392b;">$${discountedTotal.toFixed(2)}</td>
+                <td data-label="motor" class="text-center wo-text-red wo-text-small">${discountPercentage} %<span style="font-size: 90%;">off</span></td>
+                <td data-label="PRICE" class="text-right wo-text-red">$${discountedTotal.toFixed(2)}</td>
             </tr>
         `;
 
