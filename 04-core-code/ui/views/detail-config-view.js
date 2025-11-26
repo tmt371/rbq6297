@@ -1,12 +1,13 @@
-// File: 04-core-code/ui/views/detail-config-view.js
+/* FILE: 04-core-code/ui/views/detail-config-view.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES to fix LF-DEL selection bug.
 
 /**
  * @fileoverview A "Manager" view that delegates logic to specific sub-views for each tab.
  */
 
-// [NEW] Import uiActions to enable default selection behavior
 import * as uiActions from '../../actions/ui-actions.js';
-import { EVENTS } from '../../config/constants.js'; // [NEW] Import EVENTS
+import { EVENTS } from '../../config/constants.js';
+import { LOGIC_CODES } from '../../config/business-constants.js'; // [NEW]
 
 export class DetailConfigView {
     constructor({
@@ -63,32 +64,22 @@ export class DetailConfigView {
             this.k1View.handleFocusModeRequest();
             return;
         }
-        // [REMOVED] (Phase 3 Cleanup)
-        // if (column === 'fabric') {
-        //     this.k2View.handleFocusModeRequest();
-        //     return;
-        // }
     }
 
     handleLocationInputEnter({ value }) {
         this.k1View.handleLocationInputEnter({ value });
     }
 
-    // [REMOVED] (Phase 3 Cleanup)
-    // handlePanelInputBlur({ type, field, value }) {
-    //     this.k2View.handlePanelInputBlur({ type, field, value });
-    // }
-    //
-    // handlePanelInputEnter() {
-    //     this.k2View.handlePanelInputEnter();
-    // }
-
     handleSequenceCellClick({ rowIndex }) {
         const { ui } = this.stateService.getState();
         const { activeEditMode } = ui;
 
-        // [MODIFIED] (v6294 SSet) Check for all K2 modes (LF, LFD, SSet)
-        if (activeEditMode === 'K2_LF_DELETE_SELECT' || activeEditMode === 'K2_LF_MODE' || activeEditMode === 'K2_SSET_MODE') {
+        // [MODIFIED] Use LOGIC_CODES constants to match the state set by K2FabricView
+        // This fixes the bug where LF-DEL mode ('LFD') was not recognized.
+        if (activeEditMode === LOGIC_CODES.MODE_LF_DEL ||
+            activeEditMode === LOGIC_CODES.MODE_LF ||
+            activeEditMode === LOGIC_CODES.MODE_SSET) {
+
             this.k2View.handleSequenceCellClick({ rowIndex });
         } else {
             // [NEW] DEFAULT BEHAVIOR (for new LF/SSet flows):
@@ -102,16 +93,6 @@ export class DetailConfigView {
     handleModeToggle({ mode }) {
         this.k2View.handleModeToggle({ mode });
     }
-
-    // [REMOVED] (v6294) This is now handled by handleModeToggle
-    // handleLFDeleteRequest() {
-    //     this.k2View.handleLFDeleteRequest();
-    // }
-
-    // [REMOVED] (Phase 3 Cleanup)
-    // handleSSetRequest() {
-    //     this.k2View.handleSSetRequest();
-    // }
 
     handleToggleK3EditMode() {
         this.k3View.handleToggleK3EditMode();
