@@ -3,8 +3,10 @@
 // [MODIFIED] (Correction Flow Phase 2) Added isCorrectionMode to UI state.
 // [MODIFIED] (F1 Motor Split) Added w_motor_qty to ui.f1 and f1Snapshot.
 // [MODIFIED] (F1 Motor Split Architecture Fix) Added motorPrice to ui.f2.
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic string 'rollerBlind' with PRODUCT_TYPES.ROLLER_BLIND.
 
 import { QUOTE_STATUS } from './status-config.js';
+import { PRODUCT_TYPES } from './business-constants.js'; // [NEW]
 
 /**
  * @fileoverview Defines the initial state of the application.
@@ -124,9 +126,11 @@ export const initialState = {
         isCorrectionMode: false
     },
     quoteData: {
-        currentProduct: 'rollerBlind',
+        // [MODIFIED] Use constant instead of 'rollerBlind'
+        currentProduct: PRODUCT_TYPES.ROLLER_BLIND,
         products: {
-            rollerBlind: {
+            // [MODIFIED] Use constant as computed property key
+            [PRODUCT_TYPES.ROLLER_BLIND]: {
                 items: [
                     {
                         itemId: `item-${Date.now()}`,
