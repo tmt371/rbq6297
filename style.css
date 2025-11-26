@@ -7,12 +7,9 @@
 /* [REMOVED] @import url('./04-core-code/ui/css/virtual-keyboard.css'); */
 /* [REMOVED] @import url('./04-core-code/ui/css/results-table.css'); */
 /* [REMOVED] @import url('./04-core-code/ui/css/toast-notification.css'); */
-/* [NEW] Import the new login component CSS */
-@import url('./04-core-code/ui/css/login-component.css');
-/* [NEW] (v6298-F4-Search) Import the new search dialog CSS */
-@import url('./04-core-code/ui/css/search-dialog.css');
-/* [NEW] (?段 1) Import the new work order CSS */
-@import url('./04-core-code/ui/css/work-order.css');
+/* [REMOVED] @import url('./04-core-code/ui/css/login-component.css'); */
+/* [REMOVED] @import url('./04-core-code/ui/css/search-dialog.css'); */
+/* [REMOVED] @import url('./04-core-code/ui/css/work-order.css'); */
 
 /* --- Global Variables --- */
 :root {
@@ -404,9 +401,3 @@ body {
 .batch-button:hover {
     background-color: #bae6fd;
 }
-
-
-/* [REFACTOR] All component-specific styles below this line have been
-    moved to their respective files in the /ui/css/ directory.
-    This file now only contains global settings and layout.
-*/

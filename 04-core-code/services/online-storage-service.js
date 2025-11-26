@@ -1,5 +1,5 @@
 // 04-core-code/services/online-storage-service.js
-// (此為修改)
+// (Modified)
 
 import { db } from '../config/firebase-config.js';
 import {
@@ -15,38 +15,38 @@ import {
 } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js';
 
 /**
- * 將完整的報價物件（包含 f1Snapshot 和 f2Snapshot）儲存或覆蓋至 Firestore。
- * @param {object} quoteData - 欲儲存的報價物件。
- * @returns {object} - 一個包含 { success, message } 的物件。
+ * Saves the entire quote data (including f1Snapshot and f2Snapshot) to Firestore.
+ * @param {object} quoteData - The quote data object to save.
+ * @returns {object} - { success, message }
  */
 export async function saveQuoteToCloud(quoteData) {
     if (!quoteData || !quoteData.quoteId) {
-        const errorMsg = '儲存失敗：Quote ID 為空。';
+        const errorMsg = 'Save failed: Quote ID is empty.';
         console.error(errorMsg);
         return { success: false, message: errorMsg };
     }
 
     try {
-        // 'quotes' 是資料庫中的集合名稱（資料夾）
-        // quoteData.quoteId 是「文件」名稱（檔案名稱）
+        // 'quotes' is the collection name in Firestore.
+        // quoteData.quoteId is used as the Document ID.
         await setDoc(doc(db, 'quotes', quoteData.quoteId), quoteData);
-        const successMsg = `報價單已儲存至雲端 ${quoteData.quoteId}`;
+        const successMsg = `Quote successfully saved to cloud: ${quoteData.quoteId}`;
         console.log(successMsg);
         return { success: true, message: successMsg };
     } catch (e) {
-        console.error('儲存至雲端失敗：', e);
-        return { success: false, message: `儲存至雲端失敗： ${e.message}` };
+        console.error('Cloud save failed:', e);
+        return { success: false, message: `Cloud save failed: ${e.message}` };
     }
 }
 
 /**
- * 根據 Quote ID 從 Firestore 讀取一份報價單文件。
- * @param {string} quoteId - 欲讀取的報價 ID。
- * @returns {object} - 一個包含 { success, data, message } 的物件。
+ * Loads a quote from Firestore using the Quote ID.
+ * @param {string} quoteId - The Quote ID to retrieve.
+ * @returns {object} - { success, data, message }
  */
 export async function loadQuoteFromCloud(quoteId) {
     if (!quoteId) {
-        return { success: false, data: null, message: 'Quote ID 為空。' };
+        return { success: false, data: null, message: 'Quote ID is empty.' };
     }
 
     try {
@@ -54,46 +54,46 @@ export async function loadQuoteFromCloud(quoteId) {
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
-            console.log('已從雲端讀取：', quoteId);
+            console.log('Quote loaded successfully:', quoteId);
             return {
                 success: true,
                 data: docSnap.data(),
-                message: '已從雲端讀取。',
+                message: 'Quote loaded successfully.',
             };
         } else {
-            const errorMsg = '在資料庫中找不到該報價單。';
+            const errorMsg = 'Quote not found in database.';
             console.warn(errorMsg, quoteId);
             return { success: false, data: null, message: errorMsg };
         }
     } catch (e) {
-        console.error('從雲端讀取失敗：', e);
-        // [MODIFIED] 處理權限錯誤
+        console.error('Failed to load quote:', e);
+        // [MODIFIED] Handle Permission Denied error
         if (e.code === 'permission-denied') {
             return {
                 success: false,
                 data: null,
-                message: '權限不足。您可能沒有權限讀取此檔案，或檔案不存在。',
+                message: 'Permission denied. You may not have access to this quote.',
             };
         }
         return {
             success: false,
             data: null,
-            message: `讀取時發生錯誤: ${e.message}`,
+            message: `Load error: ${e.message}`,
         };
     }
 }
 
 /**
- * [NEW] (v6298-F4-Search) 根據多個條件進階搜尋報價單。
- * @param {string} uid - 執行搜尋的用戶 Firebase UID。
- * @param {object} filters - 包含篩選條件的物件。
- * @param {string} [filters.name] - 客戶名稱 (開頭是)
- * @param {string} [filters.phone] - 客戶電話 (完全符合)
- * @param {string} [filters.email] - 客戶電郵 (完全符合)
- * @param {string} [filters.postcode] - 郵遞區號 (完全符合)
- * @param {number} [filters.year] - 年份 (YYYY)
- * @param {number} [filters.month] - 月份 (1-12)
- * @param {boolean} [filters.hasMotor] - 是否有馬達 (true/false)
+ * [NEW] (v6298-F4-Search) Searches for quotes based on multiple filters.
+ * @param {string} uid - The User ID (Firebase UID) to search under.
+ * @param {object} filters - The search filters.
+ * @param {string} [filters.name] - Customer name (starts with...).
+ * @param {string} [filters.phone] - Customer phone (exact match).
+ * @param {string} [filters.email] - Customer email (exact match).
+ * @param {string} [filters.postcode] - Customer postcode (exact match).
+ * @param {number} [filters.year] - Issue year (YYYY).
+ * @param {number} [filters.month] - Issue month (1-12).
+ * @param {boolean} [filters.hasMotor] - Filter by motor presence (true/false).
  * @returns {Promise<{success: boolean, data: Array, message: string, needsIndex?: boolean, indexUrl?: string}>}
  */
 export async function searchQuotesAdvanced(uid, filters) {
@@ -102,13 +102,13 @@ export async function searchQuotesAdvanced(uid, filters) {
     }
 
     try {
-        // 1. 基本查詢：必須是使用者自己的文件
+        // 1. Base Query: Filter by ownerUid.
         let q = query(collection(db, 'quotes'), where("ownerUid", "==", uid));
 
-        // 2. 建立動態查詢條件
+        // 2. Build Filter Conditions
         const conditions = [];
 
-        // 精確欄位 (優先)
+        // Exact Match Filters
         if (filters.phone) {
             conditions.push(where("customer.phone", "==", filters.phone));
         }
@@ -122,9 +122,9 @@ export async function searchQuotesAdvanced(uid, filters) {
             conditions.push(where("metadata.hasMotor", "==", filters.hasMotor));
         }
 
-        // 範圍/字首 欄位
+        // Prefix Match Filter (Name)
         if (filters.name) {
-            // "開頭是" 查詢
+            // "Starts with" search logic for Firestore
             const nameStart = filters.name;
             const nameEnd = nameStart.slice(0, -1) + String.fromCharCode(nameStart.charCodeAt(nameStart.length - 1) + 1);
             conditions.push(where("customer.name", ">=", nameStart));
@@ -138,13 +138,13 @@ export async function searchQuotesAdvanced(uid, filters) {
             let startDate, endDate;
 
             if (year && month && month >= 1 && month <= 12) {
-                // 年和月都有
+                // Filter by specific month
                 startDate = `${year}-${String(month).padStart(2, '0')}-01`;
                 const nextMonth = month === 12 ? 1 : month + 1;
                 const nextYear = month === 12 ? year + 1 : year;
                 endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
             } else if (year) {
-                // 只有年
+                // Filter by full year
                 startDate = `${year}-01-01`;
                 endDate = `${year + 1}-01-01`;
             }
@@ -155,33 +155,33 @@ export async function searchQuotesAdvanced(uid, filters) {
             }
         }
 
-        // 3. 組合查詢
+        // 3. Apply Conditions
         if (conditions.length > 0) {
             q = query(q, ...conditions);
         }
 
-        // 4. [MODIFIED] (v6298-F4-Search-Fix) 動態排序
+        // 4. [MODIFIED] (v6298-F4-Search-Fix) Sorting Strategy
         const orderByClauses = [];
 
-        // Firestore 規則：如果使用了不等式 (>, >=, <, <=)，第一個排序必須是該欄位
+        // Firestore limitation: The first orderBy field must match the field used in inequality filters (>, >=, <, <=).
         if (filters.name) {
             orderByClauses.push(orderBy("customer.name"));
         }
         if (filters.year || filters.month) {
-            // 如果 name 也是篩選條件，issueDate 必須是第二排序
-            // 如果 name 不是篩選條件，這會是第一排序
+            // If name is also filtered, issueDate must be secondary sort order.
+            // If name is NOT filtered, issueDate becomes the primary inequality filter, so it must be first.
             orderByClauses.push(orderBy("issueDate", "desc"));
         }
 
-        // 如果沒有 name 和 date，則使用預設的 issueDate 排序
+        // Default sort by issueDate if no inequality filters are applied
         if (!filters.name && !filters.year && !filters.month) {
             orderByClauses.push(orderBy("issueDate", "desc"));
         }
 
-        // 5. 應用排序與限制
+        // 5. Apply Sorting and Limit
         q = query(q, ...orderByClauses, limit(50));
 
-        // 6. 執行查詢
+        // 6. Execute Query
         const querySnapshot = await getDocs(q);
         const results = [];
         querySnapshot.forEach((doc) => {
@@ -197,12 +197,12 @@ export async function searchQuotesAdvanced(uid, filters) {
     } catch (e) {
         console.error('Search failed:', e);
 
-        // 關鍵：捕捉「需要索引」的錯誤
+        // Handle Index Requirement Error
         if (e.code === 'failed-precondition') {
             const indexCreationURL = e.message.match(/(https?:\/\/[^\s]+)/);
             if (indexCreationURL && indexCreationURL[0]) {
                 const url = indexCreationURL[0];
-                console.warn(`Firestore 索引缺失。請點擊此連結建立索引：${url}`);
+                console.warn(`Firestore index missing. Please create it using this URL: ${url}`);
                 return {
                     success: false,
                     data: [],
@@ -212,7 +212,7 @@ export async function searchQuotesAdvanced(uid, filters) {
                 };
             }
         }
-        // [NEW] (v6298-F4-Search-Fix) 將 "Invalid query" 錯誤明確回報給 UI
+        // [NEW] (v6298-F4-Search-Fix) Handle "Invalid query" error
         if (e.code === 'invalid-argument') {
             return { success: false, data: [], message: `Search error: ${e.message}` };
         }
