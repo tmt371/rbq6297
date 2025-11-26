@@ -1,17 +1,15 @@
 /* FILE: 04-core-code/ui/views/k3-options-view.js */
-// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings for Over/OI/LR sequences with MOUNT_TYPES.
 
 import * as uiActions from '../../actions/ui-actions.js';
 import * as quoteActions from '../../actions/quote-actions.js';
-import { MOUNT_TYPES } from '../../config/business-constants.js'; // [NEW]
+import { MOUNT_TYPES } from '../../config/business-constants.js';
 
 /**
  * @fileoverview A dedicated sub-view for handling all logic related to the K3 (Options) tab.
  */
 export class K3OptionsView {
-    constructor({ stateService, publishStateChangeCallback }) {
+    constructor({ stateService }) {
         this.stateService = stateService;
-        this.publish = publishStateChangeCallback;
         console.log("K3OptionsView Initialized.");
     }
 
@@ -42,11 +40,10 @@ export class K3OptionsView {
         const items = this._getItems();
         if (items.length === 0 || !items[0]) return;
 
-        // [MODIFIED] Use constants for sequences
         const BATCH_CYCLE_SEQUENCES = {
-            over: [MOUNT_TYPES.ROLL_OVER, MOUNT_TYPES.ROLL_UNDER], // ['O', '']
-            oi: [MOUNT_TYPES.IN_RECESS, MOUNT_TYPES.FACE_FIX],    // ['IN', 'OUT']
-            lr: [MOUNT_TYPES.CONTROL_LEFT, MOUNT_TYPES.CONTROL_RIGHT] // ['L', 'R']
+            over: [MOUNT_TYPES.ROLL_OVER, MOUNT_TYPES.ROLL_UNDER],
+            oi: [MOUNT_TYPES.IN_RECESS, MOUNT_TYPES.FACE_FIX],
+            lr: [MOUNT_TYPES.CONTROL_LEFT, MOUNT_TYPES.CONTROL_RIGHT]
         };
         const sequence = BATCH_CYCLE_SEQUENCES[column];
         if (!sequence) return;

@@ -1,19 +1,15 @@
 /* FILE: 04-core-code/ui/views/detail-config-view.js */
-// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES to fix LF-DEL selection bug.
+
+import * as uiActions from '../../actions/ui-actions.js';
+import { LOGIC_CODES } from '../../config/business-constants.js';
 
 /**
  * @fileoverview A "Manager" view that delegates logic to specific sub-views for each tab.
  */
-
-import * as uiActions from '../../actions/ui-actions.js';
-import { EVENTS } from '../../config/constants.js';
-import { LOGIC_CODES } from '../../config/business-constants.js'; // [NEW]
-
 export class DetailConfigView {
     constructor({
         stateService,
         eventAggregator,
-        // Sub-views are injected here
         k1LocationView,
         k2FabricView,
         k3OptionsView,
@@ -23,14 +19,13 @@ export class DetailConfigView {
         this.stateService = stateService;
         this.eventAggregator = eventAggregator;
 
-        // Store instances of sub-views
         this.k1View = k1LocationView;
         this.k2View = k2FabricView;
         this.k3View = k3OptionsView;
         this.driveAccessoriesView = driveAccessoriesView;
         this.dualChainView = dualChainView;
 
-        console.log("DetailConfigView Refactored as a Manager View.");
+        console.log("DetailConfigView Initialized.");
     }
 
     activateTab(tabId) {
@@ -57,8 +52,6 @@ export class DetailConfigView {
         }
     }
 
-    // --- Event Handlers that delegate to sub-views ---
-
     handleFocusModeRequest({ column }) {
         if (column === 'location') {
             this.k1View.handleFocusModeRequest();
@@ -74,22 +67,16 @@ export class DetailConfigView {
         const { ui } = this.stateService.getState();
         const { activeEditMode } = ui;
 
-        // [MODIFIED] Use LOGIC_CODES constants to match the state set by K2FabricView
-        // This fixes the bug where LF-DEL mode ('LFD') was not recognized.
         if (activeEditMode === LOGIC_CODES.MODE_LF_DEL ||
             activeEditMode === LOGIC_CODES.MODE_LF ||
             activeEditMode === LOGIC_CODES.MODE_SSET) {
 
             this.k2View.handleSequenceCellClick({ rowIndex });
         } else {
-            // [NEW] DEFAULT BEHAVIOR (for new LF/SSet flows):
-            // Use the main multi-select action (pink highlight)
-            // This allows the user to select rows *before* clicking the LF button.
             this.stateService.dispatch(uiActions.toggleMultiSelectSelection(rowIndex));
         }
     }
 
-    // [NEW] (v6294) Handle the new K2 mode toggle event
     handleModeToggle({ mode }) {
         this.k2View.handleModeToggle({ mode });
     }

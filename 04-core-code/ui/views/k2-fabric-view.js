@@ -1,10 +1,9 @@
 /* FILE: 04-core-code/ui/views/k2-fabric-view.js */
-// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with FABRIC_CODES and LOGIC_CODES.
 
-import { EVENTS, DOM_IDS } from '../../config/constants.js';
+import { EVENTS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
 import * as quoteActions from '../../actions/quote-actions.js';
-import { FABRIC_CODES, LOGIC_CODES } from '../../config/business-constants.js'; // [NEW]
+import { FABRIC_CODES, LOGIC_CODES } from '../../config/business-constants.js';
 
 /**
  * @fileoverview A dedicated sub-view for handling all logic related to the K2 (Fabric) tab.
@@ -41,7 +40,6 @@ export class K2FabricView {
         const item = this._getItems()[rowIndex];
         if (!item || (item.width === null && item.height === null)) return;
 
-        // [MODIFIED] Use constants for mode checks
         if (activeEditMode === LOGIC_CODES.MODE_LF_DEL) {
             const { lfModifiedRowIndexes } = this._getState().quoteData.uiMetadata;
             if (!lfModifiedRowIndexes.includes(rowIndex)) {
@@ -56,7 +54,6 @@ export class K2FabricView {
     }
 
     handleModeToggle({ mode }) {
-        // [MODIFIED] Compare against constant values (which match the button ID parts or event data)
         if (mode === LOGIC_CODES.MODE_LF) {
             this._handleLFModeToggle();
         } else if (mode === LOGIC_CODES.MODE_LF_DEL) {
@@ -69,7 +66,6 @@ export class K2FabricView {
     _handleLFModeToggle() {
         const { activeEditMode } = this._getState().ui;
 
-        // [MODIFIED] Use constant
         if (activeEditMode === LOGIC_CODES.MODE_LF) {
             const { multiSelectSelectedIndexes } = this._getState().ui;
 
@@ -83,7 +79,6 @@ export class K2FabricView {
 
         } else {
             const items = this._getItems();
-            // [MODIFIED] Use FABRIC_CODES constants
             const eligibleTypes = [FABRIC_CODES.B2, FABRIC_CODES.B3, FABRIC_CODES.B4];
             const hasEligibleItems = items.some(item =>
                 item.width && item.height && eligibleTypes.includes(item.fabricType)
@@ -95,7 +90,6 @@ export class K2FabricView {
             }
 
             this._exitAllK2Modes();
-            // [MODIFIED] Dispatch constant value
             this.stateService.dispatch(uiActions.setActiveEditMode(LOGIC_CODES.MODE_LF));
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select items from the main table.' });
         }
@@ -104,7 +98,6 @@ export class K2FabricView {
     _handleLFDModeToggle() {
         const { activeEditMode } = this._getState().ui;
 
-        // [MODIFIED] Use constant
         if (activeEditMode === LOGIC_CODES.MODE_LF_DEL) {
             const { lfSelectedRowIndexes } = this._getState().ui;
             if (lfSelectedRowIndexes.length > 0) {
@@ -115,7 +108,6 @@ export class K2FabricView {
             this._exitAllK2Modes();
         } else {
             this._exitAllK2Modes();
-            // [MODIFIED] Dispatch constant value
             this.stateService.dispatch(uiActions.setActiveEditMode(LOGIC_CODES.MODE_LF_DEL));
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select the roller blinds for which you want to cancel the Light-Filter fabric setting. After selection, click the LF-Del button again.' });
         }
@@ -124,7 +116,6 @@ export class K2FabricView {
     _handleSSetModeToggle() {
         const { activeEditMode } = this._getState().ui;
 
-        // [MODIFIED] Use constant
         if (activeEditMode === LOGIC_CODES.MODE_SSET) {
             const { multiSelectSelectedIndexes } = this._getState().ui;
 
@@ -138,7 +129,6 @@ export class K2FabricView {
 
         } else {
             this._exitAllK2Modes();
-            // [MODIFIED] Dispatch constant value
             this.stateService.dispatch(uiActions.setActiveEditMode(LOGIC_CODES.MODE_SSET));
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select items from the main table.' });
         }
@@ -370,7 +360,6 @@ export class K2FabricView {
             return;
         }
 
-        // [MODIFIED] Use FABRIC_CODES constants
         const eligibleTypes = [FABRIC_CODES.B2, FABRIC_CODES.B3, FABRIC_CODES.B4];
 
         const eligibleIndexes = multiSelectSelectedIndexes.filter(index => {
@@ -396,7 +385,6 @@ export class K2FabricView {
                 { type: 'text', text: 'F-Color', className: 'font-bold' },
             ],
             [
-                // [MODIFIED] Use LOGIC_CODES.LIGHT_FILTER ('LF') for data-type
                 { type: 'text', text: LOGIC_CODES.LIGHT_FILTER, className: 'text-right' },
                 { type: 'input', id: fNameId, value: '', 'data-type': LOGIC_CODES.LIGHT_FILTER, 'data-field': 'fabric', inputType: 'text', disableEnterConfirm: true },
                 { type: 'input', id: fColorId, value: '', 'data-type': LOGIC_CODES.LIGHT_FILTER, 'data-field': 'color', inputType: 'text', disableEnterConfirm: true },
@@ -690,8 +678,6 @@ export class K2FabricView {
     }
 
     _updatePanelInputsState() {
-        // (Original content removed as it depended on fabricBatchTable which is gone)
-        // This method is now effectively a no-op or cleanup.
     }
 
     activate() {

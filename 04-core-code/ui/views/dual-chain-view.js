@@ -1,6 +1,4 @@
 /* FILE: 04-core-code/ui/views/dual-chain-view.js */
-// [MODIFIED] (v6299 Phase 8 Fix) Added logic to reset F1 Dual override when K5 Dual is toggled.
-// This ensures K5 changes always trigger F1 auto-recalculation, fixing the "stuck count" bug after loading.
 
 import { EVENTS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -53,7 +51,6 @@ export class DualChainView {
             this._calculateAndStoreDualPrice();
         }
 
-        // [MODIFIED] (v6294 K5) Also exit mode if newMode is null
         if (!newMode) {
             this.stateService.dispatch(uiActions.setTargetCell(null));
             this.stateService.dispatch(uiActions.clearDualChainInputValue());
@@ -61,7 +58,7 @@ export class DualChainView {
     }
 
     /**
-     * [NEW] This method PURELY calculates the price and updates state. It contains NO validation logic.
+     * This method PURELY calculates the price and updates state. It contains NO validation logic.
      */
     _calculateAndStoreDualPrice() {
         const items = this._getItems();
@@ -76,7 +73,7 @@ export class DualChainView {
     }
 
     /**
-     * [NEW] This method PURELY validates the selection. It does NOT calculate any price.
+     * This method PURELY validates the selection. It does NOT calculate any price.
      */
     _validateDualSelection() {
         const items = this._getItems();
@@ -129,7 +126,6 @@ export class DualChainView {
         const valueToSave = value === '' ? null : valueAsNumber;
         this.stateService.dispatch(quoteActions.updateItemProperty(currentTarget.rowIndex, currentTarget.column, valueToSave));
 
-        // [MODIFIED] (v6294 K5) Automatically exit mode after successful entry
         this.stateService.dispatch(uiActions.setDualChainMode(null));
         this.stateService.dispatch(uiActions.setTargetCell(null));
         this.stateService.dispatch(uiActions.clearDualChainInputValue());
@@ -152,10 +148,8 @@ export class DualChainView {
             const newValue = item.dual === 'D' ? '' : 'D';
             this.stateService.dispatch(quoteActions.updateItemProperty(rowIndex, 'dual', newValue));
 
-            // [NEW] (v6299 Phase 8 Fix)
             // When modifying Dual configuration in K5, force F1 Distribution to reset to Auto (null).
-            // This ensures F1 counts (Combo/Slim) automatically sync with the new item count,
-            // fixing the bug where loaded snapshots (with fixed numbers) prevented updates.
+            // This ensures F1 counts (Combo/Slim) automatically sync with the new item count.
             this.stateService.dispatch(uiActions.setF1DualDistribution(null, null));
 
             this._calculateAndStoreDualPrice();
@@ -175,7 +169,7 @@ export class DualChainView {
     }
 
     /**
-     * [REVISED] This method is called by the main DetailConfigView when the K5 tab becomes active.
+     * This method is called by the main DetailConfigView when the K5 tab becomes active.
      */
     activate() {
         this.stateService.dispatch(uiActions.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'location', 'dual', 'chain']));
