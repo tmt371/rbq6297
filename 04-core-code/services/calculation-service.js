@@ -1,15 +1,4 @@
 /* FILE: 04-core-code/services/calculation-service.js */
-// [MODIFIED] (Phase 7) Added calculateF1Costs, and updated getQuoteTemplateData to use F1 costs
-// [MODIFIED] (Phase 8) Updated getQuoteTemplateData, passing F1 cost details (RB, Acce, Total) for work order usage
-// [MODIFIED] (Accounting V2 Phase 2) Added taxExclusiveTotal calculation in calculateF2Summary
-// [MODIFIED] (Accounting V2 Phase 2 Fix) taxExclusiveTotal is now always equal to newOffer
-// [MODIFIED] (F1 Motor Split) Updated calculateF1Costs to split B-Motor/W-Motor costs ($160/$130).
-// [MODIFIED] (F1 Motor Split) Updated calculateF2Summary to split B-Motor/W-Motor sales prices ($250/$200).
-// [MODIFIED] (F1 Motor Split Fix) Updated getQuoteTemplateData to use correct SALES price for motors ($250/$200).
-// [MODIFIED] (F1 Motor Split Fix 2) Hardcoded motor sales price calculation in getQuoteTemplateData for robustness.
-// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings 'HD' and 'D' with COMPONENT_CODES.
-// [MODIFIED] (Stage 9 Fix WorkOrder Cost) Reverted motor price in getQuoteTemplateData to USE COST ($160/$130) for Work Order.
-// [MODIFIED] (Stage 9 Final Fix) Differentiate Quote (Sales Price) vs WorkOrder (Cost Price) in getQuoteTemplateData.
 
 import { COMPONENT_CODES } from '../config/business-constants.js';
 
@@ -94,7 +83,7 @@ export class CalculationService {
     }
 
     /**
-     * [NEW] Calculates the SALE PRICE for a given accessory.
+     * Calculates the SALE PRICE for a given accessory.
      * This method is explicit and should be used for calculating prices for the end customer.
      */
     calculateAccessorySalePrice(productType, accessoryName, data) {
@@ -120,12 +109,11 @@ export class CalculationService {
             return productStrategy[methodName](...args);
         }
 
-
         return 0;
     }
 
     /**
-     * [NEW] Calculates the COST for a given accessory.
+     * Calculates the COST for a given accessory.
      * This method is explicit and should be used for internal cost calculations.
      */
     calculateAccessoryCost(productType, accessoryName, data) {
@@ -155,7 +143,6 @@ export class CalculationService {
 
     /**
      * @deprecated since v5.93. Use calculateAccessorySalePrice() or calculateAccessoryCost() instead.
-     * [REFACTORED] This method is now deprecated and will be removed in a future version.
      */
     calculateAccessoryPrice(productType, accessoryName, data) {
         console.warn("DEPRECATED: `calculateAccessoryPrice` was called. Please update to use `calculateAccessorySalePrice` or `calculateAccessoryCost`.");
@@ -167,9 +154,8 @@ export class CalculationService {
     }
 
     /**
-     * [REFACTORED] Calculates the total price for a given F1 panel component based on its quantity.
+     * Calculates the total price for a given F1 panel component based on its quantity.
      * It now fetches mappings from the ConfigManager.
-     * [MODIFIED] (Phase 7) This method has been renamed to calculateF1ComponentPrice
      */
     calculateF1ComponentPrice(componentKey, quantity) {
         if (typeof quantity !== 'number' || quantity < 0) {
@@ -190,7 +176,7 @@ export class CalculationService {
 
         let accessoryKey = f1KeyMap[componentKey];
 
-        // [NEW] (F1 Motor Split) Special handling for W-Motor cost ($130)
+        // Special handling for W-Motor cost ($130)
         if (componentKey === 'w-motor') {
             return quantity * 130;
         }
@@ -213,10 +199,9 @@ export class CalculationService {
     }
 
     /**
-     * [NEW] (Phase 7)
      * Moved logic from f1-cost-view.js to here, centrally calculating F1 *Costs*.
      * This is the single source of truth for F1 panel cost calculations.
-     * [MODIFIED] (F1 Motor Split) Split motor costs into B-Motor and W-Motor.
+     * Split motor costs into B-Motor and W-Motor.
      */
     calculateF1Costs(quoteData, uiState) {
         const items = quoteData.products[quoteData.currentProduct].items;
@@ -225,14 +210,12 @@ export class CalculationService {
         const componentPrices = {};
 
         // Winder
-        // [MODIFIED] Use constant
         const winderQty = items.filter(item => item.winder === COMPONENT_CODES.WINDER_HD).length;
         componentPrices.winder = this.calculateF1ComponentPrice('winder', winderQty);
 
         // Motor (Total)
         const totalMotorQty = items.filter(item => !!item.motor).length;
 
-        // [NEW] (F1 Motor Split) Logic
         // W-Motor Qty comes from UI state (set via dialog)
         let wMotorQty = ui.f1.w_motor_qty || 0;
         // Clamp W-Motor Qty to Total Motor Qty (cannot exceed total)
@@ -248,7 +231,6 @@ export class CalculationService {
 
         // Combined Motor Cost for display if needed, but we return details
         componentPrices.motor = componentPrices.b_motor + componentPrices.w_motor;
-
 
         // Remotes (Use F1 UI state quantities)
         const totalRemoteCount = ui.driveRemoteCount || 0;
@@ -272,7 +254,6 @@ export class CalculationService {
         componentPrices['3m-cord'] = this.calculateF1ComponentPrice('3m-cord', cordQty);
 
         // Dual (Use F1 UI state quantities)
-        // [MODIFIED] Use constant
         const totalDualPairs = Math.floor(items.filter(item => item.dual === COMPONENT_CODES.DUAL_BRACKET).length / 2);
         const comboQty = (ui.f1.dual_combo_qty === null) ? totalDualPairs : ui.f1.dual_combo_qty;
         const slimQty = (ui.f1.dual_slim_qty === null) ? 0 : ui.f1.dual_slim_qty;
@@ -300,8 +281,8 @@ export class CalculationService {
         return {
             winderCost: componentPrices.winder,
             motorCost: componentPrices.motor, // Combined for F1 Total display if needed, but UI splits it
-            bMotorCost: componentPrices.b_motor, // [NEW]
-            wMotorCost: componentPrices.w_motor, // [NEW]
+            bMotorCost: componentPrices.b_motor,
+            wMotorCost: componentPrices.w_motor,
 
             remote1chCost: componentPrices['remote-1ch'],
             remote16chCost: componentPrices['remote-16ch'],
@@ -310,13 +291,14 @@ export class CalculationService {
             dualComboCost: componentPrices['dual-combo'],
             slimCost: componentPrices.slim,
             wifiCost: componentPrices.wifihub,
+
             componentTotal: componentTotal,
             // Return QTYs used in calculation for F1 View display
             qtys: {
                 winder: winderQty,
                 motor: totalMotorQty, // Total
-                b_motor: bMotorQty, // [NEW]
-                w_motor: wMotorQty, // [NEW]
+                b_motor: bMotorQty,
+                w_motor: wMotorQty,
                 remote1ch: remote1chQty,
                 remote16ch: remote16chQty,
                 charger: chargerQty,
@@ -327,7 +309,6 @@ export class CalculationService {
             }
         };
     }
-
 
     /**
      * Calculates all values for the F2 summary panel.
@@ -345,7 +326,7 @@ export class CalculationService {
         const winderPrice = accessories.winderCostSum || 0;
         const dualPrice = accessories.dualCostSum || 0;
 
-        // [MODIFIED] (F1 Motor Split) Calculate Motor Sale Price dynamically here
+        // Calculate Motor Sale Price dynamically here
         const totalMotorQty = items.filter(item => !!item.motor).length;
         let wMotorQty = uiState.f1.w_motor_qty || 0;
         if (wMotorQty > totalMotorQty) wMotorQty = totalMotorQty;
@@ -361,20 +342,20 @@ export class CalculationService {
         const f1State = uiState.f1;
         const f2State = uiState.f2;
 
-        const wifiQty = uiState.f1.wifi_qty || 0; // [MODIFIED] (v6295) Get Wifi Qty from F1 state
+        const wifiQty = uiState.f1.wifi_qty || 0;
         const deliveryQty = f2State.deliveryQty || 0;
         const installQty = f2State.installQty || 0;
         const removalQty = f2State.removalQty || 0;
         const mulTimes = (f2State.mulTimes === null || f2State.mulTimes === undefined) ? 1 : f2State.mulTimes;
         const discount = f2State.discount || 0;
 
-        const wifiSum = wifiQty * 300; // [MODIFIED] (v6295) Use $300 sale price
+        const wifiSum = wifiQty * 300; // Use $300 sale price
         const deliveryFee = deliveryQty * UNIT_PRICES.delivery;
         const installFee = installQty * UNIT_PRICES.install;
         const removalFee = removalQty * UNIT_PRICES.removal;
 
         const acceSum = winderPrice + dualPrice;
-        // [MODIFIED] Use the calculated motorPrice (Sales Price) instead of motorCostSum from accessories
+        // Use the calculated motorPrice (Sales Price) instead of motorCostSum from accessories
         const eAcceSum = motorPrice + remotePrice + chargerPrice + cordPrice + wifiSum;
 
         const surchargeFee =
@@ -386,47 +367,34 @@ export class CalculationService {
         const disRbPriceValue = firstRbPrice * (1 - (discount / 100));
         const disRbPrice = Math.round(disRbPriceValue * 100) / 100;
 
-        // [MODIFIED] (Phase 2) New calculation logic
         const f2_17_pre_sum = acceSum + eAcceSum + surchargeFee;
-        const sumPrice = disRbPrice + f2_17_pre_sum; // This is the new f2-b22-sumprice
+        const sumPrice = disRbPrice + f2_17_pre_sum;
 
-        // --- [MODIFIED] (F1/F2 Refactor Phase 3) ---
-        // --- Start: Read F1 Cost Totals from State (Refactored) ---
-        // Read the pre-calculated cost totals directly from the UI state.
+        // Read F1 Cost Totals from State
         const f1SubTotal = uiState.f1.f1_subTotal || 0;
         const f1_final_total = uiState.f1.f1_finalTotal || 0;
-        // --- End: Read F1 Cost Totals from State ---
 
-        // [MODIFIED] (F1/F2 Refactor Phase 3) We must still calculate f1_rb_price
-        // because it is used for the "RB Profit" calculation.
         const f1DiscountPercentage = f1State.discountPercentage || 0;
         const retailTotalFromF1 = quoteData.products.rollerBlind.summary.totalSum || 0;
         const f1_rb_price = retailTotalFromF1 * (1 - (f1DiscountPercentage / 100));
-        // --- End of modification ---
 
         const rbProfit = disRbPrice - f1_rb_price;
         const validItemCount = items.filter(item => typeof item.linePrice === 'number' && item.linePrice > 0).length;
         const singleprofit = validItemCount > 0 ? rbProfit / validItemCount : 0;
 
-        // [MODIFIED] (Phase 2) Keep old calculations for compatibility
-        const sumProfit = sumPrice - f1SubTotal; // Old `sumProfit` (REMOVED IN PHASE 3)
-        const old_gst = sumPrice * 1.1; // Old `gst` (GST-inclusive total) for getQuoteTemplateData
+        const sumProfit = sumPrice - f1SubTotal;
+        const old_gst = sumPrice * 1.1;
 
-        // [MODIFIED] (Phase 2) New calculations based on `newOffer`
         const newOffer = (f2State.newOffer !== null && f2State.newOffer !== undefined) ? f2State.newOffer : sumPrice;
 
-        // [MODIFIED] (Phase 11) Calculate *both* potential and actual GST
         const potential_gst = newOffer * 0.1; // The value to display
-
         const actual_gst = f2State.gstExcluded ? 0 : potential_gst; // The value to use in calculations
 
-        const grandTotal = newOffer + actual_gst; // [MODIFIED] Uses actual_gst
+        const grandTotal = newOffer + actual_gst;
 
-        // [NEW] (Accounting V2 Phase 2) Calculate tax exclusive total for XERO
-        // [FIX] Definition update: "Our Offer" IS the Tax Exclusive Amount.
+        // Calculate tax exclusive total for XERO (Definition: "Our Offer" IS the Tax Exclusive Amount)
         const taxExclusiveTotal = newOffer;
 
-        // [MODIFIED v6290 Task 1 & 2] netProfit logic now depends on gstExcluded state
         const netProfit = f2State.gstExcluded
             ? grandTotal - f1SubTotal
             : grandTotal - f1_final_total;
@@ -441,38 +409,30 @@ export class CalculationService {
             eAcceSum,
             firstRbPrice,
             disRbPrice,
-            sumPrice, // (new value for f2-b22)
+            sumPrice,
             rbProfit,
             singleprofit,
 
-            // --- Old values (for compatibility + render) ---
-            sumProfit: sumProfit, // (for f2-b23 - will be removed in Phase 3)
-            gst: old_gst, // (for getQuoteTemplateData compatibility - will be removed in Phase 4)
+            sumProfit: sumProfit,
+            gst: old_gst,
 
-            // --- New values (for Phase 2+) ---
             f2_17_pre_sum: f2_17_pre_sum,
             newOffer: newOffer,
-            new_gst: potential_gst, // [MODIFIED] Always return the potential_gst for display
+            new_gst: potential_gst,
             grandTotal: grandTotal,
-            netProfit: netProfit, // (new value for f2-b25)
-
-            // [NEW] (Accounting V2 Phase 2)
+            netProfit: netProfit,
             taxExclusiveTotal: taxExclusiveTotal,
-
-            mulTimes, // [FIX] Add mulTimes to the return object so its value can be persisted.
-
-            // [NEW] Return calculated motor price so F2 view can render it (overriding default K4 calculation)
+            mulTimes,
             calculatedMotorPrice: motorPrice
         };
     }
 
     /**
-     * [NEW] Gathers all necessary data for the quote template.
-     * This method is the new home for the logic previously in QuoteGeneratorService._prepareTemplateData.
+     * Gathers all necessary data for the quote template.
      * @param {object} quoteData - The *original* quote data from the state (used for items).
      * @param {object} ui - The current UI state.
      * @param {object} liveQuoteData - The *live, up-to-date* quoteData, passed from workflow service.
-     * @param {boolean} isWorkOrder - [NEW] Flag to determine if we use COST (True) or SALES (False) prices.
+     * @param {boolean} isWorkOrder - Flag to determine if we use COST (True) or SALES (False) prices.
      * @returns {object} A comprehensive data object ready for template population.
      */
     getQuoteTemplateData(quoteData, ui, liveQuoteData, isWorkOrder = false) {
@@ -483,14 +443,11 @@ export class CalculationService {
 
         const currentProductType = quoteData.currentProduct;
 
-        // [MODIFIED] (Phase 4) Grand total is now derived from F2's newOffer state, not F3.
         const newOfferValue = (ui.f2.newOffer !== null && ui.f2.newOffer !== undefined) ? ui.f2.newOffer : summaryData.sumPrice;
 
-        // [MODIFIED] (Phase 11) Use new_gst (potential) and grandTotal (calculated) from summaryData
         const gstValue = summaryData.new_gst;
-        const grandTotal = summaryData.grandTotal; // This value is already correct (newOffer + actual_gst)
+        const grandTotal = summaryData.grandTotal;
 
-        // [NEW v6290 Task 3] Get correct Deposit/Balance from F2 state, not rough calculation
         const depositValue = ui.f2.deposit;
         const balanceValue = ui.f2.balance;
 
@@ -525,40 +482,26 @@ export class CalculationService {
             motorPrice = summaryData.calculatedMotorPrice;
 
             // Other Accessories Sales Prices
-            // Use helper `calculateAccessorySalePrice` which handles standard pricing (e.g. remote=$100)
-
-            // Remote 1CH
             remote1chPrice = this.calculateAccessorySalePrice(currentProductType, 'remote', { count: remote1chQty });
-
-            // Remote 16CH
             remote16chPrice = this.calculateAccessorySalePrice(currentProductType, 'remote', { count: remote16chQty });
-
-            // Charger
             chargerPrice = this.calculateAccessorySalePrice(currentProductType, 'charger', { count: chargerQty });
-
-            // Cord
             cord3mPrice = this.calculateAccessorySalePrice(currentProductType, 'cord', { count: cord3mQty });
-
             // Wifi: F2 logic uses fixed $300 sale price
             wifiHubPrice = wifiHubQty * 300;
-
             // eAcceSum for Quote (Sum of Sales Prices)
             eAcceSum = motorPrice + remote1chPrice + remote16chPrice + chargerPrice + cord3mPrice + wifiHubPrice;
         }
 
-        // [NEW] (Phase 8) F1 costs for Work Order table
+        // F1 costs for Work Order table
         // These are specifically "Work Order" costs, so they always use F1 data.
-        // 1. RB Cost
         const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
         const discountPercentage = ui.f1.discountPercentage || 0;
         const f1_rb_price = retailTotal * (1 - (discountPercentage / 100));
-        // 2. Acce. Cost (excluding E-item)
+        // Acce. Cost (excluding E-item)
         const acce_total = f1Costs.winderCost + f1Costs.dualComboCost + f1Costs.slimCost;
-        // 3. F1 Total Cost
+        // F1 Total Cost
         const f1_sub_total = f1Costs.componentTotal + f1_rb_price;
 
-
-        // [MODIFIED] Read from the liveQuoteData object instead of f3Data(DOM)
         let documentTitleParts = [];
         if (liveQuoteData.quoteId) documentTitleParts.push(liveQuoteData.quoteId);
         if (liveQuoteData.customer.name) documentTitleParts.push(liveQuoteData.customer.name);
@@ -570,35 +513,29 @@ export class CalculationService {
             quoteId: liveQuoteData.quoteId,
             issueDate: liveQuoteData.issueDate,
             dueDate: liveQuoteData.dueDate,
-            customerName: liveQuoteData.customer.name, // [MODIFIED]
-            customerAddress: liveQuoteData.customer.address, // [MODIFIED]
-            customerPhone: liveQuoteData.customer.phone, // [MODIFIED]
-            customerEmail: liveQuoteData.customer.email, // [MODIFIED]
+            customerName: liveQuoteData.customer.name,
+            customerAddress: liveQuoteData.customer.address,
+            customerPhone: liveQuoteData.customer.phone,
+            customerEmail: liveQuoteData.customer.email,
 
-            // [MODIFIED] (Phase 4) All totals are now based on the new grandTotal
             subtotal: `$${(summaryData.sumPrice || 0).toFixed(2)}`,
             gst: `$${gstValue.toFixed(2)}`,
             grandTotal: `$${grandTotal.toFixed(2)}`,
 
-            // [FIX v6291] Step 5: Ensure ourOffer is passed correctly
             ourOffer: `$${newOfferValue.toFixed(2)}`,
 
-            // [MODIFIED v6290 Task 3] Use correct values from F2 state
             deposit: `$${(depositValue || 0).toFixed(2)}`,
             balance: `$${(balanceValue || 0).toFixed(2)}`,
 
             savings: `$${((summaryData.firstRbPrice || 0) - (summaryData.disRbPrice || 0)).toFixed(2)}`,
-            generalNotes: (liveQuoteData.generalNotes || '').replace(/\n/g, '<br>'), // [MODIFIED]
-            termsAndConditions: (liveQuoteData.termsConditions || 'Standard terms and conditions apply.').replace(/\n/g, '<br>'), // [MODIFIED]
+            generalNotes: (liveQuoteData.generalNotes || '').replace(/\n/g, '<br>'),
+            termsAndConditions: (liveQuoteData.termsConditions || 'Standard terms and conditions apply.').replace(/\n/g, '<br>'),
 
-
-            // Data for the detailed list (Appendix)
             items: items,
             mulTimes: summaryData.mulTimes || 1,
 
-            // [MODIFIED] (Phase 7) Data for the accessories table (Appendix / Work Order)
             motorQty: motorQty,
-            motorPrice: formatPrice(motorPrice), // [FIX] Depends on isWorkOrder flag
+            motorPrice: formatPrice(motorPrice),
             remote1chQty: remote1chQty,
             remote1chPrice: formatPrice(remote1chPrice),
             remote16chQty: remote16chQty,
@@ -607,18 +544,15 @@ export class CalculationService {
             chargerPrice: formatPrice(chargerPrice),
             cord3mQty: cord3mQty,
             cord3mPrice: formatPrice(cord3mPrice),
-            wifiHubQty: wifiHubQty, // [NEW] (v6295)
-            wifiHubPrice: formatPrice(wifiHubPrice), // [NEW] (v6295)
+            wifiHubQty: wifiHubQty,
+            wifiHubPrice: formatPrice(wifiHubPrice),
 
-            eAcceSum: formatPrice(eAcceSum), // [FIX] Depends on isWorkOrder flag
+            eAcceSum: formatPrice(eAcceSum),
 
-            // [NEW] (Phase 8) F1 costs for Work Order table (Always Costs)
             wo_rb_price: formatPrice(f1_rb_price),
             wo_acce_price: formatPrice(acce_total),
-            // 'eAcceSum' (wo_e_item_price) already passed above
             wo_total_price: formatPrice(f1_sub_total),
 
-            // Pass the entire summary for flexibility
             summaryData: summaryData,
             uiState: ui
         };

@@ -1,20 +1,15 @@
 /* FILE: 04-core-code/strategies/product-factory.js */
-// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic string 'rollerBlind' with PRODUCT_TYPES.ROLLER_BLIND.
 
 import { RollerBlindStrategy } from './roller-blind-strategy.js';
-import { PRODUCT_TYPES } from '../config/business-constants.js'; // [NEW]
+import { PRODUCT_TYPES } from '../config/business-constants.js';
 
 /**
  * @fileoverview A factory for creating product-specific strategy objects.
  * This allows the application to easily support multiple product types.
  */
 
-// Strategy Map using constant keys
 const strategyMap = {
     [PRODUCT_TYPES.ROLLER_BLIND]: RollerBlindStrategy,
-    // --- Future expansions ---
-    // [PRODUCT_TYPES.SHEER_CURTAIN]: SheerCurtainStrategy,
-    // [PRODUCT_TYPES.FLY_SCREEN]: FlyScreenStrategy,
 };
 
 export class ProductFactory {

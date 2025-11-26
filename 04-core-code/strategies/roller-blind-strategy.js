@@ -1,15 +1,12 @@
 /* FILE: 04-core-code/strategies/roller-blind-strategy.js */
-// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with COMPONENT_CODES.
+
+import { v4 as uuidv4 } from 'https://cdn.jsdelivr.net/npm/uuid@9.0.1/dist/esm-browser/index.js';
+import { COMPONENT_CODES } from '../config/business-constants.js';
 
 /**
  * @fileoverview Contains all business logic specific to the Roller Blind product.
  * This includes price calculation, validation rules, etc.
  */
-
-// [MODIFIED] Changed the import from a bare module specifier to a browser-compatible CDN URL.
-import { v4 as uuidv4 } from 'https://cdn.jsdelivr.net/npm/uuid@9.0.1/dist/esm-browser/index.js';
-import { COMPONENT_CODES } from '../config/business-constants.js'; // [NEW]
-
 export class RollerBlindStrategy {
     constructor({ configManager }) {
         this.configManager = configManager;
@@ -45,7 +42,7 @@ export class RollerBlindStrategy {
     }
 
     /**
-     * [REFACTORED] Returns the validation rules specific to roller blinds by fetching them from ConfigManager.
+     * Returns the validation rules specific to roller blinds by fetching them from ConfigManager.
      * @returns {object}
      */
     getValidationRules() {
@@ -71,12 +68,10 @@ export class RollerBlindStrategy {
     getInitialItemData() {
         return {
             itemId: uuidv4(),
-            // --- Phase 1 Fields ---
             width: null,
             height: null,
             fabricType: null,
             linePrice: null,
-            // --- Phase 2 Fields ---
             location: '',
             fabric: '',
             color: '',
@@ -93,7 +88,6 @@ export class RollerBlindStrategy {
     // --- Accessory Pricing Logic ---
 
     calculateDualPrice(items, pricePerPair) {
-        // [MODIFIED] Use constant for 'D'
         const dualCount = items.filter(item => item.dual === COMPONENT_CODES.DUAL_BRACKET).length;
         const totalPrice = Math.floor(dualCount / 2) * pricePerPair;
         return totalPrice;

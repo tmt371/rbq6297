@@ -1,12 +1,7 @@
 /* FILE: 04-core-code/services/data-preparation-service.js */
-// [NEW] (v6297 Stage 9 - Refactor) Created to implement the Data Preparation Layer.
-// [MODIFIED] (Stage 9 Phase 2) Implemented core logic: Sanitation, Dimensions, Sorting, Type Detection.
-// [MODIFIED] (Stage 9 Phase 2 Fix 2) Updated Drop logic.
-// [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX.
-// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with business constants.
 
 import { REGEX } from '../config/regex.js';
-import { COMPONENT_CODES, MOUNT_TYPES, LOGIC_CODES } from '../config/business-constants.js'; // [NEW]
+import { COMPONENT_CODES, MOUNT_TYPES, LOGIC_CODES } from '../config/business-constants.js';
 
 /**
  * @typedef {Object} ExportItem
@@ -62,15 +57,12 @@ export class DataPreparationService {
         const rawItems = quoteData.products[currentProductKey].items;
         const lfModifiedRowIndexes = uiMetadata?.lfModifiedRowIndexes || [];
 
-        // 1. Transform & Clean Items
         const processableItems = rawItems
             .map((item, index) => this._prepareItem(item, index, lfModifiedRowIndexes))
-            .filter(item => item.rawWidth && item.rawHeight); // Only keep valid items
+            .filter(item => item.rawWidth && item.rawHeight);
 
-        // 2. Sort Items (Business Rule: B > SN > LF)
         const sortedItems = this._sortItems(processableItems);
 
-        // 3. Re-index Display Numbers (1, 2, 3...) after sorting
         sortedItems.forEach((item, index) => {
             item.displayIndex = index + 1;
         });
@@ -95,31 +87,24 @@ export class DataPreparationService {
             fabricName: this._sanitize(fabricName),
             fabricColor: this._sanitize(item.color),
 
-            // Dimensions
             rawWidth: item.width,
             rawHeight: item.height,
             mWidth: mWidth,
             mHeight: mHeight,
 
-            // Properties
             location: this._sanitize(item.location),
             over: this._sanitize(item.over),
             oi: this._sanitize(item.oi),
             lr: this._sanitize(item.lr),
 
-            // Logic Checks (Using Constants)
             dual: item.dual === COMPONENT_CODES.DUAL_BRACKET ? 'Y' : '',
             winder: item.winder === COMPONENT_CODES.WINDER_HD ? 'Y' : '',
-            // Note: Motor check is fuzzy because value can be 'Motor' or something else if changed, 
-            // but usually it is truthy check. Strict check matches business-constants.
             motor: item.motor ? 'Y' : '',
             chain: item.chain || '',
 
-            // Price
             price: item.linePrice,
             formattedPrice: item.linePrice ? `$${item.linePrice.toFixed(2)}` : '',
 
-            // Flags
             isLf: isLf
         };
     }
@@ -145,14 +130,14 @@ export class DataPreparationService {
      */
     _determineTypeCode(item, isLf) {
         if (isLf) {
-            return LOGIC_CODES.LIGHT_FILTER; // 'LF'
+            return LOGIC_CODES.LIGHT_FILTER;
         }
         const type = item.fabricType || '';
         if (type.startsWith('B')) {
-            return LOGIC_CODES.BLOCKOUT; // 'BO'
+            return LOGIC_CODES.BLOCKOUT;
         }
         if (type === 'SN') {
-            return LOGIC_CODES.SCREEN; // 'SN'
+            return LOGIC_CODES.SCREEN;
         }
         return "";
     }
@@ -163,7 +148,6 @@ export class DataPreparationService {
      * Height: Lookup Price Matrix Drop - 5mm (unless exact match).
      */
     _calculateManufacturingDimensions(item) {
-        // 1. Width Correction
         let mWidth = item.width;
         if (item.oi === MOUNT_TYPES.IN_RECESS) {
             mWidth = mWidth - 4;
@@ -171,24 +155,18 @@ export class DataPreparationService {
             mWidth = mWidth - 2;
         }
 
-        // 2. Height Correction (Drop Lookup)
         let mHeight = item.height;
         if (this.configManager) {
             const matrix = this.configManager.getPriceMatrix(item.fabricType);
             if (matrix && matrix.drops) {
-                // Logic: Find the smallest drop in the matrix that is >= item.height
                 const nextDrop = matrix.drops.find(d => d >= item.height);
 
                 if (nextDrop) {
                     if (nextDrop === item.height) {
-                        // Exact match: Keep original
                         mHeight = item.height;
                     } else {
-                        // Not exact: Drop - 5
                         mHeight = nextDrop - 5;
                     }
-                } else {
-                    // Fallback: Exceeds max drop
                 }
             }
         }
@@ -203,7 +181,6 @@ export class DataPreparationService {
      * 4. Original Index: Stable sort
      */
     _sortItems(items) {
-        // Count frequencies for secondary sorting
         const typeCounts = {};
         items.forEach((item) => {
             const type = item.typeCode || 'Unknown';
@@ -211,29 +188,25 @@ export class DataPreparationService {
         });
 
         const getCategoryRank = (item) => {
-            if (item.typeCode === LOGIC_CODES.LIGHT_FILTER) return 3; // LF Last
-            if (item.typeCode === LOGIC_CODES.BLOCKOUT) return 1; // Blockout First
-            if (item.typeCode === LOGIC_CODES.SCREEN) return 2; // Screen Second
-            return 4; // Others
+            if (item.typeCode === LOGIC_CODES.LIGHT_FILTER) return 3;
+            if (item.typeCode === LOGIC_CODES.BLOCKOUT) return 1;
+            if (item.typeCode === LOGIC_CODES.SCREEN) return 2;
+            return 4;
         };
 
         return items.sort((a, b) => {
-            // 1. Primary: Category
             const catA = getCategoryRank(a);
             const catB = getCategoryRank(b);
             if (catA !== catB) return catA - catB;
 
-            // 2. Secondary: Quantity (Most frequent first)
             const countA = typeCounts[a.typeCode] || 0;
             const countB = typeCounts[b.typeCode] || 0;
             if (countA !== countB) return countB - countA;
 
-            // 3. Tertiary: Type Name
             if (a.typeCode !== b.typeCode) {
                 return (a.typeCode || '').localeCompare(b.typeCode || '');
             }
 
-            // 4. Quaternary: Original Index
             return a.originalIndex - b.originalIndex;
         });
     }
