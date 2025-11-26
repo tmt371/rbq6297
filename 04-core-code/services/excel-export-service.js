@@ -1,18 +1,7 @@
 /* FILE: 04-core-code/services/excel-export-service.js */
-// [NEW] (v6299 Phase 1) New service to handle Excel (.xlsx) generation using ExcelJS.
-// [MODIFIED] (v6299 Phase 2) Implemented 'work-sheet' generation with sorting and dimension correction logic.
-// [MODIFIED] (v6299 Phase 3) Added visual styling and Side Panel cost summary.
-// [FIX] (Phase 3 Fix) Passed 'ui' state to _generateWorkSheet to fix ReferenceError.
-// [MODIFIED] (v6299 Phase 4 Fix) Updated Side Panel to 3 columns (P,Q,R) with full item breakdown.
-// [MODIFIED] (v6299 Phase 4 Refinement) Added Color Legend and removed "Light-filter" prefix from F-Name.
-// [MODIFIED] (v6299 Phase 4 Tweak 2) Added TYPE column, lighter pink, shifted Side Panel, removed Legend.
-// [MODIFIED] (v6299 Print Optimization) Added pageSetup for A4 Landscape Fit-to-Width.
-// [MODIFIED] (v6297 Stage 9 Phase 3) Refactored to use DataPreparationService as the Single Source of Truth.
-// [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX to remove hardcoded regex.
-// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES.
 
 import { REGEX } from '../config/regex.js';
-import { LOGIC_CODES } from '../config/business-constants.js'; // [NEW]
+import { LOGIC_CODES } from '../config/business-constants.js';
 
 export class ExcelExportService {
     constructor({ configManager, calculationService, dataPreparationService }) {
@@ -58,12 +47,11 @@ export class ExcelExportService {
 
     /**
      * Generates the 'work-sheet' for factory production.
-     * [MODIFIED] Now uses pre-processed 'exportData' from DataPreparationService.
      */
     _generateWorkSheet(workbook, exportData, f1Costs, f2Summary, ui, quoteData) {
         const sheet = workbook.addWorksheet('work-sheet');
 
-        // --- (Print Optimization) Set Print Area & Scale ---
+        // Set Print Area & Scale
         sheet.pageSetup = {
             paperSize: 9, // 9 = A4
             orientation: 'landscape',
@@ -104,7 +92,6 @@ export class ExcelExportService {
         });
 
         // --- 2. Populate Rows using Standardized Export Items ---
-        // Iterate over exportData.items which are already sorted and calculated
         exportData.items.forEach((item) => {
 
             // Determine Background Color based on Standardized Type Code or Flags

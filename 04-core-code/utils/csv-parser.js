@@ -1,19 +1,8 @@
 /* FILE: 04-core-code/utils/csv-parser.js */
-// [MODIFIED] (v6295-fix) Added F2 snapshot support and fixed null/string handling.
-// [MODIFIED] (F1 Motor Split Fix) Added w_motor_qty to f1SnapshotKeys to ensure persistence on load.
-// [FIX] (CSV Export) Added sanitation for invisible unicode characters (e.g., U+202C) to prevent Excel parsing errors.
-// [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX to remove hardcoded regex.
-
-/**
- * @fileoverview Utility functions for parsing and stringifying CSV data.
- */
 
 import { initialState } from '../config/initial-state.js';
-import { REGEX } from '../config/regex.js'; // [NEW]
+import { REGEX } from '../config/regex.js';
 
-// [MODIFIED v6285 Phase 5] Define the exact keys and order for all snapshot data
-// [MODIFIED v6295] Add 'wifi_qty' to the snapshot keys
-// [MODIFIED v6298-F4-Search] Add 'customer.postcode' to the snapshot keys
 const f3SnapshotKeys = [
     'quoteId', 'issueDate', 'dueDate',
     'customer.name', 'customer.address', 'customer.phone', 'customer.email', 'customer.postcode'
@@ -22,10 +11,9 @@ const f1SnapshotKeys = [
     'winder_qty', 'motor_qty', 'charger_qty', 'cord_qty',
     'remote_1ch_qty', 'remote_16ch_qty', 'dual_combo_qty', 'dual_slim_qty',
     'discountPercentage', 'wifi_qty',
-    'w_motor_qty' // [NEW] (F1 Motor Split Fix) Ensure this is persisted/loaded
+    'w_motor_qty'
 ];
 
-// [NEW] (v6295-fix) Define keys for F2 snapshot
 const f2SnapshotKeys = [
     'wifiQty', 'deliveryQty', 'installQty', 'removalQty', 'mulTimes', 'discount',
     'wifiSum', 'deliveryFee', 'installFee', 'removalFee',
@@ -36,7 +24,6 @@ const f2SnapshotKeys = [
     'grandTotal', 'gstExcluded', 'taxExclusiveTotal'
 ];
 
-// Helper to safely get nested properties
 const getNestedValue = (obj, path) => {
     try {
         return path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined) ? acc[key] : '', obj);
@@ -58,35 +45,25 @@ export function dataToCsv(quoteData) {
 
     if (!productData || !productData.items) return "";
 
-    // --- [NEW] Helper: Sanitize and format value for CSV ---
     const processCsvValue = (value) => {
         let strValue = (value === null || value === undefined) ? '' : String(value);
 
-        // 1. Remove invisible Unicode control characters (e.g., U+202C from phone numbers)
-        // [MODIFIED] Use centralized REGEX
         strValue = strValue.replace(REGEX.INVISIBLE_CHAR, '');
-
-        // 2. Escape double quotes by doubling them
         strValue = strValue.replace(/"/g, '""');
-
-        // 3. Replace newlines with spaces to keep row integrity
         strValue = strValue.replace(/\n/g, ' ');
 
-        // 4. Quote the string if it contains special CSV characters
         if (strValue.includes(',') || strValue.includes(' ') || strValue.includes('"')) {
             return `"${strValue}"`;
         }
         return strValue;
     };
 
-    // --- [MODIFIED v6295-fix] Create Project Summary Header and Row (F1, F2, F3) ---
     const projectHeaders = [...f3SnapshotKeys, ...f1SnapshotKeys, ...f2SnapshotKeys];
 
     const f1Snapshot = quoteData.f1Snapshot || {};
-    const f2Snapshot = quoteData.f2Snapshot || {}; // [NEW] (v6295-fix)
+    const f2Snapshot = quoteData.f2Snapshot || {};
 
     const projectValues = [
-        // F3 Values
         quoteData.quoteId || '',
         quoteData.issueDate || '',
         quoteData.dueDate || '',
@@ -94,20 +71,17 @@ export function dataToCsv(quoteData) {
         getNestedValue(quoteData, 'customer.address'),
         getNestedValue(quoteData, 'customer.phone'),
         getNestedValue(quoteData, 'customer.email'),
-        getNestedValue(quoteData, 'customer.postcode'), // [NEW] (v6298-F4-Search)
-        // F1 Values
+        getNestedValue(quoteData, 'customer.postcode'),
         ...f1SnapshotKeys.map(key => {
             const value = f1Snapshot[key];
             return (value !== null && value !== undefined) ? value : '';
         }),
-        // [NEW] (v6295-fix) F2 Values
         ...f2SnapshotKeys.map(key => {
             const value = f2Snapshot[key];
             return (value !== null && value !== undefined) ? value : '';
         })
-    ].map(processCsvValue); // [FIX] Apply sanitation
+    ].map(processCsvValue);
 
-    // --- Create Item Header and Rows ---
     const itemHeaders = [
         '#', 'Width', 'Height', 'Type', 'Price',
         'Location', 'F-Name', 'F-Color', 'Over', 'O/I', 'L/R',
@@ -135,35 +109,23 @@ export function dataToCsv(quoteData) {
                 lfModifiedRowIndexes.includes(index) ? 1 : 0
             ];
 
-            return rowData.map(processCsvValue).join(','); // [FIX] Apply sanitation
+            return rowData.map(processCsvValue).join(',');
         }
         return null;
     }).filter(row => row !== null);
 
-
-    // [MODIFIED v6285 Phase 5] Combine all parts in the new format
     return [
         projectHeaders.join(','),
         projectValues.join(','),
-        '', // Add a blank line for readability
+        '',
         itemHeaders.join(','),
         ...itemRows
     ].join('\n');
 }
 
 
-/**
- * [PRIVATE] 解析 CSV 單行，處理引號與逗號。
- * @param {string} line - 單行 CSV 字串。
- * @returns {Array<string>} - 解析後的陣列。
- */
 function _parseCsvLine(line) {
     const values = [];
-
-    // [FIX] 這是最穩健的 CSV 解析 Regex：
-    // 1. 匹配開頭或逗號 (?:^|,) 作為分隔符
-    // 2. 捕獲內容：雙引號包圍的內容 ((?:[^"]|"")*) OR 非逗號內容 ([^,]*)
-    // match[1] 就是我們要的內容（包含引號），稍後需去引號和還原雙引號
     const regex = /(?:^|,)((?:"(?:[^"]|"")*"|[^,]*))/g;
     let match;
 
@@ -172,14 +134,12 @@ function _parseCsvLine(line) {
 
         let value = match[1];
 
-        // [FIX] 移除首尾的引號並還原雙引號
         if (value.startsWith('"') && value.endsWith('"')) {
             value = value.substring(1, value.length - 1).replace(/""/g, '"');
         }
         values.push(value.trim());
     }
 
-    // 如果行尾是逗號，補一個空值
     if (line.endsWith(',')) {
         values.push('');
     }
@@ -198,9 +158,7 @@ export function csvToData(csvString) {
     try {
         const lines = csvString.trim().split('\n');
 
-        // [MODIFIED v6285 Phase 5] Parse new 4-part format
         if (lines.length < 4) {
-            // Fallback for old format (Phase 3/4)
             return csvToData_OldFormat(csvString);
         }
 
@@ -212,19 +170,16 @@ export function csvToData(csvString) {
         const projectHeaders = _parseCsvLine(projectHeaderLine);
         const projectValues = _parseCsvLine(projectDataLine);
 
-        // --- 1. Parse Project Data (F1 + F2 + F3) ---
         const f1Snapshot = {};
-        const f2Snapshot = {}; // [NEW] (v6295-fix)
+        const f2Snapshot = {};
         const f3Data = { customer: {} };
 
         projectHeaders.forEach((header, index) => {
             const value = projectValues[index] || null;
-            if (value === null || value === '') return; // [MODIFIED] 跳過空值
+            if (value === null || value === '') return;
             let finalValue;
 
-            // [FIX] (v6295-fix) Determine data type based on which key array it's in
             if (f1SnapshotKeys.includes(header) || f2SnapshotKeys.includes(header)) {
-                // 數值與 F1, F2 key 嘗試轉為數字
                 const numValue = parseFloat(value);
                 if (!isNaN(numValue)) {
                     finalValue = numValue;
@@ -232,27 +187,24 @@ export function csvToData(csvString) {
                     finalValue = true;
                 } else if (value.toLowerCase() === 'false') {
                     finalValue = false;
-                } else if (value.toLowerCase() === 'null') { // [FIX] Handle 'null' string
+                } else if (value.toLowerCase() === 'null') {
                     finalValue = null;
                 } else {
-                    finalValue = value; // Keep as string if not num/bool (e.g. for f2.wifiQty which is text "null")
+                    finalValue = value;
                 }
             } else {
-                // 字串與 F3 key (如 ID, Date) 保持原樣
                 finalValue = value;
             }
 
-            // [FIX] (v6295-fix) Handle 'null' strings being converted to null
             if (finalValue === null && f2SnapshotKeys.includes(header)) {
                 f2Snapshot[header] = null;
                 return;
             }
-            if (finalValue === null) return; // 避免覆蓋預設值
+            if (finalValue === null) return;
 
-            // Assign to the correct snapshot object
             if (f1SnapshotKeys.includes(header)) {
                 f1Snapshot[header] = finalValue;
-            } else if (f2SnapshotKeys.includes(header)) { // [NEW] (v6295-fix)
+            } else if (f2SnapshotKeys.includes(header)) {
                 f2Snapshot[header] = finalValue;
             } else if (header.startsWith('customer.')) {
                 f3Data.customer[header.split('.')[1]] = finalValue;
@@ -261,8 +213,6 @@ export function csvToData(csvString) {
             }
         });
 
-
-        // --- 2. Parse Item Data ---
         const items = [];
         const lfIndexes = [];
         const itemHeaders = _parseCsvLine(itemHeaderLine);
@@ -274,10 +224,7 @@ export function csvToData(csvString) {
                 return;
             }
 
-            // [FIX] 使用更強大的 CSV 解析器
             const values = _parseCsvLine(trimmedLine);
-
-            // [FIX] 確保索引正確 (依賴更穩定的 _parseCsvLine)
 
             const item = {
                 itemId: `item-${Date.now()}-${items.length}`,
@@ -310,7 +257,6 @@ export function csvToData(csvString) {
 
     } catch (error) {
         console.error("Failed to parse CSV string (New Format):", error);
-        // If new format fails, try the old one
         try {
             return csvToData_OldFormat(csvString);
         } catch (oldError) {
@@ -320,16 +266,13 @@ export function csvToData(csvString) {
     }
 }
 
-/**
- * [FALLBACK] Kept the old parser logic to handle files saved in the previous format (Phase 4 / 8th Edit)
- */
 function csvToData_OldFormat(csvString) {
     const lines = csvString.trim().split('\n');
     const headerIndex = lines.findIndex(line => line.trim() !== '' && line.startsWith('#,Width'));
-    if (headerIndex === -1) return null; // Not a recognized format
+    if (headerIndex === -1) return null;
 
     const headerLine = lines[headerIndex];
-    const headers = headerLine.split(','); // Old parser OK here
+    const headers = headerLine.split(',');
 
     const f1Snapshot = {};
     const snapshotKeys = Object.keys(initialState.quoteData.f1Snapshot);
@@ -349,17 +292,16 @@ function csvToData_OldFormat(csvString) {
             return;
         }
 
-        const values = trimmedLine.split(','); // Old parser OK here
+        const values = trimmedLine.split(',');
 
         if (values[0] === 'F1_SNAPSHOT' && values.length >= 3) {
-            // This is the Phase 3 format, not Phase 4. Handle it anyway.
             const key = values[1];
             const value = values[2];
             if (f1Snapshot.hasOwnProperty(key)) {
                 const numValue = parseFloat(value);
                 f1Snapshot[key] = isNaN(numValue) ? value : numValue;
             }
-            return; // Skip to the next line
+            return;
         }
 
         if (index === 0) {
@@ -400,6 +342,5 @@ function csvToData_OldFormat(csvString) {
         }
     });
 
-    // [MODIFIED] (v6295-fix) Return an empty f2Snapshot for compatibility
     return { items, lfIndexes, f1Snapshot, f2Snapshot: {}, f3Data: { customer: {} } };
 }
