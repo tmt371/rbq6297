@@ -8,8 +8,9 @@
 // [MODIFIED] (F1 Motor Split Fix) Updated getQuoteTemplateData to use correct SALES price for motors ($250/$200).
 // [MODIFIED] (F1 Motor Split Fix 2) Hardcoded motor sales price calculation in getQuoteTemplateData for robustness.
 // [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings 'HD' and 'D' with COMPONENT_CODES.
+// [MODIFIED] (Stage 9 Fix WorkOrder Cost) Reverted motor price in getQuoteTemplateData to USE COST ($160/$130) for Work Order.
 
-import { COMPONENT_CODES } from '../config/business-constants.js'; // [NEW]
+import { COMPONENT_CODES } from '../config/business-constants.js';
 
 /**
  * @fileoverview Service for handling all price and sum calculations.
@@ -493,21 +494,13 @@ export class CalculationService {
         const items = quoteData.products.rollerBlind.items;
         const formatPrice = (price) => (typeof price === 'number' && price > 0) ? `$${price.toFixed(2)}` : '';
 
-        // [REMOVED] (Phase 7) Removed duplicated logic
-        // ...
-
         // [NEW] (Phase 7) Use F1 cost components (f1Costs) for QTY and Cost
         const motorQty = f1Costs.qtys.motor || '';
 
-        // [MODIFIED] (F1 Motor Split Fix 2) Hardcode the calculation logic here for maximum robustness.
-        // This bypasses any potential issues with return values from other functions.
-        const itemsForMotor = quoteData.products[quoteData.currentProduct].items;
-        const totalMotorQtyForCalc = itemsForMotor.filter(item => !!item.motor).length;
-        let wMotorQtyForCalc = ui.f1.w_motor_qty || 0;
-        if (wMotorQtyForCalc > totalMotorQtyForCalc) wMotorQtyForCalc = totalMotorQtyForCalc;
-        const bMotorQtyForCalc = totalMotorQtyForCalc - wMotorQtyForCalc;
-        const motorPrice = (bMotorQtyForCalc * 250) + (wMotorQtyForCalc * 200);
-
+        // [MODIFIED] (Stage 9 Fix WorkOrder Cost)
+        // For Work Order / Gen-Order, we must use COST Price (F1), NOT Sales Price (F2).
+        // Previously we hardcoded (b*250 + w*200). Now we use the cost calculated by calculateF1Costs.
+        const motorPrice = f1Costs.motorCost; // This is (bQty*160 + wQty*130)
 
         const remote1chQty = f1Costs.qtys.remote1ch || '';
         const remote1chPrice = f1Costs.remote1chCost; // F1 cost
@@ -524,10 +517,8 @@ export class CalculationService {
         const wifiHubQty = f1Costs.qtys.wifi || '';
         const wifiHubPrice = f1Costs.wifiCost; // F1 cost
 
-        // [MODIFIED] (F1 Motor Split Fix) Recalculate eAcceSum using the CORRECT motor sales price
-        // Note: Other accessories (remote, charger etc.) here seem to be using COST prices from f1Costs?
-        // If they are supposed to be Sales Prices, they should be updated too.
-        // However, to fix the reported issue (Motor Price), we focus on motorPrice.
+        // [MODIFIED] (Stage 9 Fix WorkOrder Cost) Recalculate eAcceSum using the COST motor price
+        // Note: All other items (remote, etc.) are already Costs derived from f1Costs.
         const eAcceSum = motorPrice + remote1chPrice + remote16chPrice + chargerPrice + cord3mPrice + wifiHubPrice;
 
         // [NEW] (Phase 8) Calculate detailed F1 costs for Work Order table
@@ -581,7 +572,7 @@ export class CalculationService {
 
             // [MODIFIED] (Phase 7) Data for the accessories table (Appendix / Work Order)
             motorQty: motorQty,
-            motorPrice: formatPrice(motorPrice), // [FIX] Now uses Sales Price
+            motorPrice: formatPrice(motorPrice), // [FIX] Now uses COST Price ($160/$130)
             remote1chQty: remote1chQty,
             remote1chPrice: formatPrice(remote1chPrice),
             remote16chQty: remote16chQty,
@@ -593,7 +584,7 @@ export class CalculationService {
             wifiHubQty: wifiHubQty, // [NEW] (v6295)
             wifiHubPrice: formatPrice(wifiHubPrice), // [NEW] (v6295)
 
-            eAcceSum: formatPrice(eAcceSum), // [FIX] Now uses Sales Total
+            eAcceSum: formatPrice(eAcceSum), // [FIX] Now uses COST Total
 
             // [NEW] (Phase 8) F1 costs for Work Order table
             wo_rb_price: formatPrice(f1_rb_price),
