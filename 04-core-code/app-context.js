@@ -149,6 +149,7 @@ export class AppContext {
         const configManager = this.get('configManager');
         const productFactory = this.get('productFactory');
         const fileService = this.get('fileService');
+        const focusService = this.get('focusService'); // [FIXED] Missing dependency restored
 
         const leftPanelElement = document.getElementById(DOM_IDS.LEFT_PANEL);
         const leftPanelTabManager = new LeftPanelTabManager(leftPanelElement, eventAggregator);
