@@ -1,4 +1,7 @@
-// File: 04-core-code/ui/tabs/k2-tab/k2-tab-component.js
+/* FILE: 04-core-code/ui/tabs/k2-tab/k2-tab-component.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES to fix button state bug.
+
+import { LOGIC_CODES } from '../../../config/business-constants.js'; // [NEW]
 
 /**
  * @fileoverview [NEW] A dedicated component for managing and rendering the K2 (Fabric) tab UI,
@@ -20,19 +23,21 @@ export class K2TabComponent {
 
         const { activeEditMode } = uiState;
 
-        // Define our specific K2 modes
-        const isLFMode = activeEditMode === 'K2_LF_MODE';
-        const isLFDMode = activeEditMode === 'K2_LF_DELETE_SELECT';
-        const isSSetMode = activeEditMode === 'K2_SSET_MODE'; // [NEW] (v6294 SSet)
+        // [MODIFIED] Use constants for mode checks
+        const isLFMode = activeEditMode === LOGIC_CODES.MODE_LF;
+        const isLFDMode = activeEditMode === LOGIC_CODES.MODE_LF_DEL;
+        const isSSetMode = activeEditMode === LOGIC_CODES.MODE_SSET;
 
         // Is *any* K2 mode active?
-        const isK2ModeActive = isLFMode || isLFDMode || isSSetMode; // [MODIFIED] (v6294 SSet)
+        const isK2ModeActive = isLFMode || isLFDMode || isSSetMode;
 
         // Is *another* panel mode active (like K1, K3, K4, K5)?
+        // If activeEditMode is not null AND it's not one of our K2 modes, it must be another panel.
         const isOtherPanelModeActive = activeEditMode !== null && !isK2ModeActive;
 
         // Handle LF Button (New Active State)
         this.lfButton.classList.toggle('active', isLFMode);
+        // Disabled if: Another K2 mode is active OR Another Panel mode is active
         this.lfButton.disabled = (isK2ModeActive && !isLFMode) || isOtherPanelModeActive;
 
         // Handle LFD Button (Existing Active State)

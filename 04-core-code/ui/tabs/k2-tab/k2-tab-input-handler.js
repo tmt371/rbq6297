@@ -1,6 +1,8 @@
-// File: 04-core-code/ui/tabs/k2-tab/k2-tab-input-handler.js
+/* FILE: 04-core-code/ui/tabs/k2-tab/k2-tab-input-handler.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES to match reducer logic.
 
 import { EVENTS, DOM_IDS } from '../../../config/constants.js';
+import { LOGIC_CODES } from '../../../config/business-constants.js'; // [NEW]
 
 /**
  * @fileoverview A dedicated input handler for all user interactions
@@ -51,8 +53,6 @@ export class K2TabInputHandler {
         this._addListener(this.lfButton, 'click', this._onLFFClick);
         this._addListener(this.lfDelButton, 'click', this._onLFDClick);
         this._addListener(this.sSetButton, 'click', this._onSSetClick);
-
-        // [REMOVED] (Phase 3 Cleanup) Obsolete listeners for the deleted table
     }
 
     // [NEW] (v6298-fix-4) Extracted handlers
@@ -61,14 +61,17 @@ export class K2TabInputHandler {
     }
 
     _onLFFClick() {
-        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'LF' });
+        // [MODIFIED] Use constant
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: LOGIC_CODES.MODE_LF });
     }
 
     _onLFDClick() {
-        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'LFD' });
+        // [MODIFIED] Use constant
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: LOGIC_CODES.MODE_LF_DEL });
     }
 
     _onSSetClick() {
-        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'SSet' });
+        // [MODIFIED] Use constant
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: LOGIC_CODES.MODE_SSET });
     }
 }
