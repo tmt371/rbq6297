@@ -1,11 +1,12 @@
 /* FILE: 04-core-code/services/data-preparation-service.js */
 // [NEW] (v6297 Stage 9 - Refactor) Created to implement the Data Preparation Layer.
-// This service acts as the "Single Source of Truth" for all export data (Excel, PDF, etc.).
 // [MODIFIED] (Stage 9 Phase 2) Implemented core logic: Sanitation, Dimensions, Sorting, Type Detection.
-// [MODIFIED] (Stage 9 Phase 2 Fix 2) Updated Drop logic: Exact match (height == drop) keeps original height; otherwise Drop-5.
-// [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX to remove hardcoded regex.
+// [MODIFIED] (Stage 9 Phase 2 Fix 2) Updated Drop logic.
+// [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX.
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with business constants.
 
-import { REGEX } from '../config/regex.js'; // [NEW]
+import { REGEX } from '../config/regex.js';
+import { COMPONENT_CODES, MOUNT_TYPES, LOGIC_CODES } from '../config/business-constants.js'; // [NEW]
 
 /**
  * @typedef {Object} ExportItem
@@ -47,7 +48,6 @@ export class DataPreparationService {
      */
     constructor({ configManager }) {
         this.configManager = configManager;
-        // [REMOVED] Regex to remove invisible Unicode characters is now imported
         console.log("DataPreparationService Initialized (Core Logic Ready).");
     }
 
@@ -107,9 +107,11 @@ export class DataPreparationService {
             oi: this._sanitize(item.oi),
             lr: this._sanitize(item.lr),
 
-            // Logic Checks
-            dual: item.dual === 'D' ? 'Y' : '',
-            winder: item.winder === 'HD' ? 'Y' : '',
+            // Logic Checks (Using Constants)
+            dual: item.dual === COMPONENT_CODES.DUAL_BRACKET ? 'Y' : '',
+            winder: item.winder === COMPONENT_CODES.WINDER_HD ? 'Y' : '',
+            // Note: Motor check is fuzzy because value can be 'Motor' or something else if changed, 
+            // but usually it is truthy check. Strict check matches business-constants.
             motor: item.motor ? 'Y' : '',
             chain: item.chain || '',
 
@@ -127,7 +129,6 @@ export class DataPreparationService {
      */
     _sanitize(value) {
         if (typeof value !== 'string') return value || '';
-        // [MODIFIED] Use centralized regex
         return value.replace(REGEX.INVISIBLE_CHAR, '');
     }
 
@@ -144,14 +145,14 @@ export class DataPreparationService {
      */
     _determineTypeCode(item, isLf) {
         if (isLf) {
-            return "LF";
+            return LOGIC_CODES.LIGHT_FILTER; // 'LF'
         }
         const type = item.fabricType || '';
         if (type.startsWith('B')) {
-            return "BO";
+            return LOGIC_CODES.BLOCKOUT; // 'BO'
         }
         if (type === 'SN') {
-            return "SN";
+            return LOGIC_CODES.SCREEN; // 'SN'
         }
         return "";
     }
@@ -159,17 +160,14 @@ export class DataPreparationService {
     /**
      * Calculates Manufacturing Dimensions (Business Rules).
      * Width: IN -4mm, OUT -2mm.
-     * Height: 
-     * - Find smallest drop >= item.height.
-     * - IF drop == item.height: mHeight = item.height (No change).
-     * - IF drop > item.height: mHeight = drop - 5.
+     * Height: Lookup Price Matrix Drop - 5mm (unless exact match).
      */
     _calculateManufacturingDimensions(item) {
         // 1. Width Correction
         let mWidth = item.width;
-        if (item.oi === 'IN') {
+        if (item.oi === MOUNT_TYPES.IN_RECESS) {
             mWidth = mWidth - 4;
-        } else if (item.oi === 'OUT') {
+        } else if (item.oi === MOUNT_TYPES.FACE_FIX) {
             mWidth = mWidth - 2;
         }
 
@@ -183,15 +181,14 @@ export class DataPreparationService {
 
                 if (nextDrop) {
                     if (nextDrop === item.height) {
-                        // [FIX] If exact match, keep original height to avoid jumping to next tier price-wise
-                        // or simply because it's the requested size.
+                        // Exact match: Keep original
                         mHeight = item.height;
                     } else {
-                        // [FIX] If smaller than tier, expand to max fabric size (Tier - 5mm)
+                        // Not exact: Drop - 5
                         mHeight = nextDrop - 5;
                     }
                 } else {
-                    // Fallback: Exceeds max drop, keep original
+                    // Fallback: Exceeds max drop
                 }
             }
         }
@@ -214,9 +211,9 @@ export class DataPreparationService {
         });
 
         const getCategoryRank = (item) => {
-            if (item.typeCode === 'LF') return 3; // LF Last
-            if (item.typeCode === 'BO') return 1; // Blockout First
-            if (item.typeCode === 'SN') return 2; // Screen Second
+            if (item.typeCode === LOGIC_CODES.LIGHT_FILTER) return 3; // LF Last
+            if (item.typeCode === LOGIC_CODES.BLOCKOUT) return 1; // Blockout First
+            if (item.typeCode === LOGIC_CODES.SCREEN) return 2; // Screen Second
             return 4; // Others
         };
 

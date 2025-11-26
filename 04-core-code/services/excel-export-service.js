@@ -9,14 +9,16 @@
 // [MODIFIED] (v6299 Print Optimization) Added pageSetup for A4 Landscape Fit-to-Width.
 // [MODIFIED] (v6297 Stage 9 Phase 3) Refactored to use DataPreparationService as the Single Source of Truth.
 // [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX to remove hardcoded regex.
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES.
 
-import { REGEX } from '../config/regex.js'; // [NEW]
+import { REGEX } from '../config/regex.js';
+import { LOGIC_CODES } from '../config/business-constants.js'; // [NEW]
 
 export class ExcelExportService {
     constructor({ configManager, calculationService, dataPreparationService }) {
         this.configManager = configManager;
         this.calculationService = calculationService;
-        this.dataPreparationService = dataPreparationService; // [NEW] Injected Service
+        this.dataPreparationService = dataPreparationService;
         console.log("ExcelExportService Initialized with ConfigManager, CalculationService, and DataPreparationService.");
     }
 
@@ -39,7 +41,7 @@ export class ExcelExportService {
         const f1Costs = this.calculationService.calculateF1Costs(quoteData, ui);
         const f2Summary = this.calculationService.calculateF2Summary(quoteData, ui);
 
-        // [NEW] Prepare standardized data using the new service
+        // Prepare standardized data using the new service
         const uiMetadata = quoteData.uiMetadata || {};
         const exportData = this.dataPreparationService.getExportData(quoteData, uiMetadata);
 
@@ -102,16 +104,16 @@ export class ExcelExportService {
         });
 
         // --- 2. Populate Rows using Standardized Export Items ---
-        // [MODIFIED] Iterate over exportData.items which are already sorted and calculated
+        // Iterate over exportData.items which are already sorted and calculated
         exportData.items.forEach((item) => {
 
             // Determine Background Color based on Standardized Type Code or Flags
             let argbColor = null;
             if (item.isLf) {
                 argbColor = 'FFFFE6E6'; // Lighter Pink
-            } else if (item.typeCode === 'BO') {
+            } else if (item.typeCode === LOGIC_CODES.BLOCKOUT) {
                 argbColor = 'FFE0E0E0'; // Light Grey
-            } else if (item.typeCode === 'SN') {
+            } else if (item.typeCode === LOGIC_CODES.SCREEN) {
                 argbColor = 'FFE0FFFF'; // Light Cyan
             }
 
@@ -163,8 +165,6 @@ export class ExcelExportService {
         });
 
         // --- 4. Side Panel Generation (Columns Q, R, S) ---
-        // [NOTE] This logic remains largely unchanged as it depends on F1/F2 calc services,
-        // which are separate from the Item Data Preparation.
         const qtys = f1Costs.qtys || {};
 
         // Acce Sum
@@ -381,12 +381,8 @@ export class ExcelExportService {
         }
     }
 
-    /**
-     * [MODIFIED] Use centralized Regex for sanitation.
-     */
     _sanitize(value) {
         if (typeof value !== 'string') return value;
-        // [MODIFIED] Use the imported REGEX constant
         return value.replace(REGEX.INVISIBLE_CHAR, '');
     }
 

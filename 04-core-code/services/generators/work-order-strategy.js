@@ -7,20 +7,21 @@
 // [MODIFIED] (v6299 Phase 8 Tweak) Updated TYPE labels to short codes (BO, SN, LF).
 // [MODIFIED] (v6299 Phase 10 Tweak) Reduced 'off' font size in summary row.
 // [MODIFIED] (v6297 Stage 9 Phase 3) Refactored to use DataPreparationService as Single Source of Truth.
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES.
 
 import { populateTemplate } from '../../utils/template-utils.js';
+import { LOGIC_CODES } from '../../config/business-constants.js'; // [NEW]
 
 export class WorkOrderStrategy {
     constructor({ configManager, dataPreparationService } = {}) {
         this.configManager = configManager;
-        this.dataPreparationService = dataPreparationService; // [NEW] Injected Service
+        this.dataPreparationService = dataPreparationService;
     }
 
     /**
      * Generates the table rows for the Work Order HTML.
      */
     generateRows(quoteData, ui, rowTemplate) {
-        // [NEW] Use DataPreparationService to get standardized, sorted, and calculated data
         const uiMetadata = quoteData.uiMetadata || {};
         const exportData = this.dataPreparationService.getExportData(quoteData, uiMetadata);
         const sortedItems = exportData.items;
@@ -34,16 +35,16 @@ export class WorkOrderStrategy {
         const rowsHtml = sortedItems.map((item, index) => {
             // Stats (using standardized properties from ExportItem)
             if (item.dual === 'Y') dualCount++;
-            if (item.winder === 'Y') hdCount++; // ExportItem normalizes 'HD' to 'Y' or specific code if changed
+            if (item.winder === 'Y') hdCount++;
             if (item.price) totalListPrice += item.price;
 
             // --- Styles Mapping ---
             let fabricClass = '';
             if (item.isLf) {
                 fabricClass = 'bg-light-filter';
-            } else if (item.typeCode === 'BO') {
+            } else if (item.typeCode === LOGIC_CODES.BLOCKOUT) { // [MODIFIED] Use constant
                 fabricClass = 'bg-blockout';
-            } else if (item.typeCode === 'SN') {
+            } else if (item.typeCode === LOGIC_CODES.SCREEN) { // [MODIFIED] Use constant
                 fabricClass = 'bg-screen';
             }
 
@@ -60,7 +61,7 @@ export class WorkOrderStrategy {
                 lr: item.lr,
                 dual: item.dual,      // 'Y' or ''
                 chain: item.chain,
-                winder: item.winder,  // 'Y' or '' (Standardized)
+                winder: item.winder,  // 'Y' or ''
                 motor: item.motor,    // 'Y' or ''
                 location: item.location,
                 price: item.formattedPrice,
@@ -94,8 +95,4 @@ export class WorkOrderStrategy {
 
         return rowsHtml + summaryRowHtml;
     }
-
-    // [REMOVED] _calculateManufacturingDimensions logic is now handled by DataPreparationService
-    // [REMOVED] _sortItems logic is now handled by DataPreparationService
-    // [REMOVED] _getRowClass logic is now integrated into generateRows
 }
