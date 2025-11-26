@@ -5,7 +5,7 @@
 // [MODIFIED] (v6299 Phase 4) Moved excelExportService injection from WorkflowService to QuotePersistenceService for architectural consistency.
 // [MODIFIED] (v6299 Phase 5) Inject configManager into WorkOrderStrategy for height calculation.
 // [MODIFIED] (v6297 Stage 9) Register DataPreparationService.
-// [MODIFIED] (v6297 Stage 9 Phase 3) Inject dataPreparationService into ExcelExportService.
+// [MODIFIED] (v6297 Stage 9 Phase 3) Inject dataPreparationService into ExcelExportService and WorkOrderStrategy.
 
 /**
  * @description
@@ -124,6 +124,8 @@ export class AppContext {
         const authService = this.get('authService'); // [NEW] (v6297) Get AuthService
         // [NEW] (v6299 Gen-Xls) Get ExcelExportService
         const excelExportService = this.get('excelExportService');
+        // [NEW] (Stage 9 Phase 3) Get DataPreparationService
+        const dataPreparationService = this.get('dataPreparationService');
 
         // --- [NEW] Instantiate LeftPanelTabManager (Phase 6 Refactor) ---
         const leftPanelElement = document.getElementById(DOM_IDS.LEFT_PANEL);
@@ -163,7 +165,11 @@ export class AppContext {
 
         // --- [NEW] (階段 2) 初始化 Generator 策略 ---
         // [MODIFIED] (v6299 Phase 5) Inject configManager for Work Order Logic
-        const workOrderStrategy = new WorkOrderStrategy({ configManager });
+        // [MODIFIED] (Stage 9 Phase 3) Inject dataPreparationService
+        const workOrderStrategy = new WorkOrderStrategy({
+            configManager,
+            dataPreparationService // [NEW] Injected
+        });
         this.register('workOrderStrategy', workOrderStrategy);
 
         // [NEW] (階段 3) 初始化原報表策略
