@@ -3,6 +3,9 @@
 // This service acts as the "Single Source of Truth" for all export data (Excel, PDF, etc.).
 // [MODIFIED] (Stage 9 Phase 2) Implemented core logic: Sanitation, Dimensions, Sorting, Type Detection.
 // [MODIFIED] (Stage 9 Phase 2 Fix 2) Updated Drop logic: Exact match (height == drop) keeps original height; otherwise Drop-5.
+// [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX to remove hardcoded regex.
+
+import { REGEX } from '../config/regex.js'; // [NEW]
 
 /**
  * @typedef {Object} ExportItem
@@ -44,8 +47,7 @@ export class DataPreparationService {
      */
     constructor({ configManager }) {
         this.configManager = configManager;
-        // Regex to remove invisible Unicode characters (e.g., U+200B Zero Width Space)
-        this.invisibleCharRegex = /[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g;
+        // [REMOVED] Regex to remove invisible Unicode characters is now imported
         console.log("DataPreparationService Initialized (Core Logic Ready).");
     }
 
@@ -125,7 +127,8 @@ export class DataPreparationService {
      */
     _sanitize(value) {
         if (typeof value !== 'string') return value || '';
-        return value.replace(this.invisibleCharRegex, '');
+        // [MODIFIED] Use centralized regex
+        return value.replace(REGEX.INVISIBLE_CHAR, '');
     }
 
     /**

@@ -8,6 +8,9 @@
 // [MODIFIED] (v6299 Phase 4 Tweak 2) Added TYPE column, lighter pink, shifted Side Panel, removed Legend.
 // [MODIFIED] (v6299 Print Optimization) Added pageSetup for A4 Landscape Fit-to-Width.
 // [MODIFIED] (v6297 Stage 9 Phase 3) Refactored to use DataPreparationService as the Single Source of Truth.
+// [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX to remove hardcoded regex.
+
+import { REGEX } from '../config/regex.js'; // [NEW]
 
 export class ExcelExportService {
     constructor({ configManager, calculationService, dataPreparationService }) {
@@ -287,9 +290,6 @@ export class ExcelExportService {
         });
     }
 
-    // [REMOVED] _sortItemsForWorkOrder logic is now handled by DataPreparationService
-    // [REMOVED] _calculateProductionDimensions logic is now handled by DataPreparationService
-
     _generateDataSheet(workbook, quoteData) {
         const sheet = workbook.addWorksheet('data-sheet');
 
@@ -381,9 +381,13 @@ export class ExcelExportService {
         }
     }
 
+    /**
+     * [MODIFIED] Use centralized Regex for sanitation.
+     */
     _sanitize(value) {
         if (typeof value !== 'string') return value;
-        return value.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '');
+        // [MODIFIED] Use the imported REGEX constant
+        return value.replace(REGEX.INVISIBLE_CHAR, '');
     }
 
     _generateFileName(quoteData) {

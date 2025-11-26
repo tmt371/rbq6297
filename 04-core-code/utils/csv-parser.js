@@ -2,13 +2,14 @@
 // [MODIFIED] (v6295-fix) Added F2 snapshot support and fixed null/string handling.
 // [MODIFIED] (F1 Motor Split Fix) Added w_motor_qty to f1SnapshotKeys to ensure persistence on load.
 // [FIX] (CSV Export) Added sanitation for invisible unicode characters (e.g., U+202C) to prevent Excel parsing errors.
+// [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX to remove hardcoded regex.
 
 /**
  * @fileoverview Utility functions for parsing and stringifying CSV data.
  */
 
-// [FIX] х░ОхЕецн?в║??initialState цибцЭ┐я╝Мф╗еф┐ох╛й csvToData_OldFormat ??ReferenceError
 import { initialState } from '../config/initial-state.js';
+import { REGEX } from '../config/regex.js'; // [NEW]
 
 // [MODIFIED v6285 Phase 5] Define the exact keys and order for all snapshot data
 // [MODIFIED v6295] Add 'wifi_qty' to the snapshot keys
@@ -62,8 +63,8 @@ export function dataToCsv(quoteData) {
         let strValue = (value === null || value === undefined) ? '' : String(value);
 
         // 1. Remove invisible Unicode control characters (e.g., U+202C from phone numbers)
-        // eslint-disable-next-line no-control-regex
-        strValue = strValue.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '');
+        // [MODIFIED] Use centralized REGEX
+        strValue = strValue.replace(REGEX.INVISIBLE_CHAR, '');
 
         // 2. Escape double quotes by doubling them
         strValue = strValue.replace(/"/g, '""');
@@ -152,16 +153,17 @@ export function dataToCsv(quoteData) {
 
 
 /**
- * [PRIVATE] ш╝ФхКй?╜цХ╕я╝Мф╜┐?ицнгшжПшбичд║х?ф╛Жцнгчв║шзг??CSV шбМя?ф╕жш??Жх??лхЬих╝Хш??зч??Чш???
- * @param {string} line - ?ош? CSV хнЧф╕▓??
- * @returns {Array<string>} - шз??х╛Мч?цмДф??????
+ * [PRIVATE] 解析 CSV 單行，處理引號與逗號。
+ * @param {string} line - 單行 CSV 字串。
+ * @returns {Array<string>} - 解析後的陣列。
  */
 function _parseCsvLine(line) {
     const values = [];
 
-    // [FIX] ф┐оцнг Regexя╝?
-    // 1. чз╗щЩдчммф??Лч╛дч╡?(?:^|,) х╛МцЦ╣хдЪщ???|я╝МщАЩц?х░ОшЗ┤?╣щ??пшкд
-    // 2. х░Зчммф║МхАЛч╛дч╡ДцФ╣?║ц??▓ч╛дч╡?((...))я╝Мчв║ф┐?match[1] хзЛч??ЕхРл?СхАСцГ│шжБч?цмДф??зхо╣
+    // [FIX] 這是最穩健的 CSV 解析 Regex：
+    // 1. 匹配開頭或逗號 (?:^|,) 作為分隔符
+    // 2. 捕獲內容：雙引號包圍的內容 ((?:[^"]|"")*) OR 非逗號內容 ([^,]*)
+    // match[1] 就是我們要的內容（包含引號），稍後需去引號和還原雙引號
     const regex = /(?:^|,)((?:"(?:[^"]|"")*"|[^,]*))/g;
     let match;
 
@@ -170,19 +172,14 @@ function _parseCsvLine(line) {
 
         let value = match[1];
 
-        // [FIX] чз╗щЩдф╕А?ЛщМпшкдч??Пш╝пя╝Мmatch[1] (?ХчН▓ч╛дч?) ф╕Нц??ЕхРлшбМщ??ДщАЧш?
-        // if (value.startsWith(',')) {
-        //     value = value.substring(1);
-        // }
-
-        // чз╗щЩдх╝Хш?ф╕жх?ш╜Йч╛й
+        // [FIX] 移除首尾的引號並還原雙引號
         if (value.startsWith('"') && value.endsWith('"')) {
             value = value.substring(1, value.length - 1).replace(/""/g, '"');
         }
         values.push(value.trim());
     }
 
-    // ?Хч?шбМх░╛?пчй║цмДф??Дц?ц│?
+    // 如果行尾是逗號，補一個空值
     if (line.endsWith(',')) {
         values.push('');
     }
@@ -222,12 +219,12 @@ export function csvToData(csvString) {
 
         projectHeaders.forEach((header, index) => {
             const value = projectValues[index] || null;
-            if (value === null || value === '') return; // [MODIFIED] цквцЯечй║хА?
+            if (value === null || value === '') return; // [MODIFIED] 跳過空值
             let finalValue;
 
             // [FIX] (v6295-fix) Determine data type based on which key array it's in
             if (f1SnapshotKeys.includes(header) || f2SnapshotKeys.includes(header)) {
-                // хжВц???F1 ??F2 keyя╝Мх?шйжш??ЫчВ║?╕х?
+                // 數值與 F1, F2 key 嘗試轉為數字
                 const numValue = parseFloat(value);
                 if (!isNaN(numValue)) {
                     finalValue = numValue;
@@ -241,7 +238,7 @@ export function csvToData(csvString) {
                     finalValue = value; // Keep as string if not num/bool (e.g. for f2.wifiQty which is text "null")
                 }
             } else {
-                // хжВц???F3 key (хнЧф╕▓)я╝МчЫ┤?еш│ж??
+                // 字串與 F3 key (如 ID, Date) 保持原樣
                 finalValue = value;
             }
 
@@ -250,7 +247,7 @@ export function csvToData(csvString) {
                 f2Snapshot[header] = null;
                 return;
             }
-            if (finalValue === null) return; // ф╕НхД▓хнШчДб?ИхА?
+            if (finalValue === null) return; // 避免覆蓋預設值
 
             // Assign to the correct snapshot object
             if (f1SnapshotKeys.includes(header)) {
@@ -277,10 +274,10 @@ export function csvToData(csvString) {
                 return;
             }
 
-            // [FIX] ф╜┐чФицн?в║??CSV шз????
+            // [FIX] 使用更強大的 CSV 解析器
             const values = _parseCsvLine(trimmedLine);
 
-            // [FIX] чз╗щЩдх╝Хш? (ш╝ФхКй?╜цХ╕х╖▓хЕзх╡МшЗ│ _parseCsvLine)
+            // [FIX] 確保索引正確 (依賴更穩定的 _parseCsvLine)
 
             const item = {
                 itemId: `item-${Date.now()}-${items.length}`,
