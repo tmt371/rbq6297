@@ -1,7 +1,8 @@
 /* FILE: 04-core-code/services/quote-generator-service.js */
-// [MODIFIED] (?Оцо╡ 4) Refactored: GTH logic moved to GthQuoteStrategy.
+// [MODIFIED] (???╨╛??4) Refactored: GTH logic moved to GthQuoteStrategy.
 // [FIX] (v6299 Phase 5 Fix) Update generateWorkOrderHtml to pass raw quoteData to strategy.
 // [FIX] (v6299 Phase 7 Fix) Reverted CSS injection; CSS is now embedded in the HTML template.
+// [MODIFIED] (Stage 9 Final Fix) Pass isWorkOrder flag to getQuoteTemplateData to distinguish Cost vs Sales price.
 
 import { paths } from '../config/paths.js';
 import { populateTemplate, formatCustomerInfo } from '../utils/template-utils.js';
@@ -32,7 +33,6 @@ export class QuoteGeneratorService {
         this.detailedItemListRow = '';
         this.workOrderTemplate = '';
         this.workOrderRowTemplate = '';
-        // [REMOVED] this.workOrderCss = '';
 
         this.actionBarHtml = `
      <div id="action-bar">
@@ -64,7 +64,6 @@ export class QuoteGeneratorService {
                 this.detailedItemListRow,
                 this.workOrderTemplate,
                 this.workOrderRowTemplate
-                // [REMOVED] CSS fetch
             ] = await Promise.all([
                 fetch(paths.partials.quoteTemplate).then(res => res.text()),
                 fetch(paths.partials.detailedItemList).then(res => res.text()),
@@ -100,12 +99,12 @@ export class QuoteGeneratorService {
             this.workOrderRowTemplate
         );
 
-        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData);
+        // [MODIFIED] Pass 'true' for isWorkOrder to use Cost Prices
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData, true);
 
         const populatedData = {
             ...templateData,
             workOrderTableRows: workOrderTableRows
-            // [REMOVED] cssStyles injection
         };
 
         let finalHtml = populateTemplate(this.workOrderTemplate, populatedData);
@@ -121,7 +120,8 @@ export class QuoteGeneratorService {
             return null;
         }
 
-        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data);
+        // [MODIFIED] Pass 'false' (default) for isWorkOrder to use Sales Prices
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data, false);
 
         let gstRowHtml = '';
         if (!templateData.uiState.f2.gstExcluded) {
@@ -169,7 +169,8 @@ export class QuoteGeneratorService {
             return null;
         }
 
-        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data);
+        // [MODIFIED] Pass 'false' (default) for isWorkOrder to use Sales Prices
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data, false);
 
         let gstRowHtml = '';
         if (!templateData.uiState.f2.gstExcluded) {

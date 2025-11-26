@@ -9,6 +9,7 @@
 // [MODIFIED] (F1 Motor Split Fix 2) Hardcoded motor sales price calculation in getQuoteTemplateData for robustness.
 // [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings 'HD' and 'D' with COMPONENT_CODES.
 // [MODIFIED] (Stage 9 Fix WorkOrder Cost) Reverted motor price in getQuoteTemplateData to USE COST ($160/$130) for Work Order.
+// [MODIFIED] (Stage 9 Final Fix) Differentiate Quote (Sales Price) vs WorkOrder (Cost Price) in getQuoteTemplateData.
 
 import { COMPONENT_CODES } from '../config/business-constants.js';
 
@@ -471,14 +472,16 @@ export class CalculationService {
      * @param {object} quoteData - The *original* quote data from the state (used for items).
      * @param {object} ui - The current UI state.
      * @param {object} liveQuoteData - The *live, up-to-date* quoteData, passed from workflow service.
+     * @param {boolean} isWorkOrder - [NEW] Flag to determine if we use COST (True) or SALES (False) prices.
      * @returns {object} A comprehensive data object ready for template population.
      */
-    getQuoteTemplateData(quoteData, ui, liveQuoteData) {
-        // [MODIFIED] (Phase 7) 
-        // 1. Get F2 *Sales* Total
+    getQuoteTemplateData(quoteData, ui, liveQuoteData, isWorkOrder = false) {
+        // 1. Get F2 *Sales* Total (We use this for Overall Totals in both cases generally, or at least for Quote)
         const summaryData = this.calculateF2Summary(quoteData, ui);
-        // 2. Get F1 *Cost* Total
+        // 2. Get F1 *Cost* Total (We use this for Work Order details)
         const f1Costs = this.calculateF1Costs(quoteData, ui);
+
+        const currentProductType = quoteData.currentProduct;
 
         // [MODIFIED] (Phase 4) Grand total is now derived from F2's newOffer state, not F3.
         const newOfferValue = (ui.f2.newOffer !== null && ui.f2.newOffer !== undefined) ? ui.f2.newOffer : summaryData.sumPrice;
@@ -494,34 +497,57 @@ export class CalculationService {
         const items = quoteData.products.rollerBlind.items;
         const formatPrice = (price) => (typeof price === 'number' && price > 0) ? `$${price.toFixed(2)}` : '';
 
-        // [NEW] (Phase 7) Use F1 cost components (f1Costs) for QTY and Cost
+        // --- Determine Item Prices (Cost vs Sales) ---
+        let motorPrice, remote1chPrice, remote16chPrice, chargerPrice, cord3mPrice, wifiHubPrice, eAcceSum;
+
         const motorQty = f1Costs.qtys.motor || '';
-
-        // [MODIFIED] (Stage 9 Fix WorkOrder Cost)
-        // For Work Order / Gen-Order, we must use COST Price (F1), NOT Sales Price (F2).
-        // Previously we hardcoded (b*250 + w*200). Now we use the cost calculated by calculateF1Costs.
-        const motorPrice = f1Costs.motorCost; // This is (bQty*160 + wQty*130)
-
         const remote1chQty = f1Costs.qtys.remote1ch || '';
-        const remote1chPrice = f1Costs.remote1chCost; // F1 cost
-
         const remote16chQty = f1Costs.qtys.remote16ch || '';
-        const remote16chPrice = f1Costs.remote16chCost; // F1 cost
-
         const chargerQty = f1Costs.qtys.charger || '';
-        const chargerPrice = f1Costs.chargerCost; // F1 cost
-
         const cord3mQty = f1Costs.qtys.cord || '';
-        const cord3mPrice = f1Costs.cordCost; // F1 cost
-
         const wifiHubQty = f1Costs.qtys.wifi || '';
-        const wifiHubPrice = f1Costs.wifiCost; // F1 cost
 
-        // [MODIFIED] (Stage 9 Fix WorkOrder Cost) Recalculate eAcceSum using the COST motor price
-        // Note: All other items (remote, etc.) are already Costs derived from f1Costs.
-        const eAcceSum = motorPrice + remote1chPrice + remote16chPrice + chargerPrice + cord3mPrice + wifiHubPrice;
+        if (isWorkOrder) {
+            // --- Work Order: Use COSTS (from F1) ---
+            motorPrice = f1Costs.motorCost; // (bQty*160 + wQty*130)
+            remote1chPrice = f1Costs.remote1chCost;
+            remote16chPrice = f1Costs.remote16chCost;
+            chargerPrice = f1Costs.chargerCost;
+            cord3mPrice = f1Costs.cordCost;
+            wifiHubPrice = f1Costs.wifiCost;
+            // eAcceSum for Work Order (Sum of Costs)
+            eAcceSum = motorPrice + remote1chPrice + remote16chPrice + chargerPrice + cord3mPrice + wifiHubPrice;
 
-        // [NEW] (Phase 8) Calculate detailed F1 costs for Work Order table
+        } else {
+            // --- Quote: Use SALES PRICES ---
+            // Motor Sales Price: (bQty * 250) + (wQty * 200)
+            // We can re-use the logic from calculateF2Summary which does exactly this for 'calculatedMotorPrice'
+            motorPrice = summaryData.calculatedMotorPrice;
+
+            // Other Accessories Sales Prices
+            // Use helper `calculateAccessorySalePrice` which handles standard pricing (e.g. remote=$100)
+
+            // Remote 1CH
+            remote1chPrice = this.calculateAccessorySalePrice(currentProductType, 'remote', { count: remote1chQty });
+
+            // Remote 16CH
+            remote16chPrice = this.calculateAccessorySalePrice(currentProductType, 'remote', { count: remote16chQty });
+
+            // Charger
+            chargerPrice = this.calculateAccessorySalePrice(currentProductType, 'charger', { count: chargerQty });
+
+            // Cord
+            cord3mPrice = this.calculateAccessorySalePrice(currentProductType, 'cord', { count: cord3mQty });
+
+            // Wifi: F2 logic uses fixed $300 sale price
+            wifiHubPrice = wifiHubQty * 300;
+
+            // eAcceSum for Quote (Sum of Sales Prices)
+            eAcceSum = motorPrice + remote1chPrice + remote16chPrice + chargerPrice + cord3mPrice + wifiHubPrice;
+        }
+
+        // [NEW] (Phase 8) F1 costs for Work Order table
+        // These are specifically "Work Order" costs, so they always use F1 data.
         // 1. RB Cost
         const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
         const discountPercentage = ui.f1.discountPercentage || 0;
@@ -572,7 +598,7 @@ export class CalculationService {
 
             // [MODIFIED] (Phase 7) Data for the accessories table (Appendix / Work Order)
             motorQty: motorQty,
-            motorPrice: formatPrice(motorPrice), // [FIX] Now uses COST Price ($160/$130)
+            motorPrice: formatPrice(motorPrice), // [FIX] Depends on isWorkOrder flag
             remote1chQty: remote1chQty,
             remote1chPrice: formatPrice(remote1chPrice),
             remote16chQty: remote16chQty,
@@ -584,9 +610,9 @@ export class CalculationService {
             wifiHubQty: wifiHubQty, // [NEW] (v6295)
             wifiHubPrice: formatPrice(wifiHubPrice), // [NEW] (v6295)
 
-            eAcceSum: formatPrice(eAcceSum), // [FIX] Now uses COST Total
+            eAcceSum: formatPrice(eAcceSum), // [FIX] Depends on isWorkOrder flag
 
-            // [NEW] (Phase 8) F1 costs for Work Order table
+            // [NEW] (Phase 8) F1 costs for Work Order table (Always Costs)
             wo_rb_price: formatPrice(f1_rb_price),
             wo_acce_price: formatPrice(acce_total),
             // 'eAcceSum' (wo_e_item_price) already passed above
