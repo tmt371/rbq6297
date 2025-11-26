@@ -7,6 +7,9 @@
 // [MODIFIED] (F1 Motor Split) Updated calculateF2Summary to split B-Motor/W-Motor sales prices ($250/$200).
 // [MODIFIED] (F1 Motor Split Fix) Updated getQuoteTemplateData to use correct SALES price for motors ($250/$200).
 // [MODIFIED] (F1 Motor Split Fix 2) Hardcoded motor sales price calculation in getQuoteTemplateData for robustness.
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings 'HD' and 'D' with COMPONENT_CODES.
+
+import { COMPONENT_CODES } from '../config/business-constants.js'; // [NEW]
 
 /**
  * @fileoverview Service for handling all price and sum calculations.
@@ -220,7 +223,8 @@ export class CalculationService {
         const componentPrices = {};
 
         // Winder
-        const winderQty = items.filter(item => item.winder === 'HD').length;
+        // [MODIFIED] Use constant
+        const winderQty = items.filter(item => item.winder === COMPONENT_CODES.WINDER_HD).length;
         componentPrices.winder = this.calculateF1ComponentPrice('winder', winderQty);
 
         // Motor (Total)
@@ -266,7 +270,8 @@ export class CalculationService {
         componentPrices['3m-cord'] = this.calculateF1ComponentPrice('3m-cord', cordQty);
 
         // Dual (Use F1 UI state quantities)
-        const totalDualPairs = Math.floor(items.filter(item => item.dual === 'D').length / 2);
+        // [MODIFIED] Use constant
+        const totalDualPairs = Math.floor(items.filter(item => item.dual === COMPONENT_CODES.DUAL_BRACKET).length / 2);
         const comboQty = (ui.f1.dual_combo_qty === null) ? totalDualPairs : ui.f1.dual_combo_qty;
         const slimQty = (ui.f1.dual_slim_qty === null) ? 0 : ui.f1.dual_slim_qty;
         componentPrices['dual-combo'] = this.calculateF1ComponentPrice('dual-combo', comboQty);

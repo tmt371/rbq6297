@@ -1,4 +1,5 @@
-// File: 04-core-code/strategies/roller-blind-strategy.js
+/* FILE: 04-core-code/strategies/roller-blind-strategy.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with COMPONENT_CODES.
 
 /**
  * @fileoverview Contains all business logic specific to the Roller Blind product.
@@ -7,6 +8,7 @@
 
 // [MODIFIED] Changed the import from a bare module specifier to a browser-compatible CDN URL.
 import { v4 as uuidv4 } from 'https://cdn.jsdelivr.net/npm/uuid@9.0.1/dist/esm-browser/index.js';
+import { COMPONENT_CODES } from '../config/business-constants.js'; // [NEW]
 
 export class RollerBlindStrategy {
     constructor({ configManager }) {
@@ -38,7 +40,7 @@ export class RollerBlindStrategy {
         }
 
         const price = priceMatrix.prices[dropIndex][widthIndex];
-        
+
         return price !== undefined ? { price: price } : { price: null, error: 'Price not found for the given dimensions.' };
     }
 
@@ -91,7 +93,8 @@ export class RollerBlindStrategy {
     // --- Accessory Pricing Logic ---
 
     calculateDualPrice(items, pricePerPair) {
-        const dualCount = items.filter(item => item.dual === 'D').length;
+        // [MODIFIED] Use constant for 'D'
+        const dualCount = items.filter(item => item.dual === COMPONENT_CODES.DUAL_BRACKET).length;
         const totalPrice = Math.floor(dualCount / 2) * pricePerPair;
         return totalPrice;
     }
