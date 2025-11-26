@@ -1,4 +1,4 @@
-// File: 04-core-code/ui/views/quick-quote-view.js
+/* FILE: 04-core-code/ui/views/quick-quote-view.js */
 
 import { EVENTS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -31,7 +31,6 @@ export class QuickQuoteView {
         const isLastRowEmpty = (rowIndex === items.length - 1) && (!item.width && !item.height);
 
         if (isLastRowEmpty) {
-
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: "Cannot select the final empty row.", type: 'error' });
             return;
         }
@@ -64,8 +63,7 @@ export class QuickQuoteView {
     }
 
     handleInsertRow() {
-        const { ui
-        } = this.stateService.getState();
+        const { ui } = this.stateService.getState();
         const { multiSelectSelectedIndexes } = ui;
 
         if (multiSelectSelectedIndexes.length > 1) {
@@ -91,13 +89,11 @@ export class QuickQuoteView {
         const nextItem = items[selectedIndex + 1];
         const isNextRowEmpty = !nextItem.width && !nextItem.height && !nextItem.fabricType;
         if (isNextRowEmpty) {
-
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: "Cannot insert before an empty row.", type: 'error' });
             return;
         }
 
         this.stateService.dispatch(quoteActions.insertRow(selectedIndex));
-        // The rowIndex of the new row is selectedIndex + 1
         this.stateService.dispatch(uiActions.setActiveCell(selectedIndex + 1, 'width'));
         this.stateService.dispatch(uiActions.clearMultiSelectSelection());
         this.eventAggregator.publish(EVENTS.OPERATION_SUCCESSFUL_AUTO_HIDE_PANEL);
@@ -105,7 +101,6 @@ export class QuickQuoteView {
 
     handleNumericKeyPress({ key }) {
         if (!isNaN(parseInt(key))) {
-
             this.stateService.dispatch(uiActions.appendInputValue(key));
         } else if (key === 'DEL') {
             this.stateService.dispatch(uiActions.deleteLastInputChar());
@@ -115,7 +110,6 @@ export class QuickQuoteView {
             this._commitValue();
             return;
         }
-
     }
 
     _commitValue() {
@@ -137,12 +131,7 @@ export class QuickQuoteView {
         this.focusService.focusAfterCommit();
     }
 
-    // [MOVED] handleSaveToFile logic has been migrated to WorkflowService.
-    // [MOVED] handleExportCSV logic has been migrated to WorkflowService.
-    // [MOVED] handleReset logic has been migrated to WorkflowService.
-
     handleClearRow() {
-
         const { ui } = this.stateService.getState();
         const { multiSelectSelectedIndexes } = ui;
 
@@ -150,7 +139,6 @@ export class QuickQuoteView {
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                 message: 'Please select a single item to use this function.',
                 type: 'error'
-
             });
             return;
         }
@@ -161,40 +149,32 @@ export class QuickQuoteView {
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
             message: `Row #${itemNumber}: What would you like to do?`,
             layout: [
-
                 [
                     {
                         type: 'button',
                         text: 'Clear Fields (W,H,Type)',
-
                         callback: () => {
                             this.stateService.dispatch(quoteActions.clearRow(selectedIndex));
                             this.stateService.dispatch(uiActions.clearMultiSelectSelection());
-
                             this.stateService.dispatch(uiActions.setSumOutdated(true));
                             this.focusService.focusAfterClear();
                         }
-
                     },
                     {
                         type: 'button',
-
                         text: 'Delete Row',
                         callback: () => {
                             this.stateService.dispatch(quoteActions.deleteRow(selectedIndex));
-
                             this.stateService.dispatch(uiActions.clearMultiSelectSelection());
                             this.stateService.dispatch(uiActions.setSumOutdated(true));
                             this.focusService.focusAfterDelete();
                         }
                     },
                     {
-
                         type: 'button',
                         text: 'Cancel',
                         className: 'secondary',
-                        callback:
-                            () => { }
+                        callback: () => { }
                     }
                 ]
             ]
@@ -223,7 +203,6 @@ export class QuickQuoteView {
     }
 
     handleCycleType() {
-
         const items = this._getItems();
         const eligibleItems = items.filter(item => item.width && item.height);
         if (eligibleItems.length === 0) return;
@@ -238,13 +217,10 @@ export class QuickQuoteView {
 
         const layout = fabricTypes.map(type => {
             const matrix = this.configManager.getPriceMatrix(type);
-
             const name = matrix ? matrix.name : 'Unknown';
-
             return [
                 { type: 'button', text: type, callback: () => callback(type), colspan: 1 },
                 { type: 'text', text: name, colspan: 2 }
-
             ];
         });
 
@@ -254,7 +230,6 @@ export class QuickQuoteView {
         ]);
 
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
-
             message: dialogTitle,
             layout: layout,
             position: 'bottomThird'
@@ -285,7 +260,6 @@ export class QuickQuoteView {
     }
 
     handleMultiTypeSet() {
-
         const { ui } = this.stateService.getState();
         const { multiSelectSelectedIndexes } = ui;
 
@@ -297,7 +271,6 @@ export class QuickQuoteView {
         const title = `Set fabric type for ${multiSelectSelectedIndexes.length} selected rows:`;
         this._showFabricTypeDialog((newType) => {
             this.stateService.dispatch(quoteActions.batchUpdateFabricTypeForSelection(multiSelectSelectedIndexes, newType));
-
             this.stateService.dispatch(uiActions.clearMultiSelectSelection());
             this.stateService.dispatch(uiActions.setSumOutdated(true));
             return true;
@@ -312,7 +285,6 @@ export class QuickQuoteView {
         this.stateService.dispatch(quoteActions.setQuoteData(updatedQuoteData));
 
         if (firstError) {
-
             this.stateService.dispatch(uiActions.setSumOutdated(true));
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: firstError.message, type: 'error' });
             this.stateService.dispatch(uiActions.setActiveCell(firstError.rowIndex, firstError.column));
@@ -321,7 +293,6 @@ export class QuickQuoteView {
         }
     }
 
-    // [MODIFIED] handleSaveThenLoad now publishes an event instead of calling a local method.
     handleSaveThenLoad() {
         this.eventAggregator.publish(EVENTS.USER_REQUESTED_SAVE);
         this.eventAggregator.publish(EVENTS.TRIGGER_FILE_LOAD);

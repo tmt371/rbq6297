@@ -1,15 +1,6 @@
 /* FILE: 04-core-code/ui/views/f4-actions-view.js */
-// [MODIFIED] (Phase 1) Added new "Generate Work Order" button.
-// [MODIFIED] (Phase 11) Added Re-Login button handler.
-// [MODIFIED] (F4 Status Phase 2) Added logic for status dropdown and update button.
-// [MODIFIED] (F4 Status Phase 3) Bound update button to USER_REQUESTED_UPDATE_STATUS event.
-// [MODIFIED] (Correction Flow Phase 1) Added Cancel/Correct button logic.
-// [MODIFIED] (Correction Flow Fix) Added SET/Exit buttons and Correction Mode UI logic.
-// [MODIFIED] (Correction Flow Phase 5) Implemented Locking UI Logic (Disable Save/SaveAs when locked).
-// [MODIFIED] (v6299 Gen-Xls) Added logic for Gen-Xls button.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
-// [NEW] (F4 Status Phase 2) Import status constants
 import { QUOTE_STATUS } from '../../config/status-config.js';
 
 /**
@@ -21,7 +12,6 @@ export class F4ActionsView {
         this.eventAggregator = eventAggregator;
         this.authService = authService;
 
-        // [NEW] (v6298-fix-5) Store bound handlers
         this.boundHandlers = [];
 
         this._cacheF4Elements();
@@ -29,9 +19,6 @@ export class F4ActionsView {
         console.log('F4ActionsView Initialized.');
     }
 
-    /**
-     * [NEW] (v6298-fix-5) Helper to add and store listeners
-     */
     _addListener(element, event, handler) {
         if (!element) return;
         const boundHandler = handler.bind(this);
@@ -39,9 +26,6 @@ export class F4ActionsView {
         element.addEventListener(event, boundHandler);
     }
 
-    /**
-     * [NEW] (v6298-fix-5) Destroys all event listeners
-     */
     destroy() {
         this.boundHandlers.forEach(({ element, event, handler }) => {
             if (element) {
@@ -56,12 +40,9 @@ export class F4ActionsView {
     _cacheF4Elements() {
         const query = (id) => this.panelElement.querySelector(id);
         this.f4 = {
-            // [NEW] (F4 Status Phase 2) Cache status elements
             statusDropdown: query('#f4-status-dropdown'),
             statusUpdateButton: query('#f4-status-update-btn'),
-            // [NEW] (Correction Flow Phase 1) Cache Cancel/Correct button
             cancelCorrectButton: query('#f4-btn-cancel-correct'),
-            // [NEW] (Correction Flow Fix) Cache Correction Controls
             correctionControls: query('#f4-correction-controls'),
             btnCorrectionSet: query('#f4-btn-correction-set'),
             btnCorrectionExit: query('#f4-btn-correction-exit'),
@@ -70,7 +51,7 @@ export class F4ActionsView {
                 'f1-key-save': query('#f1-key-save'),
                 'f4-key-save-as-new': query('#f4-key-save-as-new'),
                 'f4-key-generate-work-order': query('#f4-key-generate-work-order'),
-                'f4-key-generate-xls': query(`#${DOM_IDS.F4_BTN_GENERATE_XLS}`), // [NEW] (v6299 Gen-Xls)
+                'f4-key-generate-xls': query(`#${DOM_IDS.F4_BTN_GENERATE_XLS}`),
                 'f1-key-export': query('#f1-key-export'),
                 'f1-key-load': query('#f1-key-load'),
                 'f4-key-load-cloud': query(`#${DOM_IDS.F4_BTN_SEARCH_DIALOG}`),
@@ -86,7 +67,7 @@ export class F4ActionsView {
             'f1-key-save': EVENTS.USER_REQUESTED_SAVE,
             'f4-key-save-as-new': EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION,
             'f4-key-generate-work-order': EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER,
-            'f4-key-generate-xls': EVENTS.USER_REQUESTED_GENERATE_EXCEL, // [NEW] (v6299 Gen-Xls)
+            'f4-key-generate-xls': EVENTS.USER_REQUESTED_GENERATE_EXCEL,
             'f1-key-export': EVENTS.USER_REQUESTED_EXPORT_CSV,
             'f1-key-load': EVENTS.USER_REQUESTED_LOAD,
             'f4-key-load-cloud': EVENTS.USER_REQUESTED_SEARCH_DIALOG,
@@ -117,7 +98,6 @@ export class F4ActionsView {
             });
         }
 
-        // [NEW] (F4 Status Phase 3) Bind Status Update Button
         if (this.f4.statusUpdateButton) {
             this._addListener(this.f4.statusUpdateButton, 'click', () => {
                 const newStatus = this.f4.statusDropdown.value;
@@ -125,17 +105,13 @@ export class F4ActionsView {
             });
         }
 
-        // [NEW] (Correction Flow Phase 1) Bind Cancel/Correct Button
         if (this.f4.cancelCorrectButton) {
             this._addListener(this.f4.cancelCorrectButton, 'click', () => {
                 this.eventAggregator.publish(EVENTS.USER_REQUESTED_CANCEL_CORRECT);
             });
         }
 
-        // [NEW] (Correction Flow Fix) Bind SET and Exit Buttons
         if (this.f4.btnCorrectionSet) {
-            // SET triggers the SAVE event. 
-            // The backend (QuotePersistenceService) will detect isCorrectionMode and handle it as atomic correction.
             this._addListener(this.f4.btnCorrectionSet, 'click', () => {
                 this.eventAggregator.publish(EVENTS.USER_REQUESTED_SAVE);
             });
@@ -148,20 +124,13 @@ export class F4ActionsView {
         }
     }
 
-    /**
-     * [NEW] (F4 Status Phase 2) Renders the F4 tab, specifically the status dropdown.
-     * [MODIFIED] (Correction Flow Fix) Handles Correction Mode UI state (Disabling buttons, showing SET/Exit).
-     * [MODIFIED] (Correction Flow Phase 5) Handles Locked State UI (Disabling Save/SaveAs).
-     */
     render(state) {
-        // Guard clause: if DOM elements aren't cached, return
         if (!this.f4.statusDropdown) return;
 
         const { quoteId, status } = state.quoteData;
-        const { isCorrectionMode } = state.ui; // [NEW] Get correction mode state
+        const { isCorrectionMode } = state.ui;
         const isNewQuote = !quoteId;
 
-        // Helper to set button state (disabled + opacity)
         const setButtonState = (btnId, isDisabled) => {
             const btn = this.f4.buttons[btnId];
             if (btn) {
@@ -172,23 +141,20 @@ export class F4ActionsView {
 
         // --- 1. CORRECTION MODE (Priority High) ---
         if (isCorrectionMode) {
-            // Show Correction Controls (SET / Exit)
             if (this.f4.correctionControls) {
                 this.f4.correctionControls.classList.remove('is-hidden');
             }
 
-            // Disable ALL Standard File Operations
             const allFileOps = [
                 'f1-key-save',
                 'f4-key-save-as-new',
                 'f1-key-export',
                 'f1-key-load',
-                'f4-key-load-cloud', // Search
-                'f4-key-generate-xls' // [NEW] (v6299 Gen-Xls) Disable Gen-Xls in Correction Mode
+                'f4-key-load-cloud',
+                'f4-key-generate-xls'
             ];
             allFileOps.forEach(id => setButtonState(id, true));
 
-            // Disable Status Controls
             this.f4.statusDropdown.disabled = true;
             this.f4.statusUpdateButton.disabled = true;
             if (this.f4.cancelCorrectButton) {
@@ -197,19 +163,16 @@ export class F4ActionsView {
             }
 
             this.f4.statusDropdown.value = status || QUOTE_STATUS.A_ARCHIVED;
-            return; // Exit render
+            return;
         }
 
         // --- 2. STANDARD MODE (Not Correction) ---
 
-        // Ensure Correction Controls are hidden
         if (this.f4.correctionControls) {
             this.f4.correctionControls.classList.add('is-hidden');
         }
 
-        // --- Locking Logic ---
-        // If the order is "Established" (B~I, or X/J), it is considered LOCKED for editing.
-        // Exception: If status is A (Saved) or new, it's unlocked.
+        // Locking Logic
         const lockedStates = [
             QUOTE_STATUS.B_VALID_ORDER,
             QUOTE_STATUS.C_SENT_TO_FACTORY,
@@ -225,20 +188,14 @@ export class F4ActionsView {
 
         const isLocked = lockedStates.includes(status);
 
-        // Reset standard buttons first (Enable all)
-        // [MODIFIED] (v6299 Gen-Xls) Added generate-xls to reset list
         ['f1-key-save', 'f4-key-save-as-new', 'f1-key-export', 'f1-key-load', 'f4-key-load-cloud', 'f4-key-generate-xls'].forEach(id => setButtonState(id, false));
 
-        // Apply Lock: Disable Save and Save As if locked
         if (isLocked) {
             setButtonState('f1-key-save', true);
             setButtonState('f4-key-save-as-new', true);
-            // Note: Export, Load, and Search remain enabled for navigation/viewing.
         }
 
-        // --- Status Controls Logic ---
-        // "Read Only" states are those where even Sales shouldn't change status (D~I, X, J).
-        // Sales CAN change B -> C.
+        // Status Controls Logic
         const readOnlyStatusStates = [
             QUOTE_STATUS.D_IN_PRODUCTION,
             QUOTE_STATUS.E_READY_FOR_PICKUP,
@@ -255,14 +212,12 @@ export class F4ActionsView {
         this.f4.statusDropdown.disabled = isControlsDisabled;
         this.f4.statusUpdateButton.disabled = isControlsDisabled;
 
-        // Populate options (Run once)
         if (this.f4.statusDropdown.options.length === 0) {
             for (const [key, text] of Object.entries(QUOTE_STATUS)) {
                 const option = document.createElement('option');
-                option.value = text; // Store "A. Saved"
+                option.value = text;
                 option.textContent = text;
 
-                // (Tweak 2) Visually distinguish non-sales options
                 if (readOnlyStatusStates.includes(text)) {
                     option.style.background = "#eee";
                     option.style.fontStyle = "italic";
@@ -271,10 +226,9 @@ export class F4ActionsView {
             }
         }
 
-        // Set selected value
         this.f4.statusDropdown.value = status || QUOTE_STATUS.A_ARCHIVED;
 
-        // --- Cancel/Correct Button Logic ---
+        // Cancel/Correct Button Logic
         if (this.f4.cancelCorrectButton) {
             const validCorrectionStates = [
                 QUOTE_STATUS.B_VALID_ORDER,
