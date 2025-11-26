@@ -7,12 +7,14 @@
 // [MODIFIED] (v6299 Phase 4 Refinement) Added Color Legend and removed "Light-filter" prefix from F-Name.
 // [MODIFIED] (v6299 Phase 4 Tweak 2) Added TYPE column, lighter pink, shifted Side Panel, removed Legend.
 // [MODIFIED] (v6299 Print Optimization) Added pageSetup for A4 Landscape Fit-to-Width.
+// [MODIFIED] (v6297 Stage 9 Phase 3) Refactored to use DataPreparationService as the Single Source of Truth.
 
 export class ExcelExportService {
-    constructor({ configManager, calculationService }) {
+    constructor({ configManager, calculationService, dataPreparationService }) {
         this.configManager = configManager;
         this.calculationService = calculationService;
-        console.log("ExcelExportService Initialized with ConfigManager and CalculationService.");
+        this.dataPreparationService = dataPreparationService; // [NEW] Injected Service
+        console.log("ExcelExportService Initialized with ConfigManager, CalculationService, and DataPreparationService.");
     }
 
     /**
@@ -34,10 +36,14 @@ export class ExcelExportService {
         const f1Costs = this.calculationService.calculateF1Costs(quoteData, ui);
         const f2Summary = this.calculationService.calculateF2Summary(quoteData, ui);
 
-        // 1. Create Work Sheet (Calculated Data + Styles)
-        this._generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui);
+        // [NEW] Prepare standardized data using the new service
+        const uiMetadata = quoteData.uiMetadata || {};
+        const exportData = this.dataPreparationService.getExportData(quoteData, uiMetadata);
 
-        // 2. Create Data Sheet (Raw Data)
+        // 1. Create Work Sheet (Using Standardized Data)
+        this._generateWorkSheet(workbook, exportData, f1Costs, f2Summary, ui, quoteData);
+
+        // 2. Create Data Sheet (Raw Data - kept for backup reference)
         this._generateDataSheet(workbook, quoteData);
 
         // 3. Trigger Download
@@ -47,21 +53,20 @@ export class ExcelExportService {
 
     /**
      * Generates the 'work-sheet' for factory production.
-     * Applies sorting, dimension corrections, STYLES, and SIDE PANEL.
+     * [MODIFIED] Now uses pre-processed 'exportData' from DataPreparationService.
      */
-    _generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui) {
+    _generateWorkSheet(workbook, exportData, f1Costs, f2Summary, ui, quoteData) {
         const sheet = workbook.addWorksheet('work-sheet');
 
-        // --- [NEW] (Print Optimization) Set Print Area & Scale ---
+        // --- (Print Optimization) Set Print Area & Scale ---
         sheet.pageSetup = {
             paperSize: 9, // 9 = A4
             orientation: 'landscape',
             fitToPage: true,
             fitToWidth: 1,  // Force width to 1 page
-            fitToHeight: 0, // 0 = Automatic height (maintain aspect ratio, span pages if long)
+            fitToHeight: 0, // 0 = Automatic height
             showGridLines: true
         };
-        // Optimize margins for maximum space
         sheet.pageMargins = {
             left: 0.25, right: 0.25,
             top: 0.4, bottom: 0.4,
@@ -69,7 +74,6 @@ export class ExcelExportService {
         };
 
         // --- 1. Define Columns (A~P) ---
-        // [MODIFIED] Added 'TYPE' column at index 2 (Column C)
         const columns = [
             'NO', '#', 'TYPE', 'F-Name', 'F-Color', 'Width', 'Height',
             'Over', 'O/I', 'L/R', 'Dual', 'Chain', 'Winder', 'Motor',
@@ -94,69 +98,40 @@ export class ExcelExportService {
             };
         });
 
-        // --- 2. Prepare & Sort Items ---
-        const rawItems = quoteData.products[quoteData.currentProduct].items;
-        const lfModifiedRowIndexes = quoteData.uiMetadata?.lfModifiedRowIndexes || [];
+        // --- 2. Populate Rows using Standardized Export Items ---
+        // [MODIFIED] Iterate over exportData.items which are already sorted and calculated
+        exportData.items.forEach((item) => {
 
-        const processableItems = rawItems
-            .map((item, index) => ({ ...item, originalIndex: index + 1 }))
-            .filter(item => item.width && item.height);
-
-        const sortedItems = this._sortItemsForWorkOrder(processableItems, lfModifiedRowIndexes);
-
-        // --- 3. Populate Rows with Corrections & Styles ---
-        sortedItems.forEach((item, newIndex) => {
-            const originalIndex = item.originalIndex - 1;
-            const isLF = lfModifiedRowIndexes.includes(originalIndex);
-            const fabricType = item.fabricType || '';
-
-            const { correctedWidth, correctedHeight } = this._calculateProductionDimensions(item);
-
-            // Remove "Light-filter" prefix from Fabric Name
-            let fabricName = this._sanitize(item.fabric);
-            fabricName = fabricName.replace(/^Light-filter\s+/i, '');
-
-            // Determine TYPE Label
-            let typeLabel = '';
-            if (isLF) {
-                typeLabel = "L'filter";
-            } else if (fabricType.startsWith('B')) {
-                typeLabel = "Blockout";
-            } else if (fabricType === 'SN') {
-                typeLabel = "Screen";
+            // Determine Background Color based on Standardized Type Code or Flags
+            let argbColor = null;
+            if (item.isLf) {
+                argbColor = 'FFFFE6E6'; // Lighter Pink
+            } else if (item.typeCode === 'BO') {
+                argbColor = 'FFE0E0E0'; // Light Grey
+            } else if (item.typeCode === 'SN') {
+                argbColor = 'FFE0FFFF'; // Light Cyan
             }
 
             const rowData = [
-                newIndex + 1,
-                item.originalIndex,
-                typeLabel,                     // TYPE
-                fabricName,                    // F-Name (Cleaned)
-                this._sanitize(item.color),
-                correctedWidth,
-                correctedHeight,
-                this._sanitize(item.over),
-                this._sanitize(item.oi),
-                this._sanitize(item.lr),
-                this._sanitize(item.dual),
+                item.displayIndex,    // NO
+                item.originalIndex,   // #
+                item.typeCode,        // TYPE (Normalized)
+                item.fabricName,      // F-Name (Cleaned)
+                item.fabricColor,     // F-Color
+                item.mWidth,          // Manufacturing Width
+                item.mHeight,         // Manufacturing Height
+                item.over,
+                item.oi,
+                item.lr,
+                item.dual,
                 item.chain,
-                this._sanitize(item.winder),
-                this._sanitize(item.motor),
-                this._sanitize(item.location),
-                item.linePrice
+                item.winder,
+                item.motor,
+                item.location,
+                item.price
             ];
 
             const row = sheet.addRow(rowData);
-
-            // Apply Row Styling
-            let argbColor = null;
-            if (isLF) {
-                // Lighter Pink
-                argbColor = 'FFFFE6E6';
-            } else if (fabricType.startsWith('B')) {
-                argbColor = 'FFE0E0E0'; // Light Grey for Blockout
-            } else if (fabricType === 'SN') {
-                argbColor = 'FFE0FFFF'; // Light Cyan/Blue for Screen
-            }
 
             row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
                 // Apply Borders
@@ -166,6 +141,7 @@ export class ExcelExportService {
                     bottom: { style: 'thin' },
                     right: { style: 'thin' }
                 };
+
                 // Center align most columns
                 // Name=4, Color=5, Location=15 are Left aligned
                 if (colNumber !== 4 && colNumber !== 5 && colNumber !== 15) {
@@ -184,6 +160,8 @@ export class ExcelExportService {
         });
 
         // --- 4. Side Panel Generation (Columns Q, R, S) ---
+        // [NOTE] This logic remains largely unchanged as it depends on F1/F2 calc services,
+        // which are separate from the Item Data Preparation.
         const qtys = f1Costs.qtys || {};
 
         // Acce Sum
@@ -309,58 +287,8 @@ export class ExcelExportService {
         });
     }
 
-    _sortItemsForWorkOrder(items, lfIndexes) {
-        const typeCounts = {};
-        items.forEach(item => {
-            const type = item.fabricType || 'Unknown';
-            typeCounts[type] = (typeCounts[type] || 0) + 1;
-        });
-
-        const getCategory = (item) => {
-            const originalIndex = item.originalIndex - 1;
-            if (lfIndexes.includes(originalIndex)) return 3; // LF Last
-            const type = item.fabricType || '';
-            if (type.startsWith('B')) return 1; // Blockout First
-            if (type === 'SN') return 2; // Screen Second
-            return 4; // Others
-        };
-
-        return items.sort((a, b) => {
-            const catA = getCategory(a);
-            const catB = getCategory(b);
-            if (catA !== catB) return catA - catB;
-
-            const countA = typeCounts[a.fabricType] || 0;
-            const countB = typeCounts[b.fabricType] || 0;
-            if (countA !== countB) return countB - countA;
-
-            if (a.fabricType !== b.fabricType) {
-                return (a.fabricType || '').localeCompare(b.fabricType || '');
-            }
-            return a.originalIndex - b.originalIndex;
-        });
-    }
-
-    _calculateProductionDimensions(item) {
-        let width = item.width;
-        if (item.oi === 'IN') {
-            width = width - 4;
-        } else if (item.oi === 'OUT') {
-            width = width - 2;
-        }
-
-        let height = item.height;
-        const matrix = this.configManager.getPriceMatrix(item.fabricType);
-        if (matrix && matrix.drops) {
-            const nextDrop = matrix.drops.find(d => d > item.height);
-            if (nextDrop) {
-                height = nextDrop - 5;
-            } else {
-                console.warn(`No larger drop found for height ${item.height}.`);
-            }
-        }
-        return { correctedWidth: width, correctedHeight: height };
-    }
+    // [REMOVED] _sortItemsForWorkOrder logic is now handled by DataPreparationService
+    // [REMOVED] _calculateProductionDimensions logic is now handled by DataPreparationService
 
     _generateDataSheet(workbook, quoteData) {
         const sheet = workbook.addWorksheet('data-sheet');

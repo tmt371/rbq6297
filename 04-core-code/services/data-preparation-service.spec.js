@@ -18,12 +18,15 @@ describe('DataPreparationService', () => {
 
     describe('Core Logic Verification', () => {
 
-        test('Should calculate correct manufacturing dimensions (IN/OUT & Drop)', () => {
+        test('Should calculate correct manufacturing dimensions (IN/OUT & Drop Logic)', () => {
             // Arrange
             const items = [
-                // Case A: IN mount (-4mm), Height 1200 (Next drop 1500 - 5 = 1495)
+                // Case A: IN mount (-4mm), Height 1200 (Next drop 1500)
+                // Rule: Standard case. 1200 < 1500. mHeight = 1500 - 5 = 1495.
                 { itemId: '1', width: 1000, height: 1200, fabricType: 'B1', oi: 'IN', rawWidth: 1000, rawHeight: 1200 },
-                // Case B: OUT mount (-2mm), Height 2000 (Next drop 2000 - 5 = 1995)
+
+                // Case B: OUT mount (-2mm), Height 2000 (Matches drop 2000 exactly)
+                // Rule: Exact match. 2000 == 2000. mHeight = 2000 (No change).
                 { itemId: '2', width: 2000, height: 2000, fabricType: 'B2', oi: 'OUT', rawWidth: 2000, rawHeight: 2000 }
             ];
             const quoteData = { currentProduct: 'rb', products: { rb: { items } } };
@@ -34,12 +37,14 @@ describe('DataPreparationService', () => {
             const itemB = result.items.find(i => i.originalIndex === 2);
 
             // Assert
+            // Case A
             expect(itemA.mWidth).toBe(996); // 1000 - 4
             expect(itemA.mHeight).toBe(1495); // 1500 - 5
 
+            // Case B
             expect(itemB.mWidth).toBe(1998); // 2000 - 2
-            // Note: Logic uses drops.find(d => d >= item.height), so 2000 matches 2000 drop
-            expect(itemB.mHeight).toBe(1995); // 2000 - 5
+            // [MODIFIED] Expect exact match logic (No deduction)
+            expect(itemB.mHeight).toBe(2000);
         });
 
         test('Should sort items correctly (BO > SN > LF)', () => {

@@ -5,6 +5,7 @@
 // [MODIFIED] (v6299 Phase 4) Moved excelExportService injection from WorkflowService to QuotePersistenceService for architectural consistency.
 // [MODIFIED] (v6299 Phase 5) Inject configManager into WorkOrderStrategy for height calculation.
 // [MODIFIED] (v6297 Stage 9) Register DataPreparationService.
+// [MODIFIED] (v6297 Stage 9 Phase 3) Inject dataPreparationService into ExcelExportService.
 
 /**
  * @description
@@ -101,9 +102,11 @@ export class AppContext {
         this.register('focusService', focusService);
 
         // [NEW] (v6299 Gen-Xls) Initialize ExcelExportService
+        // [MODIFIED] (Stage 9 Phase 3) Inject dataPreparationService
         const excelExportService = new ExcelExportService({
             configManager,
-            calculationService
+            calculationService,
+            dataPreparationService // [NEW] Injected
         });
         this.register('excelExportService', excelExportService);
     }

@@ -2,6 +2,7 @@
 // [NEW] (v6297 Stage 9 - Refactor) Created to implement the Data Preparation Layer.
 // This service acts as the "Single Source of Truth" for all export data (Excel, PDF, etc.).
 // [MODIFIED] (Stage 9 Phase 2) Implemented core logic: Sanitation, Dimensions, Sorting, Type Detection.
+// [MODIFIED] (Stage 9 Phase 2 Fix 2) Updated Drop logic: Exact match (height == drop) keeps original height; otherwise Drop-5.
 
 /**
  * @typedef {Object} ExportItem
@@ -155,7 +156,10 @@ export class DataPreparationService {
     /**
      * Calculates Manufacturing Dimensions (Business Rules).
      * Width: IN -4mm, OUT -2mm.
-     * Height: Lookup Price Matrix Drop - 5mm.
+     * Height: 
+     * - Find smallest drop >= item.height.
+     * - IF drop == item.height: mHeight = item.height (No change).
+     * - IF drop > item.height: mHeight = drop - 5.
      */
     _calculateManufacturingDimensions(item) {
         // 1. Width Correction
@@ -172,20 +176,19 @@ export class DataPreparationService {
             const matrix = this.configManager.getPriceMatrix(item.fabricType);
             if (matrix && matrix.drops) {
                 // Logic: Find the smallest drop in the matrix that is >= item.height
-                const nextDrop = matrix.drops.find(d => d >= item.height); // [CORRECTION] Should include equal
+                const nextDrop = matrix.drops.find(d => d >= item.height);
 
-                // Note: Previous logic in ExcelService was (d > item.height), which might be a bug if height equals drop exactly.
-                // However, to maintain strict consistency with legacy logic (Phase 2 goal), 
-                // I will stick to the observed logic: drops.find(d => d > item.height)
-                // Re-reading legacy code: "const nextDrop = matrix.drops.find(d => d > item.height);"
-
-                const legacyNextDrop = matrix.drops.find(d => d > item.height);
-
-                if (legacyNextDrop) {
-                    mHeight = legacyNextDrop - 5;
+                if (nextDrop) {
+                    if (nextDrop === item.height) {
+                        // [FIX] If exact match, keep original height to avoid jumping to next tier price-wise
+                        // or simply because it's the requested size.
+                        mHeight = item.height;
+                    } else {
+                        // [FIX] If smaller than tier, expand to max fabric size (Tier - 5mm)
+                        mHeight = nextDrop - 5;
+                    }
                 } else {
-                    // Fallback if no larger drop found (e.g. max height exceeded), keep original or handle error
-                    // For export, we keep original if lookup fails to avoid crash
+                    // Fallback: Exceeds max drop, keep original
                 }
             }
         }
@@ -203,14 +206,6 @@ export class DataPreparationService {
         // Count frequencies for secondary sorting
         const typeCounts = {};
         items.forEach((item) => {
-            // We use the original raw fabricType for grouping/counting logic
-            // But since we simplified types in _prepareItem, we need to access original if needed.
-            // However, grouping by 'typeCode' (BO/SN/LF) is likely what's intended visually.
-            // Let's stick to the legacy logic which counted `item.fabricType`.
-            // But here `items` are already processed ExportItems. We need to check if we preserved fabricType.
-            // To enable exact legacy sorting, we might need to check the raw fabricType.
-            // Ideally, sorting by `typeCode` is sufficient for the "Group" requirement.
-
             const type = item.typeCode || 'Unknown';
             typeCounts[type] = (typeCounts[type] || 0) + 1;
         });
