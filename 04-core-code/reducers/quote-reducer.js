@@ -1,9 +1,8 @@
 /* FILE: 04-core-code/reducers/quote-reducer.js */
-// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with COMPONENT_CODES and MOUNT_TYPES.
 
 import { QUOTE_ACTION_TYPES } from '../config/action-types.js';
 import { initialState } from '../config/initial-state.js';
-import { COMPONENT_CODES, MOUNT_TYPES } from '../config/business-constants.js'; // [NEW]
+import { COMPONENT_CODES, MOUNT_TYPES } from '../config/business-constants.js';
 
 function _consolidateEmptyRows(items, productFactory, productKey) {
     let newItems = [...items];
@@ -43,7 +42,6 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
         case QUOTE_ACTION_TYPES.RESET_QUOTE_DATA:
             return JSON.parse(JSON.stringify(initialState.quoteData));
 
-        // [NEW] Handle F3 field updates
         case QUOTE_ACTION_TYPES.UPDATE_QUOTE_PROPERTY: {
             const { key, value } = action.payload;
             if (state[key] === value) return state;
@@ -62,7 +60,6 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             };
         }
 
-
         case QUOTE_ACTION_TYPES.INSERT_ROW: {
             items = [...productData.items];
             const productStrategy = productFactory.getProductStrategy(productKey);
@@ -70,8 +67,6 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             items.splice(action.payload.selectedIndex + 1, 0, newItem);
             productData = { ...productData, items };
 
-            // [NEW] (чм?14 цмбч╖иф┐? Insert row logic needs to shift LF indexes
-            // If we insert at index + 1, any LF index > index should be shifted down
             const insertIndex = action.payload.selectedIndex + 1;
             const oldLfIndexes = state.uiMetadata.lfModifiedRowIndexes;
             const newLfIndexes = oldLfIndexes.map(index => index >= insertIndex ? index + 1 : index);
@@ -89,24 +84,17 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             const itemToDelete = items[selectedIndex];
             if (!itemToDelete) return state;
 
-            // [MODIFIED] (чм?14 цмбч╖иф┐? Remove constraint on deleting the last populated row.
-            // If there is only 1 item left (which shouldn't happen with 'Clear' button logic guarding the empty row, 
-            // but good for safety), we reset it.
             if (items.length <= 1) {
                 const productStrategy = productFactory.getProductStrategy(productKey);
                 const newItem = productStrategy.getInitialItemData();
                 newItem.itemId = itemToDelete.itemId;
                 items[selectedIndex] = newItem;
-                // Reset metadata if we are resetting the only row
                 return {
                     ...state,
                     products: { ...state.products, [productKey]: { ...productData, items } },
                     uiMetadata: { ...state.uiMetadata, lfModifiedRowIndexes: [] }
                 };
             } else {
-                // [NEW] (чм?14 цмбч╖иф┐? Update lfModifiedRowIndexes before splicing
-                // 1. Remove the deleted index from the LF list
-                // 2. Shift down any indexes that were below the deleted row
                 const oldLfIndexes = state.uiMetadata.lfModifiedRowIndexes;
                 const newLfIndexes = oldLfIndexes
                     .filter(index => index !== selectedIndex)
@@ -136,8 +124,6 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
                 items[selectedIndex] = newItem;
                 productData = { ...productData, items };
 
-                // [NEW] (чм?14 цмбч╖иф┐? Also clear LF status for this row if cleared
-                // Since the row is reset, it loses its fabric/color, so it shouldn't be pink anymore.
                 const newLfIndexes = state.uiMetadata.lfModifiedRowIndexes.filter(i => i !== selectedIndex);
 
                 return {
@@ -160,7 +146,6 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             if ((column === 'width' || column === 'height') && newItem.width && newItem.height) {
                 const logicThresholds = configManager.getLogicThresholds();
                 if (logicThresholds && (newItem.width * newItem.height) > logicThresholds.hdWinderThresholdArea && !newItem.motor) {
-                    // [MODIFIED] Use constant for HD
                     newItem.winder = COMPONENT_CODES.WINDER_HD;
                 }
             }
@@ -173,7 +158,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
         case QUOTE_ACTION_TYPES.BATCH_UPDATE_PROPERTY: {
             items = productData.items.map((item, index) => {
                 if (index === productData.items.length - 1) {
-                    return item; // Exclude the last (empty backup) row from batch updates.
+                    return item;
                 }
                 return { ...item, [action.payload.property]: action.payload.value };
             });
@@ -219,14 +204,12 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             return { ...state, products: { ...state.products, [productKey]: productData } };
         }
 
-
         case QUOTE_ACTION_TYPES.CYCLE_K3_PROPERTY: {
             items = [...productData.items];
             const { rowIndex, column } = action.payload;
             const item = items[rowIndex];
             if (!item) return state;
 
-            // [MODIFIED] Use constants
             const BATCH_CYCLE_SEQUENCES = {
                 over: [MOUNT_TYPES.ROLL_OVER, MOUNT_TYPES.ROLL_UNDER],
                 oi: [MOUNT_TYPES.IN_RECESS, MOUNT_TYPES.FACE_FIX],
@@ -334,23 +317,17 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             return { ...state, products: { ...state.products, [productKey]: productData } };
         }
 
-        // [FIX] SSet Feature: Also clear lfModifiedRowIndexes when overwriting
         case QUOTE_ACTION_TYPES.BATCH_UPDATE_PROPERTIES_FOR_INDEXES: {
             const { selectedIndexes, typeMap } = action.payload;
             const selectedIndexesSet = new Set(selectedIndexes);
-
-            // [NEW] Keep track of which indexes were actually modified
             const modifiedIndexesSet = new Set();
 
             items = productData.items.map((item, index) => {
-                // Check if this item is one of the selected ones
                 if (selectedIndexesSet.has(index)) {
                     const itemType = item.fabricType;
-                    // Check if the typeMap has new data for this item's type
                     const newProps = typeMap[itemType];
 
                     if (newProps && (newProps.fabric !== undefined || newProps.color !== undefined)) {
-                        // [NEW] This index is being modified
                         modifiedIndexesSet.add(index);
                         return {
                             ...item,
@@ -359,11 +336,9 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
                         };
                     }
                 }
-                // Return original item if not selected or no matching type in map
                 return item;
             });
 
-            // [FIX] If SSet modified any indexes, we must remove them from lfModifiedRowIndexes
             const newLfModifiedIndexes = state.uiMetadata.lfModifiedRowIndexes.filter(
                 index => !modifiedIndexesSet.has(index)
             );

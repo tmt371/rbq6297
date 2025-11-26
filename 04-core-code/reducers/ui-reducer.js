@@ -1,6 +1,4 @@
-// File: 04-core-code/reducers/ui-reducer.js
-// [MODIFIED] (Correction Flow Phase 2) Added SET_CORRECTION_MODE handler.
-// [MODIFIED] (F1 Motor Split) Added SET_F1_MOTOR_DISTRIBUTION handler and snapshot restoration.
+/* FILE: 04-core-code/reducers/ui-reducer.js */
 
 import { UI_ACTION_TYPES } from '../config/action-types.js';
 import { initialState } from '../config/initial-state.js';
@@ -58,12 +56,6 @@ export function uiReducer(state, action) {
         case UI_ACTION_TYPES.CLEAR_LF_SELECTION:
             return { ...state, lfSelectedRowIndexes: [] };
 
-        // [REMOVED] (Phase 3) K2 (SSet) State Reducers
-        // case UI_ACTION_TYPES.TOGGLE_SSET_SELECTION: { ... }
-        // case UI_ACTION_TYPES.CLEAR_SSET_SELECTION:
-        //     return { ...state, sSetSelectedRowIndexes: [] };
-
-
         case UI_ACTION_TYPES.SET_DUAL_CHAIN_MODE:
             return { ...state, dualChainMode: action.payload.mode };
         case UI_ACTION_TYPES.SET_DRIVE_ACCESSORY_MODE:
@@ -110,24 +102,19 @@ export function uiReducer(state, action) {
             return { ...state, summaryCordPrice: action.payload.price };
         case UI_ACTION_TYPES.SET_SUMMARY_ACCESSORIES_TOTAL:
             return { ...state, summaryAccessoriesTotal: action.payload.price };
+
         case UI_ACTION_TYPES.SET_F1_REMOTE_DISTRIBUTION:
             return { ...state, f1: { ...state.f1, remote_1ch_qty: action.payload.qty1, remote_16ch_qty: action.payload.qty16 } };
         case UI_ACTION_TYPES.SET_F1_DUAL_DISTRIBUTION:
             return { ...state, f1: { ...state.f1, dual_combo_qty: action.payload.comboQty, dual_slim_qty: action.payload.slimQty } };
-
-        // [NEW] (F1 Motor Split) Handle motor distribution update
         case UI_ACTION_TYPES.SET_F1_MOTOR_DISTRIBUTION:
             return { ...state, f1: { ...state.f1, w_motor_qty: action.payload.wQty } };
-
         case UI_ACTION_TYPES.SET_F1_DISCOUNT_PERCENTAGE:
             return { ...state, f1: { ...state.f1, discountPercentage: action.payload.percentage } };
-
-        // [MODIFIED] (F1/F2 Refactor Phase 2 FIX) Handle setting F1 cost totals
         case UI_ACTION_TYPES.SET_F1_COST_TOTALS:
-            // [FIX] Add check to prevent infinite render loop
             if (state.f1.f1_subTotal === action.payload.subTotal &&
                 state.f1.f1_finalTotal === action.payload.finalTotal) {
-                return state; // No change, break the loop
+                return state;
             }
             return {
                 ...state,
@@ -137,8 +124,7 @@ export function uiReducer(state, action) {
                     f1_finalTotal: action.payload.finalTotal
                 }
             };
-
-        case UI_ACTION_TYPES.SET_F1_WIFI_QTY: // [NEW] (v6295)
+        case UI_ACTION_TYPES.SET_F1_WIFI_QTY:
             return { ...state, f1: { ...state.f1, wifi_qty: action.payload.quantity } };
 
         case UI_ACTION_TYPES.SET_F2_VALUE: {
@@ -155,33 +141,26 @@ export function uiReducer(state, action) {
             }
             return state;
         }
-        // [NEW] (Phase 2)
         case UI_ACTION_TYPES.TOGGLE_GST_EXCLUSION: {
             return { ...state, f2: { ...state.f2, gstExcluded: !state.f2.gstExcluded } };
         }
+
         case UI_ACTION_TYPES.SET_SUM_OUTDATED:
             return { ...state, isSumOutdated: action.payload.isOutdated };
         case UI_ACTION_TYPES.RESET_UI:
             return JSON.parse(JSON.stringify(initialState.ui));
-
-        // [NEW] Add modal lock reducer case
         case UI_ACTION_TYPES.SET_MODAL_ACTIVE:
             if (state.isModalActive === action.payload.isActive) {
-                return state; // No change
+                return state;
             }
             return { ...state, isModalActive: action.payload.isActive };
-
-        // [NEW] (Correction Flow Phase 2) Set correction mode
         case UI_ACTION_TYPES.SET_CORRECTION_MODE:
             return { ...state, isCorrectionMode: action.payload.isCorrectionMode };
 
-        // [NEW v6285 Phase 4] Restore F1 state from snapshot
         case UI_ACTION_TYPES.RESTORE_F1_SNAPSHOT: {
             const snapshot = action.payload;
-
             const newF1State = { ...state.f1 };
 
-            // Restore financial/distribution values to ui.f1
             if (snapshot.discountPercentage !== null && snapshot.discountPercentage !== undefined) {
                 newF1State.discountPercentage = snapshot.discountPercentage;
             }
@@ -197,18 +176,15 @@ export function uiReducer(state, action) {
             if (snapshot.dual_slim_qty !== null && snapshot.dual_slim_qty !== undefined) {
                 newF1State.dual_slim_qty = snapshot.dual_slim_qty;
             }
-            // [FIX] (v6295-fix) Add missing wifi_qty restore logic
             if (snapshot.wifi_qty !== null && snapshot.wifi_qty !== undefined) {
                 newF1State.wifi_qty = snapshot.wifi_qty;
             }
-            // [NEW] (F1 Motor Split) Restore W-Motor quantity
             if (snapshot.w_motor_qty !== null && snapshot.w_motor_qty !== undefined) {
                 newF1State.w_motor_qty = snapshot.w_motor_qty;
             }
 
             const newState = { ...state, f1: newF1State };
 
-            // Restore K4 accessory counts to ui root
             if (snapshot.charger_qty !== null && snapshot.charger_qty !== undefined) {
                 newState.driveChargerCount = snapshot.charger_qty;
             }
@@ -216,9 +192,6 @@ export function uiReducer(state, action) {
                 newState.driveCordCount = snapshot.cord_qty;
             }
 
-
-            // Restore total remote count for K4 display
-            // We must use the values we just set in newF1State
             const remote1ch = newF1State.remote_1ch_qty || 0;
             const remote16ch = newF1State.remote_16ch_qty || 0;
             newState.driveRemoteCount = remote1ch + remote16ch;
@@ -226,10 +199,7 @@ export function uiReducer(state, action) {
             return newState;
         }
 
-        // [NEW] (v6295) Restore F2 state from snapshot
         case UI_ACTION_TYPES.RESTORE_F2_SNAPSHOT: {
-            // Overwrite state.f2 with the values from the snapshot,
-            // keeping any existing f2 properties that aren't in the snapshot.
             return { ...state, f2: { ...state.f2, ...action.payload } };
         }
 

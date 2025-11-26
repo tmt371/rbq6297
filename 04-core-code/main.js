@@ -1,6 +1,4 @@
 // File: 04-core-code/main.js
-// [MODIFIED] (v6297 ?身) ?段 2：å? quotePersistenceService 注入 appController??
-// [MODIFIED] (第 11 次編修) Handle Re-Login UI logic.
 
 import { AppContext } from './app-context.js';
 import { MigrationService } from './services/migration-service.js';
@@ -8,7 +6,6 @@ import { UIManager } from './ui/ui-manager.js';
 import { InputHandler } from './ui/input-handler.js';
 import { paths } from './config/paths.js';
 import { EVENTS, DOM_IDS } from './config/constants.js';
-// [NEW] (v6298-fix) Import reset actions
 import * as uiActions from './actions/ui-actions.js';
 import * as quoteActions from './actions/quote-actions.js';
 
@@ -19,13 +16,12 @@ class App {
 
         const restoredData = migrationService.loadAndMigrateData();
 
-        // [MODIFIED] Initialize only non-UI services first.
+        // Initialize only non-UI services first.
         this.appContext.initialize(restoredData);
 
-        // [NEW] (v6298-fix-3) Store listener reference
         this.stateChangeListener = null;
 
-        // [NEW] (v6298-fix-4) Store references for component destruction
+        // Store references for component destruction
         this.appController = null;
         this.k1TabInputHandler = null;
         this.k2TabInputHandler = null;
@@ -33,7 +29,6 @@ class App {
         this.k4TabInputHandler = null;
         this.k5TabInputHandler = null;
         this.searchDialogComponent = null;
-        // [NEW] (第 11 次編修) Store bound handler
         this.reloginHandler = null;
     }
 
@@ -57,7 +52,7 @@ class App {
             }
         };
 
-        // [NEW] Helper function to load CSS files dynamically
+        // Helper function to load CSS files dynamically
         const loadCss = (url) => {
             try {
                 const link = document.createElement('link');
@@ -70,14 +65,13 @@ class App {
             }
         };
 
-        // --- [NEW] (v6297) Load Login Component ---
+        // Load Login Component
         const loginContainer = document.getElementById('login-container');
         if (loginContainer) {
             await loadPartial(paths.partials.loginComponent, loginContainer, 'innerHTML');
-            // CSS is already loaded via style.css @import
         }
 
-        // --- Load Main Panel Skeletons ---
+        // Load Main Panel Skeletons
         await loadPartial(paths.partials.leftPanel, document.body);
 
         const functionPanel = document.getElementById(DOM_IDS.FUNCTION_PANEL);
@@ -85,90 +79,85 @@ class App {
             await loadPartial(paths.partials.rightPanel, functionPanel, 'innerHTML');
         }
 
-        // --- [NEW] Load K1 Tab Bundle ---
+        // Load K1 Tab Bundle
         const k1ContentContainer = document.getElementById('k1-content');
         if (k1ContentContainer) {
             await loadPartial(paths.tabs.k1.html, k1ContentContainer, 'innerHTML');
             loadCss(paths.tabs.k1.css);
         }
 
-        // --- [NEW] Load K2 Tab Bundle ---
+        // Load K2 Tab Bundle
         const k2ContentContainer = document.getElementById('k2-content');
         if (k2ContentContainer) {
             await loadPartial(paths.tabs.k2.html, k2ContentContainer, 'innerHTML');
             loadCss(paths.tabs.k2.css);
         }
 
-        // --- [NEW] Load K3 Tab Bundle ---
+        // Load K3 Tab Bundle
         const k3ContentContainer = document.getElementById('k3-content');
         if (k3ContentContainer) {
             await loadPartial(paths.tabs.k3.html, k3ContentContainer, 'innerHTML');
             loadCss(paths.tabs.k3.css);
         }
 
-        // --- [NEW] Load K4 Tab Bundle ---
+        // Load K4 Tab Bundle
         const k4ContentContainer = document.getElementById('k4-content');
         if (k4ContentContainer) {
             await loadPartial(paths.tabs.k4.html, k4ContentContainer, 'innerHTML');
             loadCss(paths.tabs.k4.css);
         }
 
-        // --- [NEW] Load K5 Tab Bundle ---
+        // Load K5 Tab Bundle
         const k5ContentContainer = document.getElementById('k5-content');
         if (k5ContentContainer) {
             await loadPartial(paths.tabs.k5.html, k5ContentContainer, 'innerHTML');
             loadCss(paths.tabs.k5.css);
         }
 
-        // --- [NEW] (v6298-F4-Search) Load Search Dialog ---
+        // Load Search Dialog
         const searchDialogContainer = document.getElementById(DOM_IDS.SEARCH_DIALOG_CONTAINER);
         if (searchDialogContainer) {
             await loadPartial(paths.partials.searchDialog, searchDialogContainer, 'innerHTML');
-            // CSS is already loaded via style.css @import
         }
     }
 
     async run() {
         console.log("Application starting...");
 
-        // [NEW] (v6297) Get Auth Service early
         const authService = this.appContext.get('authService');
         const eventAggregator = this.appContext.get('eventAggregator');
-        // [NEW] (v6298-fix) Get State Service for reset
         const stateService = this.appContext.get('stateService');
 
-        // [NEW] (v6297) Observe auth state
         authService.observeAuthState(
             (user) => {
                 // --- On User Logged In ---
                 console.log(`User ${user.email} logged in. Initializing main app...`);
                 // Load and initialize the main app UI ONLY after login.
-                // [FIX] Check if UIManager already exists to prevent re-initialization on hot-reload
+                // Check if UIManager already exists to prevent re-initialization on hot-reload
                 if (!this.uiManager) {
                     this._initializeAppUI(eventAggregator);
                 }
             },
-            () => { // [MODIFIED] (v6298-fix) Removed 'user' param, it's null
+            () => {
                 // --- On User Logged Out ---
                 console.log("No user logged in. Showing login screen.");
 
-                // [NEW] (v6298-fix) Reset application state and UI
-                this._resetApplicationState(stateService, eventAggregator); // [MODIFIED] (v6298-fix-3) Pass aggregator
+                // Reset application state and UI
+                this._resetApplicationState(stateService, eventAggregator);
 
                 // Show login screen, hide app
                 document.getElementById('login-container')?.classList.remove('is-hidden');
                 document.getElementById(DOM_IDS.APP)?.classList.add('is-hidden');
 
-                // [NEW] (v6298-fix) Force-hide panels that might be expanded
+                // Force-hide panels that might be expanded
                 document.getElementById(DOM_IDS.FUNCTION_PANEL)?.classList.remove('is-expanded');
                 document.getElementById(DOM_IDS.LEFT_PANEL)?.classList.remove('is-expanded');
 
-                // [NEW] (v6298-fix-4) Force-hide panel toggles
+                // Force-hide panel toggles
                 document.getElementById(DOM_IDS.FUNCTION_PANEL_TOGGLE)?.classList.add('is-hidden');
                 document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE)?.classList.add('is-hidden');
 
-
-                // [NEW] (v6298-fix-2) Manually reset the login form's DOM state
+                // Manually reset the login form's DOM state
                 const loginButton = document.getElementById('login-button');
                 const loginPassword = document.getElementById('login-password');
                 const loginErrorMessage = document.getElementById('login-error-message');
@@ -190,10 +179,10 @@ class App {
         // Step 1: Load all HTML templates into the DOM.
         await this._loadPartials();
 
-        // [NEW] (v6297) Initialize the login form handler *immediately* after loading partials.
-        this._initializeLoginHandler(authService, eventAggregator); // [MODIFIED] (v6298) Pass eventAggregator
+        // Initialize the login form handler immediately after loading partials.
+        this._initializeLoginHandler(authService, eventAggregator);
 
-        // [NEW] (第 11 次編修) Listen for Re-Login requests
+        // Listen for Re-Login requests
         this.reloginHandler = () => {
             document.getElementById('login-container')?.classList.remove('is-hidden');
             // We do NOT hide the app, so the context is preserved in the background
@@ -205,12 +194,12 @@ class App {
     }
 
     /**
-     * [NEW] (v6298-fix) Resets the entire application state and destroys UI instances.
+     * Resets the entire application state and destroys UI instances.
      */
-    _resetApplicationState(stateService, eventAggregator) { // [MODIFIED] (v6298-fix-3)
+    _resetApplicationState(stateService, eventAggregator) {
         if (!stateService) return;
 
-        // [NEW] (v6298-fix-4) Destroy all components that have listeners
+        // Destroy all components that have listeners
         if (this.appController) {
             this.appController.destroy();
             this.appController = null;
@@ -235,14 +224,14 @@ class App {
             this.k5TabInputHandler.destroy();
             this.k5TabInputHandler = null;
         }
-        // [NEW] (v6298-F4-Search) Destroy search dialog
+
+        // Destroy search dialog
         if (this.searchDialogComponent) {
             this.searchDialogComponent.destroy();
             this.searchDialogComponent = null;
         }
-        // [END v6298-fix-4]
 
-        // [NEW] (v6298-fix-3) Destroy components *before* nulling them
+        // Destroy components before nulling them
         if (this.inputHandler) {
             this.inputHandler.destroy();
         }
@@ -251,11 +240,10 @@ class App {
         }
 
         // 1. Nullify instances to force re-initialization on next login
-        // [MODIFIED] (v6298-fix-2) This MUST happen first to prevent the race condition.
         this.uiManager = null;
-        this.inputHandler = null; // Assuming InputHandler is property of App
+        this.inputHandler = null;
 
-        // [NEW] (v6298-fix-3) Unsubscribe the main render listener
+        // Unsubscribe the main render listener
         if (this.stateChangeListener) {
             eventAggregator.unsubscribe(EVENTS.STATE_CHANGED, this.stateChangeListener);
             this.stateChangeListener = null;
@@ -268,11 +256,9 @@ class App {
         console.log("Application state and UI instances have been reset.");
     }
 
-
     /**
-     * [NEW] (v6297) (FIX) This logic is moved from UIManager to main.js
-     * It runs *before* authentication to make the login form interactive.
-     * [MODIFIED] (v6298) Added forgot password logic.
+     * Initializes logic for the login form.
+     * It runs before authentication to make the login form interactive.
      */
     _initializeLoginHandler(authService, eventAggregator) {
         const loginForm = document.getElementById('login-form');
@@ -280,7 +266,7 @@ class App {
         const loginEmail = document.getElementById('login-email');
         const loginPassword = document.getElementById('login-password');
         const loginErrorMessage = document.getElementById('login-error-message');
-        const forgotPasswordLink = document.getElementById(DOM_IDS.FORGOT_PASSWORD_LINK); // [NEW] (v6298)
+        const forgotPasswordLink = document.getElementById(DOM_IDS.FORGOT_PASSWORD_LINK);
 
         if (!loginForm || !authService) {
             console.warn("Login form or AuthService not found, login cannot be initialized.");
@@ -301,8 +287,7 @@ class App {
 
             if (result.success) {
                 // Success! The onAuthStateChanged listener will now fire.
-                // [NEW] (第 11 次編修) Explicitly hide the login container for the Re-Login case.
-                // In normal login, observeAuthState hides it, but in Re-Login, we need this manual step.
+                // Explicitly hide the login container for the Re-Login case.
                 document.getElementById('login-container')?.classList.add('is-hidden');
 
                 // Reset button state for next time
@@ -318,7 +303,7 @@ class App {
             }
         });
 
-        // [NEW] (v6298) Add listener for "Forgot Password"
+        // Add listener for "Forgot Password"
         if (forgotPasswordLink) {
             forgotPasswordLink.addEventListener('click', async (e) => {
                 e.preventDefault();
@@ -349,7 +334,7 @@ class App {
     }
 
     /**
-     * [NEW] (v6297) Encapsulated the main app UI initialization.
+     * Encapsulated the main app UI initialization.
      * This function is called by the AuthService observer ONLY when a user is logged in.
      */
     async _initializeAppUI(eventAggregator) {
@@ -358,10 +343,8 @@ class App {
         this.appContext.initializeUIComponents();
 
         // Step 3: Get all fully initialized instances from the context.
-        // [MODIFIED] (v6298-fix-4) Store references
         const calculationService = this.appContext.get('calculationService');
         const configManager = this.appContext.get('configManager');
-        // [NEW] (v6297 ?身) ?段 2：å?¾?quotePersistenceService
         const quotePersistenceService = this.appContext.get('quotePersistenceService');
         this.appController = this.appContext.get('appController');
         const rightPanelComponent = this.appContext.get('rightPanelComponent');
@@ -376,7 +359,8 @@ class App {
         this.k4TabInputHandler = this.appContext.get('k4TabInputHandler');
         const k5TabComponent = this.appContext.get('k5TabComponent');
         this.k5TabInputHandler = this.appContext.get('k5TabInputHandler');
-        // [NEW] (v6298-F4-Search) Get the search dialog component
+
+        // Get the search dialog component
         this.searchDialogComponent = this.appContext.get('searchDialogComponent');
 
         // Step 4: Initialize the main UI manager.
@@ -385,20 +369,18 @@ class App {
             eventAggregator,
             calculationService,
             rightPanelComponent,
-            leftPanelTabManager, // [NEW] Inject LeftPanelTabManager
-            k1TabComponent, // [NEW] Inject K1 component
-            k2TabComponent, // [NEW] (v6294) Inject K2 component
-            k3TabComponent, // [NEW] Inject K3 component
-            k4TabComponent, // [NEW] Inject K4 component
-            k5TabComponent, // [NEW] Inject K5 component
-            // [NEW] (v6298-F4-Search) Inject search dialog component
+            leftPanelTabManager,
+            k1TabComponent,
+            k2TabComponent,
+            k3TabComponent,
+            k4TabComponent,
+            k5TabComponent,
             searchDialogComponent: this.searchDialogComponent,
         });
 
         // Step 5: Continue with the rest of the application startup.
         await configManager.initialize();
 
-        // [MODIFIED] (v6298-fix-3) Store the listener reference
         this.stateChangeListener = (state) => {
             // Only render if the uiManager instance still exists.
             // This check will fail during logout, preventing the crash.
@@ -408,10 +390,9 @@ class App {
         };
         eventAggregator.subscribe(EVENTS.STATE_CHANGED, this.stateChangeListener);
 
-        // [NEW] (v6297 ?身) ?段 2：å? quotePersistenceService 注入 appController
         this.appController.quotePersistenceService = quotePersistenceService;
 
-        this.appController.publishInitialState(); // [MODIFIED] (v6298-fix-4) Use stored ref
+        this.appController.publishInitialState();
 
         this.inputHandler = new InputHandler(eventAggregator);
         this.inputHandler.initialize();
@@ -424,11 +405,11 @@ class App {
 
         eventAggregator.publish(EVENTS.APP_READY);
 
-        // [NEW] (v6297) Show the app and hide the login screen
+        // Show the app and hide the login screen
         document.getElementById('login-container')?.classList.add('is-hidden');
         document.getElementById(DOM_IDS.APP)?.classList.remove('is-hidden');
 
-        // [NEW] (v6298-fix-4) Show panel toggles
+        // Show panel toggles
         document.getElementById(DOM_IDS.FUNCTION_PANEL_TOGGLE)?.classList.remove('is-hidden');
         document.getElementById(DOM_IDS.LEFT_PANEL_TOGGLE)?.classList.remove('is-hidden');
 

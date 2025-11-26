@@ -1,12 +1,7 @@
 /* FILE: 04-core-code/config/initial-state.js */
-// [MODIFIED] (F4 Status Phase 1) Import QUOTE_STATUS
-// [MODIFIED] (Correction Flow Phase 2) Added isCorrectionMode to UI state.
-// [MODIFIED] (F1 Motor Split) Added w_motor_qty to ui.f1 and f1Snapshot.
-// [MODIFIED] (F1 Motor Split Architecture Fix) Added motorPrice to ui.f2.
-// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic string 'rollerBlind' with PRODUCT_TYPES.ROLLER_BLIND.
 
 import { QUOTE_STATUS } from './status-config.js';
-import { PRODUCT_TYPES } from './business-constants.js'; // [NEW]
+import { PRODUCT_TYPES } from './business-constants.js';
 
 /**
  * @fileoverview Defines the initial state of the application.
@@ -17,10 +12,8 @@ export const initialState = {
     ui: {
         // --- SPA View Management ---
         currentView: 'QUICK_QUOTE',
-        visibleColumns: ['sequence', 'width', 'height', 'TYPE',
-            'Price'],
+        visibleColumns: ['sequence', 'width', 'height', 'TYPE', 'Price'],
         activeTabId: 'k1-tab',
-
 
         // --- Input & Selection State ---
         inputValue: '',
@@ -30,7 +23,6 @@ export const initialState = {
         isMultiSelectMode: false,
         multiSelectSelectedIndexes: [],
 
-
         // --- Left Panel Edit Modes & States ---
         activeEditMode: null,
         targetCell: null,
@@ -38,16 +30,11 @@ export const initialState = {
 
         // --- K2 (Fabric/LF) State ---
         lfSelectedRowIndexes: [],
-        // [REMOVED] (Phase 3) Add state for SSet selection, independent of lfSelectedRowIndexes
-        // sSetSelectedRowIndexes: [],
-
-        // [REMOVED] lfModifiedRowIndexes is moved to quoteData.uiMetadata for persistence.
 
         // --- K5 (Dual/Chain) State ---
         dualChainMode: null,
         dualChainInputValue: '',
         dualPrice: null,
-
 
         // --- K4 (Drive/Accessories) State ---
         driveAccessoryMode: null,
@@ -69,23 +56,18 @@ export const initialState = {
         summaryCordPrice: null,
         summaryAccessoriesTotal: null,
 
-
-        // [RESTRUCTURED] --- F1 Financial Overview State ---
+        // --- F1 Financial Overview State ---
         f1: {
             discountPercentage: 0,
             remote_1ch_qty: 0,
             remote_16ch_qty: null,
             dual_combo_qty: null,
             dual_slim_qty: null,
-            // [NEW] (F1 Motor Split) W-Motor (Wired) Quantity
             w_motor_qty: null,
-
-            // [NEW] (F1/F2 Refactor Phase 1) Add state to store F1 cost totals
             f1_subTotal: null,
             f1_finalTotal: null,
-            wifi_qty: null, // [NEW] (v6295) Add state for F1 Wifi Qty
+            wifi_qty: null,
         },
-
 
         // --- F2 Financial Summary State ---
         f2: {
@@ -97,39 +79,26 @@ export const initialState = {
             firstRbPrice: null, disRbPrice: null, singleprofit: null,
             rbProfit: null,
             gst: null, netProfit: null,
-            // [v6290] Add Deposit and Balance
             deposit: null,
             balance: null,
-
             newOffer: null,
-
-            // [FIX] Add missing keys from Phase 2
             f2_17_pre_sum: null,
             sumPrice: null,
             grandTotal: null,
-
-            gstExcluded: false, // [NEW] (Phase 2)
-
-            // [NEW] (Accounting V2 Phase 2) Store tax exclusive total for XERO
+            gstExcluded: false,
             taxExclusiveTotal: null,
-
-            // [NEW] (F1 Motor Split Architecture Fix) Store calculated motor price for display
             motorPrice: null
         },
 
         // --- Global UI State ---
         isSumOutdated: false,
         welcomeDialogShown: false,
-        isModalActive: false, // [NEW] Add modal lock state
-
-        // [NEW] (Correction Flow Phase 2) Indicates if we are correcting an existing order
+        isModalActive: false,
         isCorrectionMode: false
     },
     quoteData: {
-        // [MODIFIED] Use constant instead of 'rollerBlind'
         currentProduct: PRODUCT_TYPES.ROLLER_BLIND,
         products: {
-            // [MODIFIED] Use constant as computed property key
             [PRODUCT_TYPES.ROLLER_BLIND]: {
                 items: [
                     {
@@ -158,54 +127,40 @@ export const initialState = {
                 }
             }
         },
-        // [ADDED] A new container for UI-related metadata that needs to be saved.
-        uiMetadata:
-        {
+        uiMetadata: {
             lfModifiedRowIndexes: []
         },
-
-        // [NEW] (v6298-F4-Search) Add metadata container for searchable fields
         metadata: {
             hasMotor: false
         },
-
         quoteId: null,
         issueDate: null,
         dueDate: null,
-        ownerUid: null, // [NEW] (v6297) Add field to store the owner's UID
-        // [MODIFIED] (F4 Status Phase 1) Use constant for default status
+        ownerUid: null,
         status: QUOTE_STATUS.A_ARCHIVED,
         costDiscountPercentage: 0,
         customer: {
             name: "",
-            // [NEW] (Accounting V2 Phase 1) Split fields
             firstName: "",
             lastName: "",
             address: "",
             phone: "",
             email: "",
-            postcode: "" // [NEW] (v6298-F4-Search) Add postcode
+            postcode: ""
         },
-        // [MODIFIED] F1 Panel Status Snapshot (v6285 Phase 4) */
         f1Snapshot: {
-            // Main component quantities (calculated)
             winder_qty: null,
             motor_qty: null,
             charger_qty: null,
             cord_qty: null,
-            // Distribution quantities (from ui.f1)
             remote_1ch_qty: null,
             remote_16ch_qty: null,
             dual_combo_qty: null,
             dual_slim_qty: null,
-            // [NEW] (F1 Motor Split) Snapshot W-Motor Qty
             w_motor_qty: null,
-
-            // Financial values (from ui.f1)
             discountPercentage: null,
-            wifi_qty: null // [NEW] (v6295)
+            wifi_qty: null
         },
-        // [NEW] (v6295) Add snapshot container for F2 state
         f2Snapshot: {}
     }
 };
