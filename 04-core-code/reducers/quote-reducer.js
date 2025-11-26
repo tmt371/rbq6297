@@ -1,7 +1,9 @@
-// File: 04-core-code/reducers/quote-reducer.js
+/* FILE: 04-core-code/reducers/quote-reducer.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with COMPONENT_CODES and MOUNT_TYPES.
 
 import { QUOTE_ACTION_TYPES } from '../config/action-types.js';
 import { initialState } from '../config/initial-state.js';
+import { COMPONENT_CODES, MOUNT_TYPES } from '../config/business-constants.js'; // [NEW]
 
 function _consolidateEmptyRows(items, productFactory, productKey) {
     let newItems = [...items];
@@ -47,6 +49,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             if (state[key] === value) return state;
             return { ...state, [key]: value };
         }
+
         case QUOTE_ACTION_TYPES.UPDATE_CUSTOMER_PROPERTY: {
             const { key, value } = action.payload;
             if (state.customer[key] === value) return state;
@@ -59,6 +62,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             };
         }
 
+
         case QUOTE_ACTION_TYPES.INSERT_ROW: {
             items = [...productData.items];
             const productStrategy = productFactory.getProductStrategy(productKey);
@@ -66,7 +70,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             items.splice(action.payload.selectedIndex + 1, 0, newItem);
             productData = { ...productData, items };
 
-            // [NEW] (第 14 次編修) Insert row logic needs to shift LF indexes
+            // [NEW] (чм?14 цмбч╖иф┐? Insert row logic needs to shift LF indexes
             // If we insert at index + 1, any LF index > index should be shifted down
             const insertIndex = action.payload.selectedIndex + 1;
             const oldLfIndexes = state.uiMetadata.lfModifiedRowIndexes;
@@ -85,7 +89,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             const itemToDelete = items[selectedIndex];
             if (!itemToDelete) return state;
 
-            // [MODIFIED] (第 14 次編修) Remove constraint on deleting the last populated row.
+            // [MODIFIED] (чм?14 цмбч╖иф┐? Remove constraint on deleting the last populated row.
             // If there is only 1 item left (which shouldn't happen with 'Clear' button logic guarding the empty row, 
             // but good for safety), we reset it.
             if (items.length <= 1) {
@@ -100,7 +104,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
                     uiMetadata: { ...state.uiMetadata, lfModifiedRowIndexes: [] }
                 };
             } else {
-                // [NEW] (第 14 次編修) Update lfModifiedRowIndexes before splicing
+                // [NEW] (чм?14 цмбч╖иф┐? Update lfModifiedRowIndexes before splicing
                 // 1. Remove the deleted index from the LF list
                 // 2. Shift down any indexes that were below the deleted row
                 const oldLfIndexes = state.uiMetadata.lfModifiedRowIndexes;
@@ -132,7 +136,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
                 items[selectedIndex] = newItem;
                 productData = { ...productData, items };
 
-                // [NEW] (第 14 次編修) Also clear LF status for this row if cleared
+                // [NEW] (чм?14 цмбч╖иф┐? Also clear LF status for this row if cleared
                 // Since the row is reset, it loses its fabric/color, so it shouldn't be pink anymore.
                 const newLfIndexes = state.uiMetadata.lfModifiedRowIndexes.filter(i => i !== selectedIndex);
 
@@ -156,7 +160,8 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             if ((column === 'width' || column === 'height') && newItem.width && newItem.height) {
                 const logicThresholds = configManager.getLogicThresholds();
                 if (logicThresholds && (newItem.width * newItem.height) > logicThresholds.hdWinderThresholdArea && !newItem.motor) {
-                    newItem.winder = 'HD';
+                    // [MODIFIED] Use constant for HD
+                    newItem.winder = COMPONENT_CODES.WINDER_HD;
                 }
             }
             items[rowIndex] = newItem;
@@ -221,10 +226,11 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             const item = items[rowIndex];
             if (!item) return state;
 
+            // [MODIFIED] Use constants
             const BATCH_CYCLE_SEQUENCES = {
-                over: ['O', ''],
-                oi: ['IN', 'OUT'],
-                lr: ['L', 'R']
+                over: [MOUNT_TYPES.ROLL_OVER, MOUNT_TYPES.ROLL_UNDER],
+                oi: [MOUNT_TYPES.IN_RECESS, MOUNT_TYPES.FACE_FIX],
+                lr: [MOUNT_TYPES.CONTROL_LEFT, MOUNT_TYPES.CONTROL_RIGHT]
             };
             const sequence = BATCH_CYCLE_SEQUENCES[column];
             if (!sequence) return state;
