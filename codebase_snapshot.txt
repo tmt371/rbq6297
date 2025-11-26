@@ -7595,6 +7595,8 @@ export default {
 // [MODIFIED] (v6299 Gen-Xls) Register ExcelExportService.
 // [MODIFIED] (v6299 Phase 4) Moved excelExportService injection from WorkflowService to QuotePersistenceService for architectural consistency.
 // [MODIFIED] (v6299 Phase 5) Inject configManager into WorkOrderStrategy for height calculation.
+// [MODIFIED] (v6297 Stage 9) Register DataPreparationService.
+// [MODIFIED] (v6297 Stage 9 Phase 3) Inject dataPreparationService into ExcelExportService and WorkOrderStrategy.
 
 /**
  * @description
@@ -7620,19 +7622,18 @@ export class AppContext {
     }
 
     /**
-     * ?–∏?ó‚????ï–??–ø–∂????ë—Ö–æ‚ï£?–∏??ï–??
-     * @param {string} name - ?–ø–∂????–ø????–∏?(key)
-     * @param {object} instance - ?–∂??–∏???ú–??–ø–∂????
+     * Ë®ªÂ?‰∏Ä?ãÊ??ôÊ?ÁµÑ‰ª∂ÂØ¶‰???
+     * @param {string} name - ?çÂ??çÁ®± (key)
+     * @param {object} instance - ÂØ¶‰??ñÂ??ÑÁâ©‰ª?
      */
     register(name, instance) {
-        this.instances[name] =
-            instance;
+        this.instances[name] = instance;
     }
 
     /**
-     * ??õ–Æ—Ö–æ‚ï£?????ú–???ï–??–ø–∂????
-     * @param {string} name - ?–∂?????õ–ß‚???–ø–∂????–∏??
-     * @returns {object} - ?–∏?ó‚????–ø–∂????
+     * ?≤Â?Â∑≤Ë®ª?äÁ??çÂ?ÂØ¶‰???
+     * @param {string} name - ?çÂ??çÁ®±
+     * @returns {object} - ?çÂ?ÂØ¶‰?
      */
     get(name) {
         const instance = this.instances[name];
@@ -7655,6 +7656,11 @@ export class AppContext {
         const configManager = new ConfigManager(eventAggregator);
         this.register('configManager', configManager);
 
+        // [NEW] (v6297 Stage 9) Initialize DataPreparationService early as it depends on ConfigManager
+        // but is a core logic service used by others (potentially).
+        const dataPreparationService = new DataPreparationService({ configManager });
+        this.register('dataPreparationService', dataPreparationService);
+
         const productFactory = new ProductFactory({ configManager });
         this.register('productFactory', productFactory);
 
@@ -7676,8 +7682,8 @@ export class AppContext {
             productFactory,
             configManager
         });
-        this.register('calculationService',
-            calculationService);
+        this.register('calculationService', calculationService);
+
         const fileService = new FileService({ productFactory });
         this.register('fileService', fileService);
 
@@ -7687,9 +7693,11 @@ export class AppContext {
         this.register('focusService', focusService);
 
         // [NEW] (v6299 Gen-Xls) Initialize ExcelExportService
+        // [MODIFIED] (Stage 9 Phase 3) Inject dataPreparationService
         const excelExportService = new ExcelExportService({
             configManager,
-            calculationService
+            calculationService,
+            dataPreparationService // [NEW] Injected
         });
         this.register('excelExportService', excelExportService);
     }
@@ -7707,6 +7715,8 @@ export class AppContext {
         const authService = this.get('authService'); // [NEW] (v6297) Get AuthService
         // [NEW] (v6299 Gen-Xls) Get ExcelExportService
         const excelExportService = this.get('excelExportService');
+        // [NEW] (Stage 9 Phase 3) Get DataPreparationService
+        const dataPreparationService = this.get('dataPreparationService');
 
         // --- [NEW] Instantiate LeftPanelTabManager (Phase 6 Refactor) ---
         const leftPanelElement = document.getElementById(DOM_IDS.LEFT_PANEL);
@@ -7744,21 +7754,25 @@ export class AppContext {
         const k5TabComponent = new K5TabComponent();
         this.register('k5TabComponent', k5TabComponent);
 
-        // --- [NEW] (??–æ?2) ?–ø–∂??????Generator ?–Ω–¶?–•–µ ---
+        // --- [NEW] (?éÊÆµ 2) ?ùÂ???Generator Á≠ñÁï• ---
         // [MODIFIED] (v6299 Phase 5) Inject configManager for Work Order Logic
-        const workOrderStrategy = new WorkOrderStrategy({ configManager });
+        // [MODIFIED] (Stage 9 Phase 3) Inject dataPreparationService
+        const workOrderStrategy = new WorkOrderStrategy({
+            configManager,
+            dataPreparationService // [NEW] Injected
+        });
         this.register('workOrderStrategy', workOrderStrategy);
 
-        // [NEW] (??–æ?3) ?–ø–∂????ú–??–±–∏????
+        // [NEW] (?éÊÆµ 3) ?ùÂ??ñÂ??±Ë°®Á≠ñÁï•
         const originalQuoteStrategy = new OriginalQuoteStrategy();
         this.register('originalQuoteStrategy', originalQuoteStrategy);
 
-        // [NEW] (??–æ?4) ?–ø–∂????GTH ?–Ω–¶?–•–µ
+        // [NEW] (?éÊÆµ 4) ?ùÂ???GTH Á≠ñÁï•
         const gthQuoteStrategy = new GthQuoteStrategy();
         this.register('gthQuoteStrategy', gthQuoteStrategy);
 
 
-        // [NEW] (v6297 ?–∂??ë–? ???–æ??1??ù–™—Ö–ø–∂—Ñ‚???? QuotePersistenceService
+        // [NEW] (v6297 ?éÊÆµ 7) ?ùÂ???QuotePersistenceService
         // [MODIFIED] (v6299 Phase 4) Inject excelExportService here for centralization
         const quotePersistenceService = new QuotePersistenceService({
             eventAggregator,
@@ -7774,7 +7788,7 @@ export class AppContext {
 
 
         // --- [NEW] Instantiate the new QuoteGeneratorService ---
-        // [MODIFIED] (??–æ?4) ??Ç–∏—Ö–ï–????strategy
+        // [MODIFIED] (?éÊÆµ 4) Ê≥®ÂÖ•?Ä??strategy
         const quoteGeneratorService = new QuoteGeneratorService({
             calculationService,
             workOrderStrategy,
@@ -7828,23 +7842,22 @@ export class AppContext {
         const driveAccessoriesView = new DriveAccessoriesView({ stateService, calculationService, eventAggregator });
 
         // --- [MODIFIED] Removed obsolete publishStateChangeCallback from DetailConfigView dependencies ---
-        const detailConfigView
-            = new DetailConfigView({
-                stateService,
-                eventAggregator,
-                k1LocationView,
-                k2FabricView,
-                k3OptionsView,
-                dualChainView,
-                driveAccessoriesView
-            });
+        const detailConfigView = new DetailConfigView({
+            stateService,
+            eventAggregator,
+            k1LocationView,
+            k2FabricView,
+            k3OptionsView,
+            dualChainView,
+            driveAccessoriesView
+        });
         this.register('detailConfigView', detailConfigView);
 
         // [MODIFIED] (v6299 Phase 4) excelExportService dependency removed from WorkflowService
         const workflowService = new WorkflowService({
             eventAggregator,
             stateService,
-            fileService, // [MODIFIED] (v6297 ?–∂??ë–? ?–∫????ê–æ—Ü–Ω–≥—è‚?–™????fileService??ù–ú—???handleFileLoad ??ó–ù—Ö–¨–∏—Ü–Ω–¥—??–©??ï–?
+            fileService, // [MODIFIED] (v6297 ?éÊÆµ 7) ‰øùÁ?Ôºå‰?‰∏ªË?Â≠òÂ??èËºØÁßªËá≥ QuotePersistenceService
             calculationService,
             productFactory,
             detailConfigView,
@@ -7877,21 +7890,21 @@ export class AppContext {
         this.register('appController', appController);
 
         // --- [NEW] (v6298-F4-Search) Instantiate the Search Dialog Component ---
-        // --- [NEW] ??–æ?4??ù–™—Ö–ø–∂—Ñ‚???? S1/S2 ?–Ω?????---
+        // --- [NEW] ?éÊÆµ 3ÔºöÂâµÂª?S1/S2 Ë¶ñÂ? ---
         const s1View = new SearchTabS1View({ eventAggregator });
         this.register('s1View', s1View);
 
         const s2View = new SearchTabS2View({ eventAggregator, stateService });
         this.register('s2View', s2View);
 
-        // --- [MODIFIED] ??–æ?4??ù–™‚?? S1/S2 ?–Ω????????–æ???---
+        // --- [MODIFIED] ?éÊÆµ 4ÔºöÂâµÂª?Search Dialog ÁµÑ‰ª∂ ---
         const searchDialogComponent = new SearchDialogComponent({
             containerElement: document.getElementById(DOM_IDS.SEARCH_DIALOG_CONTAINER),
             eventAggregator,
             // [MODIFIED] (v6298-F4-Search) Inject required services
             stateService,
             authService,
-            // [NEW] ??–æ?4 ??Ç–∏—Ö–ï–?
+            // [NEW] ?éÊÆµ 4 Ê≥®ÂÖ•
             s1View: s1View,
             s2View: s2View
         });
@@ -7926,7 +7939,8 @@ import { WorkflowService } from './services/workflow-service.js';
 import { QuoteGeneratorService } from './services/quote-generator-service.js'; // [NEW]
 import { AuthService } from './services/auth-service.js'; // [NEW] (v6297)
 import { ExcelExportService } from './services/excel-export-service.js'; // [NEW] (v6299 Gen-Xls)
-// [NEW] (v6297 ?–∂??ë–? ???–æ??1??ù–™Import ??ë—???
+import { DataPreparationService } from './services/data-preparation-service.js'; // [NEW] (v6297 Stage 9)
+// [NEW] (v6297 ?éÊÆµ 7) Import ÂºïÁî®
 import { QuotePersistenceService } from './services/quote-persistence-service.js';
 import { RightPanelComponent } from './ui/right-panel-component.js';
 import { QuickQuoteView } from './ui/views/quick-quote-view.js';
@@ -7948,14 +7962,14 @@ import { LeftPanelTabManager } from './ui/left-panel-tab-manager.js'; // [MODIFI
 import { DOM_IDS } from './config/constants.js'; // [MODIFIED]
 // [NEW] (v6298-F4-Search) Import the new search dialog component
 import { SearchDialogComponent } from './ui/search-dialog-component.js';
-// [NEW] ??–æ?4??ù–™Import S1/S2 ?–Ω?????
+// [NEW] ?éÊÆµ 3ÔºöImport S1/S2 Ë¶ñÂ?
 import { SearchTabS1View } from './ui/views/search-tab-s1-view.js';
 import { SearchTabS2View } from './ui/views/search-tab-s2-view.js';
-// [NEW] (??–æ?2) Import the new generator strategy
+// [NEW] (?éÊÆµ 2) Import the new generator strategy
 import { WorkOrderStrategy } from './services/generators/work-order-strategy.js';
-// [NEW] (??–æ?3) Import the new generator strategy
+// [NEW] (?éÊÆµ 3) Import the new generator strategy
 import { OriginalQuoteStrategy } from './services/generators/original-quote-strategy.js';
-// [NEW] (??–æ?4) Import the new generator strategy
+// [NEW] (?éÊÆµ 4) Import the new generator strategy
 import { GthQuoteStrategy } from './services/generators/gth-quote-strategy.js';
 
 
@@ -9483,6 +9497,70 @@ export const QUOTE_ACTION_TYPES = {
 };
 --- FILE END ---
 
+--- FILE START: 04-core-code/config/business-constants.js ---
+/* FILE: 04-core-code/config/business-constants.js */
+// [NEW] (Stage 9 - Business Logic Constantization)
+// This file serves as the Single Source of Truth for all business-related magic strings.
+// NOTE: The values defined here MUST match the raw strings currently stored in JSON/CSV files
+// to ensure backward compatibility.
+
+export const PRODUCT_TYPES = {
+    ROLLER_BLIND: 'rollerBlind'
+};
+
+export const COMPONENT_CODES = {
+    WINDER_HD: 'HD',
+    DUAL_BRACKET: 'D',
+    MOTOR: 'Motor',     // Stored in item.motor
+    CHAIN: 'Chain',     // Used in UI/Logic context
+    WINDER: 'Winder',   // Used in UI/Logic context
+    REMOTE: 'Remote',
+    CHARGER: 'Charger',
+    CORD: '3MCord'
+};
+
+export const MOUNT_TYPES = {
+    IN_RECESS: 'IN',
+    FACE_FIX: 'OUT',
+    CONTROL_LEFT: 'L',
+    CONTROL_RIGHT: 'R',
+    ROLL_OVER: 'O',
+    ROLL_UNDER: '' // Default is empty string
+};
+
+// Keys used in Price Matrix and Item.fabricType
+export const FABRIC_CODES = {
+    B1: 'B1',
+    B2: 'B2',
+    B3: 'B3',
+    B4: 'B4',
+    B5: 'B5',
+    SN: 'SN'
+};
+
+// Codes used for Logic Processing (e.g. DataPreparationService, K2 Views)
+export const LOGIC_CODES = {
+    LIGHT_FILTER: 'LF',
+    BLOCKOUT: 'BO',
+    SCREEN: 'SN',
+    // Edit Modes
+    MODE_LF: 'LF',
+    MODE_LF_DEL: 'LFD',
+    MODE_SSET: 'SSet'
+};
+
+// Keys used in F1/F4 UI for accessory identification
+export const ACCESSORY_KEYS = {
+    WINDER: 'winder',
+    MOTOR: 'motor',
+    REMOTE: 'remote',
+    CHARGER: 'charger',
+    CORD: 'cord',
+    DUAL: 'dual',
+    CHAIN: 'chain'
+};
+--- FILE END ---
+
 --- FILE START: 04-core-code/config/constants.js ---
 /* FILE: 04-core-code/config/constants.js */
 // [MODIFIED] (Correction Flow Phase 4) Added USER_REQUESTED_EXECUTE_CANCELLATION.
@@ -9767,8 +9845,10 @@ export { firebaseConfig };
 // [MODIFIED] (Correction Flow Phase 2) Added isCorrectionMode to UI state.
 // [MODIFIED] (F1 Motor Split) Added w_motor_qty to ui.f1 and f1Snapshot.
 // [MODIFIED] (F1 Motor Split Architecture Fix) Added motorPrice to ui.f2.
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic string 'rollerBlind' with PRODUCT_TYPES.ROLLER_BLIND.
 
 import { QUOTE_STATUS } from './status-config.js';
+import { PRODUCT_TYPES } from './business-constants.js'; // [NEW]
 
 /**
  * @fileoverview Defines the initial state of the application.
@@ -9888,9 +9968,11 @@ export const initialState = {
         isCorrectionMode: false
     },
     quoteData: {
-        currentProduct: 'rollerBlind',
+        // [MODIFIED] Use constant instead of 'rollerBlind'
+        currentProduct: PRODUCT_TYPES.ROLLER_BLIND,
         products: {
-            rollerBlind: {
+            // [MODIFIED] Use constant as computed property key
+            [PRODUCT_TYPES.ROLLER_BLIND]: {
                 items: [
                     {
                         itemId: `item-${Date.now()}`,
@@ -10033,6 +10115,17 @@ export const paths = {
 };
 --- FILE END ---
 
+--- FILE START: 04-core-code/config/regex.js ---
+/* FILE: 04-core-code/config/regex.js */
+// [NEW] (Stage 9 Phase 4) Centralized Regex definitions to avoid DRY violations.
+
+export const REGEX = {
+    // Matches invisible Unicode characters (e.g., Zero Width Space, Left-To-Right Mark, BOM)
+    // Ranges: U+200B-U+200F, U+202A-U+202E, U+2060-U+206F, U+FEFF
+    INVISIBLE_CHAR: /[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g
+};
+--- FILE END ---
+
 --- FILE START: 04-core-code/config/status-config.js ---
 /* FILE: 04-core-code/config/status-config.js */
 // [NEW] (F4 Status Phase 1) Defines all statuses for the quote lifecycle
@@ -10057,10 +10150,12 @@ export const QUOTE_STATUS = {
 --- FILE END ---
 
 --- FILE START: 04-core-code/reducers/quote-reducer.js ---
-// File: 04-core-code/reducers/quote-reducer.js
+/* FILE: 04-core-code/reducers/quote-reducer.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with COMPONENT_CODES and MOUNT_TYPES.
 
 import { QUOTE_ACTION_TYPES } from '../config/action-types.js';
 import { initialState } from '../config/initial-state.js';
+import { COMPONENT_CODES, MOUNT_TYPES } from '../config/business-constants.js'; // [NEW]
 
 function _consolidateEmptyRows(items, productFactory, productKey) {
     let newItems = [...items];
@@ -10106,6 +10201,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             if (state[key] === value) return state;
             return { ...state, [key]: value };
         }
+
         case QUOTE_ACTION_TYPES.UPDATE_CUSTOMER_PROPERTY: {
             const { key, value } = action.payload;
             if (state.customer[key] === value) return state;
@@ -10118,6 +10214,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             };
         }
 
+
         case QUOTE_ACTION_TYPES.INSERT_ROW: {
             items = [...productData.items];
             const productStrategy = productFactory.getProductStrategy(productKey);
@@ -10125,7 +10222,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             items.splice(action.payload.selectedIndex + 1, 0, newItem);
             productData = { ...productData, items };
 
-            // [NEW] (Á¨?14 Ê¨°Á∑®‰ø? Insert row logic needs to shift LF indexes
+            // [NEW] (?–º?14 ?–º–±??ñ–∏—Ñ‚?? Insert row logic needs to shift LF indexes
             // If we insert at index + 1, any LF index > index should be shifted down
             const insertIndex = action.payload.selectedIndex + 1;
             const oldLfIndexes = state.uiMetadata.lfModifiedRowIndexes;
@@ -10144,7 +10241,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             const itemToDelete = items[selectedIndex];
             if (!itemToDelete) return state;
 
-            // [MODIFIED] (Á¨?14 Ê¨°Á∑®‰ø? Remove constraint on deleting the last populated row.
+            // [MODIFIED] (?–º?14 ?–º–±??ñ–∏—Ñ‚?? Remove constraint on deleting the last populated row.
             // If there is only 1 item left (which shouldn't happen with 'Clear' button logic guarding the empty row, 
             // but good for safety), we reset it.
             if (items.length <= 1) {
@@ -10159,7 +10256,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
                     uiMetadata: { ...state.uiMetadata, lfModifiedRowIndexes: [] }
                 };
             } else {
-                // [NEW] (Á¨?14 Ê¨°Á∑®‰ø? Update lfModifiedRowIndexes before splicing
+                // [NEW] (?–º?14 ?–º–±??ñ–∏—Ñ‚?? Update lfModifiedRowIndexes before splicing
                 // 1. Remove the deleted index from the LF list
                 // 2. Shift down any indexes that were below the deleted row
                 const oldLfIndexes = state.uiMetadata.lfModifiedRowIndexes;
@@ -10191,7 +10288,7 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
                 items[selectedIndex] = newItem;
                 productData = { ...productData, items };
 
-                // [NEW] (Á¨?14 Ê¨°Á∑®‰ø? Also clear LF status for this row if cleared
+                // [NEW] (?–º?14 ?–º–±??ñ–∏—Ñ‚?? Also clear LF status for this row if cleared
                 // Since the row is reset, it loses its fabric/color, so it shouldn't be pink anymore.
                 const newLfIndexes = state.uiMetadata.lfModifiedRowIndexes.filter(i => i !== selectedIndex);
 
@@ -10215,7 +10312,8 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             if ((column === 'width' || column === 'height') && newItem.width && newItem.height) {
                 const logicThresholds = configManager.getLogicThresholds();
                 if (logicThresholds && (newItem.width * newItem.height) > logicThresholds.hdWinderThresholdArea && !newItem.motor) {
-                    newItem.winder = 'HD';
+                    // [MODIFIED] Use constant for HD
+                    newItem.winder = COMPONENT_CODES.WINDER_HD;
                 }
             }
             items[rowIndex] = newItem;
@@ -10280,10 +10378,11 @@ export function quoteReducer(state, action, { productFactory, configManager }) {
             const item = items[rowIndex];
             if (!item) return state;
 
+            // [MODIFIED] Use constants
             const BATCH_CYCLE_SEQUENCES = {
-                over: ['O', ''],
-                oi: ['IN', 'OUT'],
-                lr: ['L', 'R']
+                over: [MOUNT_TYPES.ROLL_OVER, MOUNT_TYPES.ROLL_UNDER],
+                oi: [MOUNT_TYPES.IN_RECESS, MOUNT_TYPES.FACE_FIX],
+                lr: [MOUNT_TYPES.CONTROL_LEFT, MOUNT_TYPES.CONTROL_RIGHT]
             };
             const sequence = BATCH_CYCLE_SEQUENCES[column];
             if (!sequence) return state;
@@ -10919,6 +11018,11 @@ export class AuthService {
 // [MODIFIED] (F1 Motor Split) Updated calculateF2Summary to split B-Motor/W-Motor sales prices ($250/$200).
 // [MODIFIED] (F1 Motor Split Fix) Updated getQuoteTemplateData to use correct SALES price for motors ($250/$200).
 // [MODIFIED] (F1 Motor Split Fix 2) Hardcoded motor sales price calculation in getQuoteTemplateData for robustness.
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings 'HD' and 'D' with COMPONENT_CODES.
+// [MODIFIED] (Stage 9 Fix WorkOrder Cost) Reverted motor price in getQuoteTemplateData to USE COST ($160/$130) for Work Order.
+// [MODIFIED] (Stage 9 Final Fix) Differentiate Quote (Sales Price) vs WorkOrder (Cost Price) in getQuoteTemplateData.
+
+import { COMPONENT_CODES } from '../config/business-constants.js';
 
 /**
  * @fileoverview Service for handling all price and sum calculations.
@@ -11132,7 +11236,8 @@ export class CalculationService {
         const componentPrices = {};
 
         // Winder
-        const winderQty = items.filter(item => item.winder === 'HD').length;
+        // [MODIFIED] Use constant
+        const winderQty = items.filter(item => item.winder === COMPONENT_CODES.WINDER_HD).length;
         componentPrices.winder = this.calculateF1ComponentPrice('winder', winderQty);
 
         // Motor (Total)
@@ -11178,7 +11283,8 @@ export class CalculationService {
         componentPrices['3m-cord'] = this.calculateF1ComponentPrice('3m-cord', cordQty);
 
         // Dual (Use F1 UI state quantities)
-        const totalDualPairs = Math.floor(items.filter(item => item.dual === 'D').length / 2);
+        // [MODIFIED] Use constant
+        const totalDualPairs = Math.floor(items.filter(item => item.dual === COMPONENT_CODES.DUAL_BRACKET).length / 2);
         const comboQty = (ui.f1.dual_combo_qty === null) ? totalDualPairs : ui.f1.dual_combo_qty;
         const slimQty = (ui.f1.dual_slim_qty === null) ? 0 : ui.f1.dual_slim_qty;
         componentPrices['dual-combo'] = this.calculateF1ComponentPrice('dual-combo', comboQty);
@@ -11377,14 +11483,16 @@ export class CalculationService {
      * @param {object} quoteData - The *original* quote data from the state (used for items).
      * @param {object} ui - The current UI state.
      * @param {object} liveQuoteData - The *live, up-to-date* quoteData, passed from workflow service.
+     * @param {boolean} isWorkOrder - [NEW] Flag to determine if we use COST (True) or SALES (False) prices.
      * @returns {object} A comprehensive data object ready for template population.
      */
-    getQuoteTemplateData(quoteData, ui, liveQuoteData) {
-        // [MODIFIED] (Phase 7) 
-        // 1. Get F2 *Sales* Total
+    getQuoteTemplateData(quoteData, ui, liveQuoteData, isWorkOrder = false) {
+        // 1. Get F2 *Sales* Total (We use this for Overall Totals in both cases generally, or at least for Quote)
         const summaryData = this.calculateF2Summary(quoteData, ui);
-        // 2. Get F1 *Cost* Total
+        // 2. Get F1 *Cost* Total (We use this for Work Order details)
         const f1Costs = this.calculateF1Costs(quoteData, ui);
+
+        const currentProductType = quoteData.currentProduct;
 
         // [MODIFIED] (Phase 4) Grand total is now derived from F2's newOffer state, not F3.
         const newOfferValue = (ui.f2.newOffer !== null && ui.f2.newOffer !== undefined) ? ui.f2.newOffer : summaryData.sumPrice;
@@ -11400,44 +11508,57 @@ export class CalculationService {
         const items = quoteData.products.rollerBlind.items;
         const formatPrice = (price) => (typeof price === 'number' && price > 0) ? `$${price.toFixed(2)}` : '';
 
-        // [REMOVED] (Phase 7) Removed duplicated logic
-        // ...
+        // --- Determine Item Prices (Cost vs Sales) ---
+        let motorPrice, remote1chPrice, remote16chPrice, chargerPrice, cord3mPrice, wifiHubPrice, eAcceSum;
 
-        // [NEW] (Phase 7) Use F1 cost components (f1Costs) for QTY and Cost
         const motorQty = f1Costs.qtys.motor || '';
-
-        // [MODIFIED] (F1 Motor Split Fix 2) Hardcode the calculation logic here for maximum robustness.
-        // This bypasses any potential issues with return values from other functions.
-        const itemsForMotor = quoteData.products[quoteData.currentProduct].items;
-        const totalMotorQtyForCalc = itemsForMotor.filter(item => !!item.motor).length;
-        let wMotorQtyForCalc = ui.f1.w_motor_qty || 0;
-        if (wMotorQtyForCalc > totalMotorQtyForCalc) wMotorQtyForCalc = totalMotorQtyForCalc;
-        const bMotorQtyForCalc = totalMotorQtyForCalc - wMotorQtyForCalc;
-        const motorPrice = (bMotorQtyForCalc * 250) + (wMotorQtyForCalc * 200);
-
-
         const remote1chQty = f1Costs.qtys.remote1ch || '';
-        const remote1chPrice = f1Costs.remote1chCost; // F1 cost
-
         const remote16chQty = f1Costs.qtys.remote16ch || '';
-        const remote16chPrice = f1Costs.remote16chCost; // F1 cost
-
         const chargerQty = f1Costs.qtys.charger || '';
-        const chargerPrice = f1Costs.chargerCost; // F1 cost
-
         const cord3mQty = f1Costs.qtys.cord || '';
-        const cord3mPrice = f1Costs.cordCost; // F1 cost
-
         const wifiHubQty = f1Costs.qtys.wifi || '';
-        const wifiHubPrice = f1Costs.wifiCost; // F1 cost
 
-        // [MODIFIED] (F1 Motor Split Fix) Recalculate eAcceSum using the CORRECT motor sales price
-        // Note: Other accessories (remote, charger etc.) here seem to be using COST prices from f1Costs?
-        // If they are supposed to be Sales Prices, they should be updated too.
-        // However, to fix the reported issue (Motor Price), we focus on motorPrice.
-        const eAcceSum = motorPrice + remote1chPrice + remote16chPrice + chargerPrice + cord3mPrice + wifiHubPrice;
+        if (isWorkOrder) {
+            // --- Work Order: Use COSTS (from F1) ---
+            motorPrice = f1Costs.motorCost; // (bQty*160 + wQty*130)
+            remote1chPrice = f1Costs.remote1chCost;
+            remote16chPrice = f1Costs.remote16chCost;
+            chargerPrice = f1Costs.chargerCost;
+            cord3mPrice = f1Costs.cordCost;
+            wifiHubPrice = f1Costs.wifiCost;
+            // eAcceSum for Work Order (Sum of Costs)
+            eAcceSum = motorPrice + remote1chPrice + remote16chPrice + chargerPrice + cord3mPrice + wifiHubPrice;
 
-        // [NEW] (Phase 8) Calculate detailed F1 costs for Work Order table
+        } else {
+            // --- Quote: Use SALES PRICES ---
+            // Motor Sales Price: (bQty * 250) + (wQty * 200)
+            // We can re-use the logic from calculateF2Summary which does exactly this for 'calculatedMotorPrice'
+            motorPrice = summaryData.calculatedMotorPrice;
+
+            // Other Accessories Sales Prices
+            // Use helper `calculateAccessorySalePrice` which handles standard pricing (e.g. remote=$100)
+
+            // Remote 1CH
+            remote1chPrice = this.calculateAccessorySalePrice(currentProductType, 'remote', { count: remote1chQty });
+
+            // Remote 16CH
+            remote16chPrice = this.calculateAccessorySalePrice(currentProductType, 'remote', { count: remote16chQty });
+
+            // Charger
+            chargerPrice = this.calculateAccessorySalePrice(currentProductType, 'charger', { count: chargerQty });
+
+            // Cord
+            cord3mPrice = this.calculateAccessorySalePrice(currentProductType, 'cord', { count: cord3mQty });
+
+            // Wifi: F2 logic uses fixed $300 sale price
+            wifiHubPrice = wifiHubQty * 300;
+
+            // eAcceSum for Quote (Sum of Sales Prices)
+            eAcceSum = motorPrice + remote1chPrice + remote16chPrice + chargerPrice + cord3mPrice + wifiHubPrice;
+        }
+
+        // [NEW] (Phase 8) F1 costs for Work Order table
+        // These are specifically "Work Order" costs, so they always use F1 data.
         // 1. RB Cost
         const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
         const discountPercentage = ui.f1.discountPercentage || 0;
@@ -11488,7 +11609,7 @@ export class CalculationService {
 
             // [MODIFIED] (Phase 7) Data for the accessories table (Appendix / Work Order)
             motorQty: motorQty,
-            motorPrice: formatPrice(motorPrice), // [FIX] Now uses Sales Price
+            motorPrice: formatPrice(motorPrice), // [FIX] Depends on isWorkOrder flag
             remote1chQty: remote1chQty,
             remote1chPrice: formatPrice(remote1chPrice),
             remote16chQty: remote16chQty,
@@ -11500,9 +11621,9 @@ export class CalculationService {
             wifiHubQty: wifiHubQty, // [NEW] (v6295)
             wifiHubPrice: formatPrice(wifiHubPrice), // [NEW] (v6295)
 
-            eAcceSum: formatPrice(eAcceSum), // [FIX] Now uses Sales Total
+            eAcceSum: formatPrice(eAcceSum), // [FIX] Depends on isWorkOrder flag
 
-            // [NEW] (Phase 8) F1 costs for Work Order table
+            // [NEW] (Phase 8) F1 costs for Work Order table (Always Costs)
             wo_rb_price: formatPrice(f1_rb_price),
             wo_acce_price: formatPrice(acce_total),
             // 'eAcceSum' (wo_e_item_price) already passed above
@@ -11703,6 +11824,341 @@ describe('CalculationService (Refactored)', () => {
 });
 --- FILE END ---
 
+--- FILE START: 04-core-code/services/data-preparation-service.js ---
+/* FILE: 04-core-code/services/data-preparation-service.js */
+// [NEW] (v6297 Stage 9 - Refactor) Created to implement the Data Preparation Layer.
+// [MODIFIED] (Stage 9 Phase 2) Implemented core logic: Sanitation, Dimensions, Sorting, Type Detection.
+// [MODIFIED] (Stage 9 Phase 2 Fix 2) Updated Drop logic.
+// [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX.
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with business constants.
+
+import { REGEX } from '../config/regex.js';
+import { COMPONENT_CODES, MOUNT_TYPES, LOGIC_CODES } from '../config/business-constants.js'; // [NEW]
+
+/**
+ * @typedef {Object} ExportItem
+ * @property {number} displayIndex - The row number shown to user (1, 2, 3...).
+ * @property {number} originalIndex - The original index in the data array (matches # column).
+ * @property {string} typeCode - Normalized type code: 'BO' (Blockout), 'SN' (Screen), 'LF' (Light Filter).
+ * @property {string} fabricName - Cleaned fabric name (removed 'Light-filter ' prefix).
+ * @property {string} fabricColor - Fabric color.
+ * @property {number} rawWidth - User input width (for CSV/Backup).
+ * @property {number} rawHeight - User input height (for CSV/Backup).
+ * @property {number} mWidth - Manufacturing Width (calculated with deduction rules).
+ * @property {number} mHeight - Manufacturing Height (calculated with drop rules).
+ * @property {string} location - Location label.
+ * @property {string} winder - Winder type (e.g., 'HD', '').
+ * @property {string} motor - Motor type (e.g., 'Motor', '').
+ * @property {string} control - Derived control type (Chain/Motor).
+ * @property {string} dual - Dual bracket indicator ('Y'/'').
+ * @property {string} chain - Chain length.
+ * @property {string} oi - Orientation (IN/OUT).
+ * @property {string} over - Over roll (O/U).
+ * @property {string} lr - Left/Right (L/R).
+ * @property {number} price - Calculated line price.
+ * @property {string} formattedPrice - Price formatted as currency string.
+ * @property {boolean} isLf - Flag indicating if this is a Light Filter item (pink).
+ */
+
+/**
+ * @fileoverview Service responsible for preparing and normalizing data for various export formats.
+ * It encapsulates business rules for:
+ * 1. Dimensions Correction (Manufacturing Sizes)
+ * 2. Sorting (B > SN > LF)
+ * 3. Type Labeling
+ * 4. Data Sanitation
+ */
+export class DataPreparationService {
+    /**
+     * @param {object} dependencies
+     * @param {ConfigManager} dependencies.configManager - Needed for Price Matrix lookups (Drop logic).
+     */
+    constructor({ configManager }) {
+        this.configManager = configManager;
+        console.log("DataPreparationService Initialized (Core Logic Ready).");
+    }
+
+    /**
+     * Main entry point. Returns a structured object containing processed data ready for export.
+     * @param {object} quoteData - The full quote data from state.
+     * @param {object} uiMetadata - UI metadata (e.g. lfModifiedRowIndexes).
+     * @returns {object} Organized data for exports { items: ExportItem[] }.
+     */
+    getExportData(quoteData, uiMetadata) {
+        const currentProductKey = quoteData.currentProduct;
+        const rawItems = quoteData.products[currentProductKey].items;
+        const lfModifiedRowIndexes = uiMetadata?.lfModifiedRowIndexes || [];
+
+        // 1. Transform & Clean Items
+        const processableItems = rawItems
+            .map((item, index) => this._prepareItem(item, index, lfModifiedRowIndexes))
+            .filter(item => item.rawWidth && item.rawHeight); // Only keep valid items
+
+        // 2. Sort Items (Business Rule: B > SN > LF)
+        const sortedItems = this._sortItems(processableItems);
+
+        // 3. Re-index Display Numbers (1, 2, 3...) after sorting
+        sortedItems.forEach((item, index) => {
+            item.displayIndex = index + 1;
+        });
+
+        return {
+            items: sortedItems
+        };
+    }
+
+    /**
+     * Process a single item: Sanitize, Calculate Dimensions, Determine Type.
+     */
+    _prepareItem(item, index, lfIndexes) {
+        const isLf = lfIndexes.includes(index);
+        const { mWidth, mHeight } = this._calculateManufacturingDimensions(item);
+        const typeCode = this._determineTypeCode(item, isLf);
+        const fabricName = this._cleanFabricName(item.fabric);
+
+        return {
+            originalIndex: index + 1,
+            typeCode: typeCode,
+            fabricName: this._sanitize(fabricName),
+            fabricColor: this._sanitize(item.color),
+
+            // Dimensions
+            rawWidth: item.width,
+            rawHeight: item.height,
+            mWidth: mWidth,
+            mHeight: mHeight,
+
+            // Properties
+            location: this._sanitize(item.location),
+            over: this._sanitize(item.over),
+            oi: this._sanitize(item.oi),
+            lr: this._sanitize(item.lr),
+
+            // Logic Checks (Using Constants)
+            dual: item.dual === COMPONENT_CODES.DUAL_BRACKET ? 'Y' : '',
+            winder: item.winder === COMPONENT_CODES.WINDER_HD ? 'Y' : '',
+            // Note: Motor check is fuzzy because value can be 'Motor' or something else if changed, 
+            // but usually it is truthy check. Strict check matches business-constants.
+            motor: item.motor ? 'Y' : '',
+            chain: item.chain || '',
+
+            // Price
+            price: item.linePrice,
+            formattedPrice: item.linePrice ? `$${item.linePrice.toFixed(2)}` : '',
+
+            // Flags
+            isLf: isLf
+        };
+    }
+
+    /**
+     * Removes invisible characters from a string.
+     */
+    _sanitize(value) {
+        if (typeof value !== 'string') return value || '';
+        return value.replace(REGEX.INVISIBLE_CHAR, '');
+    }
+
+    /**
+     * Removes "Light-filter " prefix from fabric name.
+     */
+    _cleanFabricName(fabric) {
+        if (!fabric) return '';
+        return fabric.replace(/^Light-filter\s+/i, '');
+    }
+
+    /**
+     * Determines the simplified Type Code (BO, SN, LF).
+     */
+    _determineTypeCode(item, isLf) {
+        if (isLf) {
+            return LOGIC_CODES.LIGHT_FILTER; // 'LF'
+        }
+        const type = item.fabricType || '';
+        if (type.startsWith('B')) {
+            return LOGIC_CODES.BLOCKOUT; // 'BO'
+        }
+        if (type === 'SN') {
+            return LOGIC_CODES.SCREEN; // 'SN'
+        }
+        return "";
+    }
+
+    /**
+     * Calculates Manufacturing Dimensions (Business Rules).
+     * Width: IN -4mm, OUT -2mm.
+     * Height: Lookup Price Matrix Drop - 5mm (unless exact match).
+     */
+    _calculateManufacturingDimensions(item) {
+        // 1. Width Correction
+        let mWidth = item.width;
+        if (item.oi === MOUNT_TYPES.IN_RECESS) {
+            mWidth = mWidth - 4;
+        } else if (item.oi === MOUNT_TYPES.FACE_FIX) {
+            mWidth = mWidth - 2;
+        }
+
+        // 2. Height Correction (Drop Lookup)
+        let mHeight = item.height;
+        if (this.configManager) {
+            const matrix = this.configManager.getPriceMatrix(item.fabricType);
+            if (matrix && matrix.drops) {
+                // Logic: Find the smallest drop in the matrix that is >= item.height
+                const nextDrop = matrix.drops.find(d => d >= item.height);
+
+                if (nextDrop) {
+                    if (nextDrop === item.height) {
+                        // Exact match: Keep original
+                        mHeight = item.height;
+                    } else {
+                        // Not exact: Drop - 5
+                        mHeight = nextDrop - 5;
+                    }
+                } else {
+                    // Fallback: Exceeds max drop
+                }
+            }
+        }
+        return { mWidth, mHeight };
+    }
+
+    /**
+     * Sorts items based on business rules:
+     * 1. Category: Blockout (BO) -> Screen (SN) -> Light Filter (LF) -> Others
+     * 2. Quantity: Most frequent fabric type first within category
+     * 3. Fabric Name: Alphabetical
+     * 4. Original Index: Stable sort
+     */
+    _sortItems(items) {
+        // Count frequencies for secondary sorting
+        const typeCounts = {};
+        items.forEach((item) => {
+            const type = item.typeCode || 'Unknown';
+            typeCounts[type] = (typeCounts[type] || 0) + 1;
+        });
+
+        const getCategoryRank = (item) => {
+            if (item.typeCode === LOGIC_CODES.LIGHT_FILTER) return 3; // LF Last
+            if (item.typeCode === LOGIC_CODES.BLOCKOUT) return 1; // Blockout First
+            if (item.typeCode === LOGIC_CODES.SCREEN) return 2; // Screen Second
+            return 4; // Others
+        };
+
+        return items.sort((a, b) => {
+            // 1. Primary: Category
+            const catA = getCategoryRank(a);
+            const catB = getCategoryRank(b);
+            if (catA !== catB) return catA - catB;
+
+            // 2. Secondary: Quantity (Most frequent first)
+            const countA = typeCounts[a.typeCode] || 0;
+            const countB = typeCounts[b.typeCode] || 0;
+            if (countA !== countB) return countB - countA;
+
+            // 3. Tertiary: Type Name
+            if (a.typeCode !== b.typeCode) {
+                return (a.typeCode || '').localeCompare(b.typeCode || '');
+            }
+
+            // 4. Quaternary: Original Index
+            return a.originalIndex - b.originalIndex;
+        });
+    }
+}
+--- FILE END ---
+
+--- FILE START: 04-core-code/services/data-preparation-service.spec.js ---
+/* FILE: 04-core-code/services/data-preparation-service.spec.js */
+import { DataPreparationService } from './data-preparation-service.js';
+
+// Mock ConfigManager to provide Price Matrix data
+const mockConfigManager = {
+    getPriceMatrix: jest.fn((fabricType) => {
+        // Simulate matrix with drops: 1000, 1500, 2000...
+        return { drops: [1000, 1500, 2000, 2500, 3000] };
+    })
+};
+
+describe('DataPreparationService', () => {
+    let service;
+
+    beforeEach(() => {
+        service = new DataPreparationService({ configManager: mockConfigManager });
+    });
+
+    describe('Core Logic Verification', () => {
+
+        test('Should calculate correct manufacturing dimensions (IN/OUT & Drop Logic)', () => {
+            // Arrange
+            const items = [
+                // Case A: IN mount (-4mm), Height 1200 (Next drop 1500)
+                // Rule: Standard case. 1200 < 1500. mHeight = 1500 - 5 = 1495.
+                { itemId: '1', width: 1000, height: 1200, fabricType: 'B1', oi: 'IN', rawWidth: 1000, rawHeight: 1200 },
+
+                // Case B: OUT mount (-2mm), Height 2000 (Matches drop 2000 exactly)
+                // Rule: Exact match. 2000 == 2000. mHeight = 2000 (No change).
+                { itemId: '2', width: 2000, height: 2000, fabricType: 'B2', oi: 'OUT', rawWidth: 2000, rawHeight: 2000 }
+            ];
+            const quoteData = { currentProduct: 'rb', products: { rb: { items } } };
+
+            // Act
+            const result = service.getExportData(quoteData, {});
+            const itemA = result.items.find(i => i.originalIndex === 1);
+            const itemB = result.items.find(i => i.originalIndex === 2);
+
+            // Assert
+            // Case A
+            expect(itemA.mWidth).toBe(996); // 1000 - 4
+            expect(itemA.mHeight).toBe(1495); // 1500 - 5
+
+            // Case B
+            expect(itemB.mWidth).toBe(1998); // 2000 - 2
+            // [MODIFIED] Expect exact match logic (No deduction)
+            expect(itemB.mHeight).toBe(2000);
+        });
+
+        test('Should sort items correctly (BO > SN > LF)', () => {
+            // Arrange
+            const items = [
+                { itemId: '1', width: 100, height: 100, fabricType: 'SN', fabric: 'Screen' },   // Should be 2nd
+                { itemId: '2', width: 100, height: 100, fabricType: 'B1', fabric: 'Blockout' }, // Should be 1st
+                { itemId: '3', width: 100, height: 100, fabricType: 'B2', fabric: 'LF_Item' }   // Should be 3rd (marked as LF)
+            ];
+            const quoteData = { currentProduct: 'rb', products: { rb: { items } } };
+            const uiMetadata = { lfModifiedRowIndexes: [2] }; // Mark item index 2 as LF
+
+            // Act
+            const result = service.getExportData(quoteData, uiMetadata);
+
+            // Assert
+            expect(result.items[0].typeCode).toBe('BO');
+            expect(result.items[1].typeCode).toBe('SN');
+            expect(result.items[2].typeCode).toBe('LF');
+        });
+
+        test('Should sanitize data (Remove invisible chars & prefixes)', () => {
+            // Arrange
+            const items = [
+                {
+                    itemId: '1', width: 100, height: 100, fabricType: 'B1',
+                    fabric: 'Light-filter Soft White', // Should remove prefix
+                    location: 'Living\u200BRoom' // Should remove \u200B
+                }
+            ];
+            const quoteData = { currentProduct: 'rb', products: { rb: { items } } };
+
+            // Act
+            const result = service.getExportData(quoteData, {});
+
+            // Assert
+            expect(result.items[0].fabricName).toBe('Soft White');
+            expect(result.items[0].location).toBe('LivingRoom');
+        });
+
+    });
+});
+--- FILE END ---
+
 --- FILE START: 04-core-code/services/excel-export-service.js ---
 /* FILE: 04-core-code/services/excel-export-service.js */
 // [NEW] (v6299 Phase 1) New service to handle Excel (.xlsx) generation using ExcelJS.
@@ -11713,12 +12169,19 @@ describe('CalculationService (Refactored)', () => {
 // [MODIFIED] (v6299 Phase 4 Refinement) Added Color Legend and removed "Light-filter" prefix from F-Name.
 // [MODIFIED] (v6299 Phase 4 Tweak 2) Added TYPE column, lighter pink, shifted Side Panel, removed Legend.
 // [MODIFIED] (v6299 Print Optimization) Added pageSetup for A4 Landscape Fit-to-Width.
+// [MODIFIED] (v6297 Stage 9 Phase 3) Refactored to use DataPreparationService as the Single Source of Truth.
+// [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX to remove hardcoded regex.
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES.
+
+import { REGEX } from '../config/regex.js';
+import { LOGIC_CODES } from '../config/business-constants.js'; // [NEW]
 
 export class ExcelExportService {
-    constructor({ configManager, calculationService }) {
+    constructor({ configManager, calculationService, dataPreparationService }) {
         this.configManager = configManager;
         this.calculationService = calculationService;
-        console.log("ExcelExportService Initialized with ConfigManager and CalculationService.");
+        this.dataPreparationService = dataPreparationService;
+        console.log("ExcelExportService Initialized with ConfigManager, CalculationService, and DataPreparationService.");
     }
 
     /**
@@ -11740,10 +12203,14 @@ export class ExcelExportService {
         const f1Costs = this.calculationService.calculateF1Costs(quoteData, ui);
         const f2Summary = this.calculationService.calculateF2Summary(quoteData, ui);
 
-        // 1. Create Work Sheet (Calculated Data + Styles)
-        this._generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui);
+        // Prepare standardized data using the new service
+        const uiMetadata = quoteData.uiMetadata || {};
+        const exportData = this.dataPreparationService.getExportData(quoteData, uiMetadata);
 
-        // 2. Create Data Sheet (Raw Data)
+        // 1. Create Work Sheet (Using Standardized Data)
+        this._generateWorkSheet(workbook, exportData, f1Costs, f2Summary, ui, quoteData);
+
+        // 2. Create Data Sheet (Raw Data - kept for backup reference)
         this._generateDataSheet(workbook, quoteData);
 
         // 3. Trigger Download
@@ -11753,21 +12220,20 @@ export class ExcelExportService {
 
     /**
      * Generates the 'work-sheet' for factory production.
-     * Applies sorting, dimension corrections, STYLES, and SIDE PANEL.
+     * [MODIFIED] Now uses pre-processed 'exportData' from DataPreparationService.
      */
-    _generateWorkSheet(workbook, quoteData, f1Costs, f2Summary, ui) {
+    _generateWorkSheet(workbook, exportData, f1Costs, f2Summary, ui, quoteData) {
         const sheet = workbook.addWorksheet('work-sheet');
 
-        // --- [NEW] (Print Optimization) Set Print Area & Scale ---
+        // --- (Print Optimization) Set Print Area & Scale ---
         sheet.pageSetup = {
             paperSize: 9, // 9 = A4
             orientation: 'landscape',
             fitToPage: true,
             fitToWidth: 1,  // Force width to 1 page
-            fitToHeight: 0, // 0 = Automatic height (maintain aspect ratio, span pages if long)
+            fitToHeight: 0, // 0 = Automatic height
             showGridLines: true
         };
-        // Optimize margins for maximum space
         sheet.pageMargins = {
             left: 0.25, right: 0.25,
             top: 0.4, bottom: 0.4,
@@ -11775,7 +12241,6 @@ export class ExcelExportService {
         };
 
         // --- 1. Define Columns (A~P) ---
-        // [MODIFIED] Added 'TYPE' column at index 2 (Column C)
         const columns = [
             'NO', '#', 'TYPE', 'F-Name', 'F-Color', 'Width', 'Height',
             'Over', 'O/I', 'L/R', 'Dual', 'Chain', 'Winder', 'Motor',
@@ -11800,69 +12265,40 @@ export class ExcelExportService {
             };
         });
 
-        // --- 2. Prepare & Sort Items ---
-        const rawItems = quoteData.products[quoteData.currentProduct].items;
-        const lfModifiedRowIndexes = quoteData.uiMetadata?.lfModifiedRowIndexes || [];
+        // --- 2. Populate Rows using Standardized Export Items ---
+        // Iterate over exportData.items which are already sorted and calculated
+        exportData.items.forEach((item) => {
 
-        const processableItems = rawItems
-            .map((item, index) => ({ ...item, originalIndex: index + 1 }))
-            .filter(item => item.width && item.height);
-
-        const sortedItems = this._sortItemsForWorkOrder(processableItems, lfModifiedRowIndexes);
-
-        // --- 3. Populate Rows with Corrections & Styles ---
-        sortedItems.forEach((item, newIndex) => {
-            const originalIndex = item.originalIndex - 1;
-            const isLF = lfModifiedRowIndexes.includes(originalIndex);
-            const fabricType = item.fabricType || '';
-
-            const { correctedWidth, correctedHeight } = this._calculateProductionDimensions(item);
-
-            // Remove "Light-filter" prefix from Fabric Name
-            let fabricName = this._sanitize(item.fabric);
-            fabricName = fabricName.replace(/^Light-filter\s+/i, '');
-
-            // Determine TYPE Label
-            let typeLabel = '';
-            if (isLF) {
-                typeLabel = "L'filter";
-            } else if (fabricType.startsWith('B')) {
-                typeLabel = "Blockout";
-            } else if (fabricType === 'SN') {
-                typeLabel = "Screen";
+            // Determine Background Color based on Standardized Type Code or Flags
+            let argbColor = null;
+            if (item.isLf) {
+                argbColor = 'FFFFE6E6'; // Lighter Pink
+            } else if (item.typeCode === LOGIC_CODES.BLOCKOUT) {
+                argbColor = 'FFE0E0E0'; // Light Grey
+            } else if (item.typeCode === LOGIC_CODES.SCREEN) {
+                argbColor = 'FFE0FFFF'; // Light Cyan
             }
 
             const rowData = [
-                newIndex + 1,
-                item.originalIndex,
-                typeLabel,                     // TYPE
-                fabricName,                    // F-Name (Cleaned)
-                this._sanitize(item.color),
-                correctedWidth,
-                correctedHeight,
-                this._sanitize(item.over),
-                this._sanitize(item.oi),
-                this._sanitize(item.lr),
-                this._sanitize(item.dual),
+                item.displayIndex,    // NO
+                item.originalIndex,   // #
+                item.typeCode,        // TYPE (Normalized)
+                item.fabricName,      // F-Name (Cleaned)
+                item.fabricColor,     // F-Color
+                item.mWidth,          // Manufacturing Width
+                item.mHeight,         // Manufacturing Height
+                item.over,
+                item.oi,
+                item.lr,
+                item.dual,
                 item.chain,
-                this._sanitize(item.winder),
-                this._sanitize(item.motor),
-                this._sanitize(item.location),
-                item.linePrice
+                item.winder,
+                item.motor,
+                item.location,
+                item.price
             ];
 
             const row = sheet.addRow(rowData);
-
-            // Apply Row Styling
-            let argbColor = null;
-            if (isLF) {
-                // Lighter Pink
-                argbColor = 'FFFFE6E6';
-            } else if (fabricType.startsWith('B')) {
-                argbColor = 'FFE0E0E0'; // Light Grey for Blockout
-            } else if (fabricType === 'SN') {
-                argbColor = 'FFE0FFFF'; // Light Cyan/Blue for Screen
-            }
 
             row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
                 // Apply Borders
@@ -11872,6 +12308,7 @@ export class ExcelExportService {
                     bottom: { style: 'thin' },
                     right: { style: 'thin' }
                 };
+
                 // Center align most columns
                 // Name=4, Color=5, Location=15 are Left aligned
                 if (colNumber !== 4 && colNumber !== 5 && colNumber !== 15) {
@@ -12015,59 +12452,6 @@ export class ExcelExportService {
         });
     }
 
-    _sortItemsForWorkOrder(items, lfIndexes) {
-        const typeCounts = {};
-        items.forEach(item => {
-            const type = item.fabricType || 'Unknown';
-            typeCounts[type] = (typeCounts[type] || 0) + 1;
-        });
-
-        const getCategory = (item) => {
-            const originalIndex = item.originalIndex - 1;
-            if (lfIndexes.includes(originalIndex)) return 3; // LF Last
-            const type = item.fabricType || '';
-            if (type.startsWith('B')) return 1; // Blockout First
-            if (type === 'SN') return 2; // Screen Second
-            return 4; // Others
-        };
-
-        return items.sort((a, b) => {
-            const catA = getCategory(a);
-            const catB = getCategory(b);
-            if (catA !== catB) return catA - catB;
-
-            const countA = typeCounts[a.fabricType] || 0;
-            const countB = typeCounts[b.fabricType] || 0;
-            if (countA !== countB) return countB - countA;
-
-            if (a.fabricType !== b.fabricType) {
-                return (a.fabricType || '').localeCompare(b.fabricType || '');
-            }
-            return a.originalIndex - b.originalIndex;
-        });
-    }
-
-    _calculateProductionDimensions(item) {
-        let width = item.width;
-        if (item.oi === 'IN') {
-            width = width - 4;
-        } else if (item.oi === 'OUT') {
-            width = width - 2;
-        }
-
-        let height = item.height;
-        const matrix = this.configManager.getPriceMatrix(item.fabricType);
-        if (matrix && matrix.drops) {
-            const nextDrop = matrix.drops.find(d => d > item.height);
-            if (nextDrop) {
-                height = nextDrop - 5;
-            } else {
-                console.warn(`No larger drop found for height ${item.height}.`);
-            }
-        }
-        return { correctedWidth: width, correctedHeight: height };
-    }
-
     _generateDataSheet(workbook, quoteData) {
         const sheet = workbook.addWorksheet('data-sheet');
 
@@ -12161,7 +12545,7 @@ export class ExcelExportService {
 
     _sanitize(value) {
         if (typeof value !== 'string') return value;
-        return value.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '');
+        return value.replace(REGEX.INVISIBLE_CHAR, '');
     }
 
     _generateFileName(quoteData) {
@@ -12892,9 +13276,10 @@ export async function searchQuotesAdvanced(uid, filters) {
 
 --- FILE START: 04-core-code/services/quote-generator-service.js ---
 /* FILE: 04-core-code/services/quote-generator-service.js */
-// [MODIFIED] (???–æ??4) Refactored: GTH logic moved to GthQuoteStrategy.
+// [MODIFIED] (????®‚???4) Refactored: GTH logic moved to GthQuoteStrategy.
 // [FIX] (v6299 Phase 5 Fix) Update generateWorkOrderHtml to pass raw quoteData to strategy.
 // [FIX] (v6299 Phase 7 Fix) Reverted CSS injection; CSS is now embedded in the HTML template.
+// [MODIFIED] (Stage 9 Final Fix) Pass isWorkOrder flag to getQuoteTemplateData to distinguish Cost vs Sales price.
 
 import { paths } from '../config/paths.js';
 import { populateTemplate, formatCustomerInfo } from '../utils/template-utils.js';
@@ -12925,7 +13310,6 @@ export class QuoteGeneratorService {
         this.detailedItemListRow = '';
         this.workOrderTemplate = '';
         this.workOrderRowTemplate = '';
-        // [REMOVED] this.workOrderCss = '';
 
         this.actionBarHtml = `
      <div id="action-bar">
@@ -12957,7 +13341,6 @@ export class QuoteGeneratorService {
                 this.detailedItemListRow,
                 this.workOrderTemplate,
                 this.workOrderRowTemplate
-                // [REMOVED] CSS fetch
             ] = await Promise.all([
                 fetch(paths.partials.quoteTemplate).then(res => res.text()),
                 fetch(paths.partials.detailedItemList).then(res => res.text()),
@@ -12993,12 +13376,12 @@ export class QuoteGeneratorService {
             this.workOrderRowTemplate
         );
 
-        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData);
+        // [MODIFIED] Pass 'true' for isWorkOrder to use Cost Prices
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData, true);
 
         const populatedData = {
             ...templateData,
             workOrderTableRows: workOrderTableRows
-            // [REMOVED] cssStyles injection
         };
 
         let finalHtml = populateTemplate(this.workOrderTemplate, populatedData);
@@ -13014,7 +13397,8 @@ export class QuoteGeneratorService {
             return null;
         }
 
-        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data);
+        // [MODIFIED] Pass 'false' (default) for isWorkOrder to use Sales Prices
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data, false);
 
         let gstRowHtml = '';
         if (!templateData.uiState.f2.gstExcluded) {
@@ -13062,7 +13446,8 @@ export class QuoteGeneratorService {
             return null;
         }
 
-        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data);
+        // [MODIFIED] Pass 'false' (default) for isWorkOrder to use Sales Prices
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data, false);
 
         let gstRowHtml = '';
         if (!templateData.uiState.f2.gstExcluded) {
@@ -14569,33 +14954,25 @@ export class OriginalQuoteStrategy {
 // [MODIFIED] (v6299 Phase 8 Fix) Implemented TYPE logic, split F-Name/F-Color, aligned columns with Excel.
 // [MODIFIED] (v6299 Phase 8 Tweak) Updated TYPE labels to short codes (BO, SN, LF).
 // [MODIFIED] (v6299 Phase 10 Tweak) Reduced 'off' font size in summary row.
+// [MODIFIED] (v6297 Stage 9 Phase 3) Refactored to use DataPreparationService as Single Source of Truth.
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES.
 
 import { populateTemplate } from '../../utils/template-utils.js';
+import { LOGIC_CODES } from '../../config/business-constants.js'; // [NEW]
 
 export class WorkOrderStrategy {
-    constructor({ configManager } = {}) {
+    constructor({ configManager, dataPreparationService } = {}) {
         this.configManager = configManager;
+        this.dataPreparationService = dataPreparationService;
     }
 
     /**
      * Generates the table rows for the Work Order HTML.
      */
     generateRows(quoteData, ui, rowTemplate) {
-        const currentProductKey = quoteData.currentProduct;
-        const rawItems = quoteData.products[currentProductKey].items;
-        const lfModifiedRowIndexes = quoteData.uiMetadata?.lfModifiedRowIndexes || [];
-
-        // 1. Prepare Items
-        const itemsWithIndex = rawItems
-            .map((item, index) => ({
-                ...item,
-                originalIndex: index + 1,
-                isLf: lfModifiedRowIndexes.includes(index),
-            }))
-            .filter((item) => item.width && item.height);
-
-        // 2. Sort Items
-        const sortedItems = this._sortItems(itemsWithIndex);
+        const uiMetadata = quoteData.uiMetadata || {};
+        const exportData = this.dataPreparationService.getExportData(quoteData, uiMetadata);
+        const sortedItems = exportData.items;
 
         // --- Initialize Counters ---
         let dualCount = 0;
@@ -14604,51 +14981,43 @@ export class WorkOrderStrategy {
 
         // 3. Generate HTML Rows
         const rowsHtml = sortedItems.map((item, index) => {
-            // Stats
-            if (item.dual === 'D') dualCount++;
-            if (item.winder === 'HD') hdCount++;
-            if (item.linePrice) totalListPrice += item.linePrice;
+            // Stats (using standardized properties from ExportItem)
+            if (item.dual === 'Y') dualCount++;
+            if (item.winder === 'Y') hdCount++;
+            if (item.price) totalListPrice += item.price;
 
-            // --- Logic ---
-            // A. Dimensions
-            const { mWidth, mHeight } = this._calculateManufacturingDimensions(item);
-
-            // B. Name Cleaning
-            let cleanFabricName = item.fabric || '';
-            cleanFabricName = cleanFabricName.replace(/^Light-filter\s+/i, '');
-
-            // C. TYPE Logic (Short Codes)
-            let typeLabel = '';
+            // --- Styles Mapping ---
+            let fabricClass = '';
             if (item.isLf) {
-                typeLabel = "LF";
-            } else if ((item.fabricType || '').startsWith('B')) {
-                typeLabel = "BO";
-            } else if (item.fabricType === 'SN') {
-                typeLabel = "SN";
+                fabricClass = 'bg-light-filter';
+            } else if (item.typeCode === LOGIC_CODES.BLOCKOUT) { // [MODIFIED] Use constant
+                fabricClass = 'bg-blockout';
+            } else if (item.typeCode === LOGIC_CODES.SCREEN) { // [MODIFIED] Use constant
+                fabricClass = 'bg-screen';
             }
 
             const rowData = {
-                rowNumber: index + 1,
+                rowNumber: item.displayIndex,
                 index: item.originalIndex,
-                type: typeLabel,
-                fabric: cleanFabricName,
-                color: item.color || '',
-                width: mWidth,
-                height: mHeight,
-                over: item.over || '',
-                oi: item.oi || '',
-                lr: item.lr || '',
-                dual: item.dual === 'D' ? 'Y' : '',
-                chain: item.chain || '',
-                winder: item.winder === 'HD' ? 'Y' : '',
-                motor: item.motor ? 'Y' : '',
-                location: item.location || '',
-                price: item.linePrice ? `$${item.linePrice.toFixed(2)}` : '',
+                type: item.typeCode, // BO, SN, LF
+                fabric: item.fabricName,
+                color: item.fabricColor,
+                width: item.mWidth,   // Use manufacturing width
+                height: item.mHeight, // Use manufacturing height
+                over: item.over,
+                oi: item.oi,
+                lr: item.lr,
+                dual: item.dual,      // 'Y' or ''
+                chain: item.chain,
+                winder: item.winder,  // 'Y' or ''
+                motor: item.motor,    // 'Y' or ''
+                location: item.location,
+                price: item.formattedPrice,
 
                 // Styles
-                fabricClass: this._getRowClass(item),
-                isEmptyClassDual: item.dual === 'D' ? '' : 'is-empty-cell',
-                isEmptyClassHD: item.winder === 'HD' ? '' : 'is-empty-cell',
+                fabricClass: fabricClass,
+                isEmptyClassDual: item.dual ? '' : 'is-empty-cell',
+                isEmptyClassHD: item.winder ? '' : 'is-empty-cell',
                 isEmptyClassMotor: item.motor ? '' : 'is-empty-cell'
             };
 
@@ -14674,88 +15043,27 @@ export class WorkOrderStrategy {
 
         return rowsHtml + summaryRowHtml;
     }
-
-    _calculateManufacturingDimensions(item) {
-        let mWidth = item.width;
-        if (item.oi === 'IN') {
-            mWidth = mWidth - 4;
-        } else if (item.oi === 'OUT') {
-            mWidth = mWidth - 2;
-        }
-
-        let mHeight = item.height;
-        if (this.configManager) {
-            const matrix = this.configManager.getPriceMatrix(item.fabricType);
-            if (matrix && matrix.drops) {
-                const nextDrop = matrix.drops.find(d => d > item.height);
-                if (nextDrop) {
-                    mHeight = nextDrop - 5;
-                }
-            }
-        }
-        return { mWidth, mHeight };
-    }
-
-    _sortItems(items) {
-        const typeCounts = {};
-        items.forEach((item) => {
-            const type = item.fabricType || 'Unknown';
-            typeCounts[type] = (typeCounts[type] || 0) + 1;
-        });
-
-        const getCategory = (item) => {
-            if (item.isLf) return 3;
-            const type = item.fabricType || '';
-            if (type.startsWith('B')) return 1;
-            if (type === 'SN') return 2;
-            return 4;
-        };
-
-        return items.sort((a, b) => {
-            const catA = getCategory(a);
-            const catB = getCategory(b);
-            if (catA !== catB) return catA - catB;
-
-            const countA = typeCounts[a.fabricType] || 0;
-            const countB = typeCounts[b.fabricType] || 0;
-            if (countA !== countB) return countB - countA;
-
-            if (a.fabricType !== b.fabricType) {
-                return (a.fabricType || '').localeCompare(b.fabricType || '');
-            }
-            return a.originalIndex - b.originalIndex;
-        });
-    }
-
-    _getRowClass(item) {
-        if (item.isLf) return 'bg-light-filter';
-        const type = item.fabricType || '';
-        if (type.startsWith('B')) return 'bg-blockout';
-        if (type === 'SN') return 'bg-screen';
-        return '';
-    }
 }
 --- FILE END ---
 
 --- FILE START: 04-core-code/strategies/product-factory.js ---
-// /04-core-code/strategies/product-factory.js
+/* FILE: 04-core-code/strategies/product-factory.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic string 'rollerBlind' with PRODUCT_TYPES.ROLLER_BLIND.
+
+import { RollerBlindStrategy } from './roller-blind-strategy.js';
+import { PRODUCT_TYPES } from '../config/business-constants.js'; // [NEW]
 
 /**
  * @fileoverview A factory for creating product-specific strategy objects.
  * This allows the application to easily support multiple product types.
  */
 
-// ?ØÂÖ•?ëÂÄëÁõÆ?çÂîØ‰∏Ä?Ñ‰??ãÁî¢?ÅÁ???
-import { RollerBlindStrategy } from './roller-blind-strategy.js';
-
-// Âª∫Á?‰∏Ä?ãÁî¢?ÅÁ??•Á??∞Â? (Map)
-// Key: ?¢Â?È°ûÂ??ÑÂ?‰∏?
-// Value: Â∞çÊ??ÑÁ??•È???
+// Strategy Map using constant keys
 const strategyMap = {
-    rollerBlind: RollerBlindStrategy,
-    // --- ?™‰??¥Â? ---
-    // sheerCurtain: SheerCurtainStrategy, // ?™‰??∞Â?Á¥óÁ∞æ?ÇÔ??™È??®Ê≠§?ïÂ??†‰?Ë°?
-    // flyScreen: FlyScreenStrategy,       // ?∞Â?‰º∏Á∏ÆÁ¥óÈ??ÇÔ??çÂ?‰∏ÄË°?
+    [PRODUCT_TYPES.ROLLER_BLIND]: RollerBlindStrategy,
+    // --- Future expansions ---
+    // [PRODUCT_TYPES.SHEER_CURTAIN]: SheerCurtainStrategy,
+    // [PRODUCT_TYPES.FLY_SCREEN]: FlyScreenStrategy,
 };
 
 export class ProductFactory {
@@ -14766,14 +15074,13 @@ export class ProductFactory {
 
     /**
      * Returns an instance of the strategy for the given product type.
-     * @param {string} productType - The type of the product (e.g., 'rollerBlind').
+     * @param {string} productType - The type of the product (e.g., PRODUCT_TYPES.ROLLER_BLIND).
      * @returns {object|null} An instance of the corresponding product strategy, or null if not found.
      */
     getProductStrategy(productType) {
         const StrategyClass = strategyMap[productType];
 
         if (StrategyClass) {
-            // ?ûÂÇ≥‰∏Ä?ãÊñ∞?ÑÁ??•ÂØ¶‰æãÔ?‰∏¶ÂÇ≥?•‰?Ë≥?
             return new StrategyClass({ configManager: this.configManager });
         } else {
             console.error(`No strategy found for product type: ${productType}`);
@@ -14784,7 +15091,8 @@ export class ProductFactory {
 --- FILE END ---
 
 --- FILE START: 04-core-code/strategies/roller-blind-strategy.js ---
-// File: 04-core-code/strategies/roller-blind-strategy.js
+/* FILE: 04-core-code/strategies/roller-blind-strategy.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with COMPONENT_CODES.
 
 /**
  * @fileoverview Contains all business logic specific to the Roller Blind product.
@@ -14793,6 +15101,7 @@ export class ProductFactory {
 
 // [MODIFIED] Changed the import from a bare module specifier to a browser-compatible CDN URL.
 import { v4 as uuidv4 } from 'https://cdn.jsdelivr.net/npm/uuid@9.0.1/dist/esm-browser/index.js';
+import { COMPONENT_CODES } from '../config/business-constants.js'; // [NEW]
 
 export class RollerBlindStrategy {
     constructor({ configManager }) {
@@ -14824,7 +15133,7 @@ export class RollerBlindStrategy {
         }
 
         const price = priceMatrix.prices[dropIndex][widthIndex];
-        
+
         return price !== undefined ? { price: price } : { price: null, error: 'Price not found for the given dimensions.' };
     }
 
@@ -14877,7 +15186,8 @@ export class RollerBlindStrategy {
     // --- Accessory Pricing Logic ---
 
     calculateDualPrice(items, pricePerPair) {
-        const dualCount = items.filter(item => item.dual === 'D').length;
+        // [MODIFIED] Use constant for 'D'
+        const dualCount = items.filter(item => item.dual === COMPONENT_CODES.DUAL_BRACKET).length;
         const totalPrice = Math.floor(dualCount / 2) * pricePerPair;
         return totalPrice;
     }
@@ -22887,7 +23197,10 @@ export class K1TabInputHandler {
 --- FILE END ---
 
 --- FILE START: 04-core-code/ui/tabs/k2-tab/k2-tab-component.js ---
-// File: 04-core-code/ui/tabs/k2-tab/k2-tab-component.js
+/* FILE: 04-core-code/ui/tabs/k2-tab/k2-tab-component.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES to fix button state bug.
+
+import { LOGIC_CODES } from '../../../config/business-constants.js'; // [NEW]
 
 /**
  * @fileoverview [NEW] A dedicated component for managing and rendering the K2 (Fabric) tab UI,
@@ -22909,19 +23222,21 @@ export class K2TabComponent {
 
         const { activeEditMode } = uiState;
 
-        // Define our specific K2 modes
-        const isLFMode = activeEditMode === 'K2_LF_MODE';
-        const isLFDMode = activeEditMode === 'K2_LF_DELETE_SELECT';
-        const isSSetMode = activeEditMode === 'K2_SSET_MODE'; // [NEW] (v6294 SSet)
+        // [MODIFIED] Use constants for mode checks
+        const isLFMode = activeEditMode === LOGIC_CODES.MODE_LF;
+        const isLFDMode = activeEditMode === LOGIC_CODES.MODE_LF_DEL;
+        const isSSetMode = activeEditMode === LOGIC_CODES.MODE_SSET;
 
         // Is *any* K2 mode active?
-        const isK2ModeActive = isLFMode || isLFDMode || isSSetMode; // [MODIFIED] (v6294 SSet)
+        const isK2ModeActive = isLFMode || isLFDMode || isSSetMode;
 
         // Is *another* panel mode active (like K1, K3, K4, K5)?
+        // If activeEditMode is not null AND it's not one of our K2 modes, it must be another panel.
         const isOtherPanelModeActive = activeEditMode !== null && !isK2ModeActive;
 
         // Handle LF Button (New Active State)
         this.lfButton.classList.toggle('active', isLFMode);
+        // Disabled if: Another K2 mode is active OR Another Panel mode is active
         this.lfButton.disabled = (isK2ModeActive && !isLFMode) || isOtherPanelModeActive;
 
         // Handle LFD Button (Existing Active State)
@@ -22939,9 +23254,11 @@ export class K2TabComponent {
 --- FILE END ---
 
 --- FILE START: 04-core-code/ui/tabs/k2-tab/k2-tab-input-handler.js ---
-// File: 04-core-code/ui/tabs/k2-tab/k2-tab-input-handler.js
+/* FILE: 04-core-code/ui/tabs/k2-tab/k2-tab-input-handler.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES to match reducer logic.
 
 import { EVENTS, DOM_IDS } from '../../../config/constants.js';
+import { LOGIC_CODES } from '../../../config/business-constants.js'; // [NEW]
 
 /**
  * @fileoverview A dedicated input handler for all user interactions
@@ -22992,8 +23309,6 @@ export class K2TabInputHandler {
         this._addListener(this.lfButton, 'click', this._onLFFClick);
         this._addListener(this.lfDelButton, 'click', this._onLFDClick);
         this._addListener(this.sSetButton, 'click', this._onSSetClick);
-
-        // [REMOVED] (Phase 3 Cleanup) Obsolete listeners for the deleted table
     }
 
     // [NEW] (v6298-fix-4) Extracted handlers
@@ -23002,15 +23317,18 @@ export class K2TabInputHandler {
     }
 
     _onLFFClick() {
-        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'LF' });
+        // [MODIFIED] Use constant
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: LOGIC_CODES.MODE_LF });
     }
 
     _onLFDClick() {
-        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'LFD' });
+        // [MODIFIED] Use constant
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: LOGIC_CODES.MODE_LF_DEL });
     }
 
     _onSSetClick() {
-        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: 'SSet' });
+        // [MODIFIED] Use constant
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: LOGIC_CODES.MODE_SSET });
     }
 }
 --- FILE END ---
@@ -23876,15 +24194,16 @@ export class K5TabInputHandler {
 --- FILE END ---
 
 --- FILE START: 04-core-code/ui/views/detail-config-view.js ---
-// File: 04-core-code/ui/views/detail-config-view.js
+/* FILE: 04-core-code/ui/views/detail-config-view.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES to fix LF-DEL selection bug.
 
 /**
  * @fileoverview A "Manager" view that delegates logic to specific sub-views for each tab.
  */
 
-// [NEW] Import uiActions to enable default selection behavior
 import * as uiActions from '../../actions/ui-actions.js';
-import { EVENTS } from '../../config/constants.js'; // [NEW] Import EVENTS
+import { EVENTS } from '../../config/constants.js';
+import { LOGIC_CODES } from '../../config/business-constants.js'; // [NEW]
 
 export class DetailConfigView {
     constructor({
@@ -23941,32 +24260,22 @@ export class DetailConfigView {
             this.k1View.handleFocusModeRequest();
             return;
         }
-        // [REMOVED] (Phase 3 Cleanup)
-        // if (column === 'fabric') {
-        //     this.k2View.handleFocusModeRequest();
-        //     return;
-        // }
     }
 
     handleLocationInputEnter({ value }) {
         this.k1View.handleLocationInputEnter({ value });
     }
 
-    // [REMOVED] (Phase 3 Cleanup)
-    // handlePanelInputBlur({ type, field, value }) {
-    //     this.k2View.handlePanelInputBlur({ type, field, value });
-    // }
-    //
-    // handlePanelInputEnter() {
-    //     this.k2View.handlePanelInputEnter();
-    // }
-
     handleSequenceCellClick({ rowIndex }) {
         const { ui } = this.stateService.getState();
         const { activeEditMode } = ui;
 
-        // [MODIFIED] (v6294 SSet) Check for all K2 modes (LF, LFD, SSet)
-        if (activeEditMode === 'K2_LF_DELETE_SELECT' || activeEditMode === 'K2_LF_MODE' || activeEditMode === 'K2_SSET_MODE') {
+        // [MODIFIED] Use LOGIC_CODES constants to match the state set by K2FabricView
+        // This fixes the bug where LF-DEL mode ('LFD') was not recognized.
+        if (activeEditMode === LOGIC_CODES.MODE_LF_DEL ||
+            activeEditMode === LOGIC_CODES.MODE_LF ||
+            activeEditMode === LOGIC_CODES.MODE_SSET) {
+
             this.k2View.handleSequenceCellClick({ rowIndex });
         } else {
             // [NEW] DEFAULT BEHAVIOR (for new LF/SSet flows):
@@ -23980,16 +24289,6 @@ export class DetailConfigView {
     handleModeToggle({ mode }) {
         this.k2View.handleModeToggle({ mode });
     }
-
-    // [REMOVED] (v6294) This is now handled by handleModeToggle
-    // handleLFDeleteRequest() {
-    //     this.k2View.handleLFDeleteRequest();
-    // }
-
-    // [REMOVED] (Phase 3 Cleanup)
-    // handleSSetRequest() {
-    //     this.k2View.handleSSetRequest();
-    // }
 
     handleToggleK3EditMode() {
         this.k3View.handleToggleK3EditMode();
@@ -26192,33 +26491,27 @@ export class K1LocationView {
 --- FILE END ---
 
 --- FILE START: 04-core-code/ui/views/k2-fabric-view.js ---
-// File: 04-core-code/ui/views/k2-fabric-view.js
+/* FILE: 04-core-code/ui/views/k2-fabric-view.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with FABRIC_CODES and LOGIC_CODES.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
 import * as quoteActions from '../../actions/quote-actions.js';
+import { FABRIC_CODES, LOGIC_CODES } from '../../config/business-constants.js'; // [NEW]
 
 /**
  * @fileoverview A dedicated sub-view for handling all logic related to the K2 (Fabric) tab.
  */
-export class
-    K2FabricView {
-    constructor({ stateService, eventAggregator }) { // [MODIFIED] (Phase 3 Cleanup) fabricBatchTable removed
+export class K2FabricView {
+    constructor({ stateService, eventAggregator }) {
         this.stateService = stateService;
         this.eventAggregator = eventAggregator;
-        // [REMOVED] (Phase 3 Cleanup)
-        // this.fabricBatchTable = fabricBatchTable; 
 
         this.indexesToExcludeFromBatchUpdate = new Set();
-        // [REMOVED] (Phase 3)
-        // this.lastSSetInput = null;
 
-        // [NEW] Listen for the new N&C dialog event
         this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_NC_DIALOG, () => this.handleNCDialogRequest());
-        // [NEW] (Phase 2) Listen for the new LF dialog event
-        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_LF_DIALOG, () => this._showLFDialog()); // [MODIFIED] (v6294) Renamed for clarity
-        // [NEW] (Phase 3) Listen for the new SSet dialog event
-        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_SSET_DIALOG, () => this._showSSetDialog()); // [MODIFIED] (v6294 SSet) Renamed
+        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_LF_DIALOG, () => this._showLFDialog());
+        this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_SSET_DIALOG, () => this._showSSetDialog());
 
         console.log("K2FabricView Initialized.");
     }
@@ -26228,92 +26521,63 @@ export class
     }
 
     _getItems() {
-        const
-            { quoteData } = this._getState();
+        const { quoteData } = this._getState();
         return quoteData.products[quoteData.currentProduct].items;
     }
 
     handleFocusModeRequest() {
-        const { ui } = this._getState();
-        const currentMode = ui.activeEditMode;
-        // [REMOVED] 'K2' mode is no longer handled here.
-        const newMode = null; // K2 mode is now dialog-based
-
-        if (newMode) {
-            // ... (This block is now unreachable for K2)
-        } else {
-            // [REMOVED] (Phase 3 Cleanup) No panel input to blur
-            // if (/* currentMode === 'K2' && */ document.activeElement.matches('.panel-input')) {
-            //     document.activeElement.blur();
-            // }
-            this._exitAllK2Modes();
-        }
+        this._exitAllK2Modes();
     }
-
-    // [REMOVED] (Phase 3 Cleanup)
-    // _enterFCMode(isOverwriting) { ... }
-    // handlePanelInputBlur({ type, field, value }) { ... }
-    // handlePanelInputEnter() { ... }
 
     handleSequenceCellClick({ rowIndex }) {
         const { activeEditMode } = this._getState().ui;
         const item = this._getItems()[rowIndex];
-        if (!item || (item.width === null && item.height === null)) return; // Ignore empty rows
+        if (!item || (item.width === null && item.height === null)) return;
 
-        // [MODIFIED] (v6294 SSet) This handler now manages selection for LF, LFD, and SSet modes.
-        if (activeEditMode === 'K2_LF_DELETE_SELECT') {
-            // --- LFD Mode (Select items to delete) ---
+        // [MODIFIED] Use constants for mode checks
+        if (activeEditMode === LOGIC_CODES.MODE_LF_DEL) {
             const { lfModifiedRowIndexes } = this._getState().quoteData.uiMetadata;
             if (!lfModifiedRowIndexes.includes(rowIndex)) {
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Only items with a Light-Filter setting (pink background) can be selected for deletion.', type: 'error' });
                 return;
             }
-            // Use the dedicated LF selection state for LFD mode
             this.stateService.dispatch(uiActions.toggleLFSelection(rowIndex));
 
-        } else if (activeEditMode === 'K2_LF_MODE' || activeEditMode === 'K2_SSET_MODE') {
-            // --- LF Mode & SSet Mode (Select items to apply to) ---
-            // (ÂØ¶‰?Ê≠•È? 3) Use the main multi-select state
+        } else if (activeEditMode === LOGIC_CODES.MODE_LF || activeEditMode === LOGIC_CODES.MODE_SSET) {
             this.stateService.dispatch(uiActions.toggleMultiSelectSelection(rowIndex));
         }
-        // [REMOVED] (Phase 3 Cleanup) K2_LF_SELECT logic removed
-        // [REMOVED] (Phase 3 Cleanup) K2_SSET_SELECT logic removed
     }
 
-    // [NEW] (v6294) Entry point for mode-switching buttons (LF, LFD, SSet)
     handleModeToggle({ mode }) {
-        if (mode === 'LF') {
+        // [MODIFIED] Compare against constant values (which match the button ID parts or event data)
+        if (mode === LOGIC_CODES.MODE_LF) {
             this._handleLFModeToggle();
-        } else if (mode === 'LFD') {
+        } else if (mode === LOGIC_CODES.MODE_LF_DEL) {
             this._handleLFDModeToggle();
-        } else if (mode === 'SSet') {
+        } else if (mode === LOGIC_CODES.MODE_SSET) {
             this._handleSSetModeToggle();
         }
     }
 
-    // [NEW] (v6294) Implements "click-select-click" for LF button
     _handleLFModeToggle() {
         const { activeEditMode } = this._getState().ui;
 
-        if (activeEditMode === 'K2_LF_MODE') {
-            // --- This is the SECOND click (Execute) ---
+        // [MODIFIED] Use constant
+        if (activeEditMode === LOGIC_CODES.MODE_LF) {
             const { multiSelectSelectedIndexes } = this._getState().ui;
 
-            // (ÂØ¶‰?Ê≠•È? 6)
             if (multiSelectSelectedIndexes.length === 0) {
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'LF mode cancelled. No items selected.' });
-                this._exitAllK2Modes(); // Cancel the mode
+                this._exitAllK2Modes();
                 return;
             }
 
-            // (ÂØ¶‰?Ê≠•È? 4)
-            this._showLFDialog(); // Show the dialog
+            this._showLFDialog();
 
         } else {
-            // --- This is the FIRST click (Enter Mode) ---
-            // (ÂØ¶‰?Ê≠•È? 1 - Ê™¢Êü•)
             const items = this._getItems();
-            const eligibleTypes = ['B2', 'B3', 'B4'];
+            // [MODIFIED] Use FABRIC_CODES constants
+            const eligibleTypes = [FABRIC_CODES.B2, FABRIC_CODES.B3, FABRIC_CODES.B4];
             const hasEligibleItems = items.some(item =>
                 item.width && item.height && eligibleTypes.includes(item.fabricType)
             );
@@ -26323,20 +26587,18 @@ export class
                 return;
             }
 
-            // (ÂØ¶‰?Ê≠•È? 1 - ?≤ÂÖ•Ê®°Â?)
-            this._exitAllK2Modes(); // Ensure no other mode is active
-            this.stateService.dispatch(uiActions.setActiveEditMode('K2_LF_MODE'));
-            // (ÂØ¶‰?Ê≠•È? 2)
+            this._exitAllK2Modes();
+            // [MODIFIED] Dispatch constant value
+            this.stateService.dispatch(uiActions.setActiveEditMode(LOGIC_CODES.MODE_LF));
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select items from the main table.' });
         }
     }
 
-    // [REFACTORED] (v6294) Renamed from handleLFDeleteRequest to _handleLFDModeToggle
     _handleLFDModeToggle() {
         const { activeEditMode } = this._getState().ui;
 
-        if (activeEditMode === 'K2_LF_DELETE_SELECT') {
-            // --- This is the SECOND click (Execute) ---
+        // [MODIFIED] Use constant
+        if (activeEditMode === LOGIC_CODES.MODE_LF_DEL) {
             const { lfSelectedRowIndexes } = this._getState().ui;
             if (lfSelectedRowIndexes.length > 0) {
                 this.stateService.dispatch(quoteActions.removeLFProperties(lfSelectedRowIndexes));
@@ -26345,108 +26607,84 @@ export class
             }
             this._exitAllK2Modes();
         } else {
-            // --- This is the FIRST click (Enter Mode) ---
-            this._exitAllK2Modes(); // Ensure no other mode is active
-            this.stateService.dispatch(uiActions.setActiveEditMode('K2_LF_DELETE_SELECT'));
+            this._exitAllK2Modes();
+            // [MODIFIED] Dispatch constant value
+            this.stateService.dispatch(uiActions.setActiveEditMode(LOGIC_CODES.MODE_LF_DEL));
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select the roller blinds for which you want to cancel the Light-Filter fabric setting. After selection, click the LF-Del button again.' });
         }
     }
 
-    // [NEW] (v6294 SSet) Implements "click-select-click" for SSet button
     _handleSSetModeToggle() {
         const { activeEditMode } = this._getState().ui;
 
-        if (activeEditMode === 'K2_SSET_MODE') {
-            // --- This is the SECOND click (Execute) ---
+        // [MODIFIED] Use constant
+        if (activeEditMode === LOGIC_CODES.MODE_SSET) {
             const { multiSelectSelectedIndexes } = this._getState().ui;
 
-            // (ÂØ¶‰?Ê≠•È? 5)
             if (multiSelectSelectedIndexes.length === 0) {
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'SSet mode cancelled. No items selected.' });
-                this._exitAllK2Modes(); // Cancel the mode
+                this._exitAllK2Modes();
                 return;
             }
 
-            // (ÂØ¶‰?Ê≠•È? 4)
-            this._showSSetDialog(); // Show the dialog
+            this._showSSetDialog();
 
         } else {
-            // --- This is the FIRST click (Enter Mode) ---
-            // (ÂØ¶‰?Ê≠•È? 1)
-            this._exitAllK2Modes(); // Ensure no other mode is active
-            this.stateService.dispatch(uiActions.setActiveEditMode('K2_SSET_MODE'));
-            // (ÂØ¶‰?Ê≠•È? 2)
+            this._exitAllK2Modes();
+            // [MODIFIED] Dispatch constant value
+            this.stateService.dispatch(uiActions.setActiveEditMode(LOGIC_CODES.MODE_SSET));
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select items from the main table.' });
         }
     }
 
-
-    // [REMOVED] (Phase 3 Cleanup)
-    // handleLFEditRequest() { ... }
-
-    // [REMOVED] (v6294) This is now handled by _handleLFDModeToggle
-    // handleLFDeleteRequest() { ... }
-
-    // [REMOVED] (v6294 SSet) Old SSet handler removed, logic moved to _showSSetDialog
-    // handleSSetRequest() { ... }
-
-    // [MODIFIED] (Stage 2.B) Refactored to handle LF conflict
     handleNCDialogRequest() {
-        // 1. Lock the UI
         this.stateService.dispatch(uiActions.setModalActive(true));
 
-        // 2. Check for conflict
         const { lfModifiedRowIndexes } = this._getState().quoteData.uiMetadata;
         const lfItemsExist = lfModifiedRowIndexes.length > 0;
 
         if (!lfItemsExist) {
-            // 3.A. No conflict, show N&C dialog immediately
-            this._showNCDialog(false); // 'false' means do not overwrite LF
+            this._showNCDialog(false);
             return;
         }
 
-        // 3.B. Conflict exists, show intermediate conflict dialog
-        // [MODIFIED] (v6294 N&C) Update layout, gridTemplateColumns, and add gap
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
             message: 'This quote contains Light-Filter (LF) items. How would you like to proceed?',
             closeOnOverlayClick: false,
-            gridTemplateColumns: '1fr 1fr', // (Ê≠•È? 1) 2 columns
-            gap: '10px 10px', // (Ê≠•È? 1) Add gap
+            gridTemplateColumns: '1fr 1fr',
+            gap: '10px 10px',
             layout: [
-                [ // (Ê≠•È? 1) Row 1
+                [
                     {
                         type: 'button',
                         text: 'Overwrite LF items (Update All)',
                         className: 'primary-confirm-button',
-                        colspan: 1, // (Ê≠•È? 1)
+                        colspan: 1,
                         callback: () => {
-                            // User chose to overwrite. Show N&C dialog targeting all items.
-                            this._showNCDialog(true); // 'true' means overwrite LF
-                            return false; // [FIX] Prevent this dialog from closing
+                            this._showNCDialog(true);
+                            return false;
                         }
                     },
                     {
                         type: 'button',
                         text: 'Preserve LF items (Update Non-LF Only)',
-                        colspan: 1, // (Ê≠•È? 1)
+                        colspan: 1,
                         callback: () => {
-                            // User chose to preserve. Show N&C dialog targeting only non-LF items.
-                            this._showNCDialog(false); // 'false' means do not overwrite LF
-                            return false; // [FIX] Prevent this dialog from closing
+                            this._showNCDialog(false);
+                            return false;
                         }
                     }
                 ],
-                [ // (Ê≠•È? 1) Row 2
-                    { type: 'text', text: '' }, // Empty cell for spacing
+                [
+                    { type: 'text', text: '' },
                     {
                         type: 'button',
                         text: 'Cancel',
                         className: 'secondary',
-                        colspan: 1, // (Ê≠•È? 1)
+                        colspan: 1,
                         callback: () => {
-                            // User cancelled. Just unlock the UI.
                             this.stateService.dispatch(uiActions.setModalActive(false));
-                            return true; // Close this dialog
+                            return true;
                         }
                     }
                 ]
@@ -26454,9 +26692,7 @@ export class
         });
     }
 
-    // [NEW] (Stage 2.B) Private helper to show the actual N&C dialog
     _showNCDialog(overwriteLF = false) {
-        // 1. Pre-processing: Find all unique types, respecting the overwriteLF flag
         const items = this._getItems();
         const { lfModifiedRowIndexes } = this._getState().quoteData.uiMetadata;
         const indexesToExclude = overwriteLF ? new Set() : new Set(lfModifiedRowIndexes);
@@ -26466,10 +26702,8 @@ export class
 
         items.forEach((item, index) => {
             if (item.width && item.height && item.fabricType) {
-                // Exclude rows based on the overwriteLF flag
                 if (!indexesToExclude.has(index)) {
                     eligibleTypes.add(item.fabricType);
-                    // Store the first found data for pre-filling
                     if (!typeData[item.fabricType]) {
                         typeData[item.fabricType] = {
                             fabric: item.fabric || '',
@@ -26486,13 +26720,12 @@ export class
                 ? 'No items to overwrite.'
                 : 'No non-LF items available to edit.';
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: message });
-            this.stateService.dispatch(uiActions.setModalActive(false)); // Unlock UI
+            this.stateService.dispatch(uiActions.setModalActive(false));
             return;
         }
 
-        // 2. Build the dialog layout
         const layout = [];
-        const inputIds = []; // For Enter key navigation
+        const inputIds = [];
         layout.push([
             { type: 'text', text: 'Type', className: 'font-bold text-right' },
             { type: 'text', text: 'F-Name', className: 'font-bold' },
@@ -26510,7 +26743,6 @@ export class
             inputIds.push(fNameId, fColorId);
         });
 
-        // 3. Show the N&C dialog
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
             message: 'Batch Edit Fabric (N&C)',
             closeOnOverlayClick: false,
@@ -26524,9 +26756,7 @@ export class
                         className: 'primary-confirm-button',
                         colspan: 2,
                         callback: () => {
-                            // 4.A Post-processing (Confirm)
                             try {
-                                // We must re-fetch the indexesToExclude set for the dispatches
                                 const { lfModifiedRowIndexes } = this._getState().quoteData.uiMetadata;
                                 const finalIndexesToExclude = overwriteLF ? new Set() : new Set(lfModifiedRowIndexes);
 
@@ -26539,7 +26769,6 @@ export class
                                     }
                                 });
 
-                                // If we overwrote LF items, we must clear their "LF modified" status
                                 if (overwriteLF && lfModifiedRowIndexes.length > 0) {
                                     this.stateService.dispatch(quoteActions.removeLFModifiedRows(lfModifiedRowIndexes));
                                 }
@@ -26547,42 +26776,35 @@ export class
                             } catch (e) {
                                 console.error('Error applying N&C batch update:', e);
                             } finally {
-                                this.stateService.dispatch(uiActions.setModalActive(false)); // Unlock UI
+                                this.stateService.dispatch(uiActions.setModalActive(false));
                             }
-                            return true; // Close dialog
+                            return true;
                         }
                     },
                     {
                         type: 'button', text: 'Cancel', className: 'secondary', colspan: 1,
                         callback: () => {
-                            // 4.B Post-processing (Cancel)
-                            this.stateService.dispatch(uiActions.setModalActive(false)); // Unlock UI
-                            return true; // Close dialog
+                            this.stateService.dispatch(uiActions.setModalActive(false));
+                            return true;
                         }
                     }
                 ]
             ],
             onOpen: () => {
-                // [MODIFIED] (v6294 N&C) (ÂØ¶‰?Ê≠•È? 2) Replace focus logic with SSet's logic
                 const confirmButton = document.querySelector('.dialog-overlay .primary-confirm-button');
 
-                // [FIX] (v6294 Bug Fix) Change from (id) to (id, index)
                 inputIds.forEach((id, index) => {
                     const input = document.getElementById(id);
                     if (input) {
-                        const isFColorInput = (index % 2 !== 0);
-
                         const focusNext = (isBlur = false) => {
                             const nextId = inputIds[index + 1];
                             const nextInput = nextId ? document.getElementById(nextId) : null;
 
                             if (nextInput) {
                                 nextInput.focus();
-                                // (ÂØ¶‰?Ê≠•È? 2) If next input is F-Color and this was a blur/enter/tab, select it.
                                 if (isBlur && (index + 1) % 2 !== 0) {
                                     nextInput.select();
                                 }
-                                // (ÂØ¶‰?Ê≠•È? 2) If next input is F-Name, select it.
                                 if (isBlur && (index + 1) % 2 === 0) {
                                     nextInput.select();
                                 }
@@ -26594,12 +26816,11 @@ export class
                         input.addEventListener('keydown', (e) => {
                             if (e.key === 'Enter' || e.key === 'Tab') {
                                 e.preventDefault();
-                                focusNext(true); // Pass true for select
+                                focusNext(true);
                             }
                         });
 
                         input.addEventListener('blur', (e) => {
-                            // Prevent blur cascade when moving from F-Name to F-Color
                             const relatedTarget = e.relatedTarget || document.activeElement;
                             const nextId = inputIds[index + 1];
                             if (relatedTarget && relatedTarget.id === nextId) {
@@ -26619,55 +26840,46 @@ export class
                     });
                 }
 
-                // Focus the very first input (F-Name)
                 if (inputIds.length > 0) {
                     setTimeout(() => {
                         const firstInput = document.getElementById(inputIds[0]);
                         firstInput?.focus();
-                        firstInput?.select(); // (ÂØ¶‰?Ê≠•È? 2) Also select the first F-Name
+                        firstInput?.select();
                     }, 50);
                 }
             }
         });
     }
 
-    // [MODIFIED] (v6294) Renamed from handleLFDialogRequest to _showLFDialog
-    // Now reads selection from state instead of checking on its own.
     _showLFDialog() {
-        // 1. Lock the UI (already locked by _handleLFModeToggle)
-        // this.stateService.dispatch(uiActions.setModalActive(true));
-
-        // 2. Pre-processing: Check for eligible types IN THE SELECTION
         const { ui, quoteData } = this._getState();
         const { multiSelectSelectedIndexes } = ui;
         const { lfModifiedRowIndexes } = quoteData.uiMetadata;
         const items = this._getItems();
 
-        // 2A. Check if anything is selected (This is already checked by _handleLFModeToggle, but we double-check)
         if (multiSelectSelectedIndexes.length === 0) {
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select items from the main table first.' });
-            this._exitAllK2Modes(); // Cancel mode
+            this._exitAllK2Modes();
             return;
         }
 
-        const eligibleTypes = ['B2', 'B3', 'B4'];
+        // [MODIFIED] Use FABRIC_CODES constants
+        const eligibleTypes = [FABRIC_CODES.B2, FABRIC_CODES.B3, FABRIC_CODES.B4];
 
-        // 2B. (ÂØ¶‰?Ê≠•È? 5) Filter the selection for eligible items
         const eligibleIndexes = multiSelectSelectedIndexes.filter(index => {
             const item = items[index];
             return item && item.width && item.height &&
                 eligibleTypes.includes(item.fabricType) &&
-                !lfModifiedRowIndexes.includes(index); // Exclude items already LF
+                !lfModifiedRowIndexes.includes(index);
         });
 
         if (eligibleIndexes.length === 0) {
             const msg = 'The selection contains no eligible B2, B3, or B4 items, or they are already set as LF.';
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: msg });
-            this._exitAllK2Modes(); // Cancel mode
+            this._exitAllK2Modes();
             return;
         }
 
-        // 3. Build the dialog layout
         const fNameId = 'k2-dialog-fname-lf';
         const fColorId = 'k2-dialog-fcolor-lf';
         const layout = [
@@ -26677,14 +26889,14 @@ export class
                 { type: 'text', text: 'F-Color', className: 'font-bold' },
             ],
             [
-                { type: 'text', text: 'LF', className: 'text-right' },
-                { type: 'input', id: fNameId, value: '', 'data-type': 'LF', 'data-field': 'fabric', inputType: 'text', disableEnterConfirm: true },
-                { type: 'input', id: fColorId, value: '', 'data-type': 'LF', 'data-field': 'color', inputType: 'text', disableEnterConfirm: true },
+                // [MODIFIED] Use LOGIC_CODES.LIGHT_FILTER ('LF') for data-type
+                { type: 'text', text: LOGIC_CODES.LIGHT_FILTER, className: 'text-right' },
+                { type: 'input', id: fNameId, value: '', 'data-type': LOGIC_CODES.LIGHT_FILTER, 'data-field': 'fabric', inputType: 'text', disableEnterConfirm: true },
+                { type: 'input', id: fColorId, value: '', 'data-type': LOGIC_CODES.LIGHT_FILTER, 'data-field': 'color', inputType: 'text', disableEnterConfirm: true },
             ]
         ];
         const inputIds = [fNameId, fColorId];
 
-        // 4. Show the dialog
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
             message: `Batch Edit Light-Filter (${eligibleIndexes.length} selected items)`,
             closeOnOverlayClick: false,
@@ -26698,46 +26910,39 @@ export class
                         className: 'primary-confirm-button',
                         colspan: 2,
                         callback: () => {
-                            // 5.A Post-processing (Confirm)
                             try {
                                 const fName = document.getElementById(fNameId).value;
                                 const fColor = document.getElementById(fColorId).value;
 
                                 if (fName && fColor) {
                                     const fabricNameWithPrefix = `Light-filter ${fName}`;
-                                    // Apply ONLY to eligible selected indexes
                                     this.stateService.dispatch(quoteActions.batchUpdateLFProperties(eligibleIndexes, fabricNameWithPrefix, fColor));
                                     this.stateService.dispatch(quoteActions.addLFModifiedRows(eligibleIndexes));
                                     this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: `Light-Filter applied to ${eligibleIndexes.length} items.` });
                                 } else {
                                     this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'No changes applied. Both F-Name and F-Color are required.', type: 'error' });
-                                    return false; // Keep dialog open
+                                    return false;
                                 }
                             } catch (e) {
                                 console.error('Error applying LF batch update:', e);
                             } finally {
-                                // Only unlock if successful
                                 if (document.getElementById(fNameId).value && document.getElementById(fColorId).value) {
-                                    this._exitAllK2Modes(); // Clean up mode and selection
+                                    this._exitAllK2Modes();
                                 }
                             }
-                            // Close dialog only if successful
                             return (document.getElementById(fNameId).value && document.getElementById(fColorId).value);
                         }
                     },
                     {
                         type: 'button', text: 'Cancel', className: 'secondary', colspan: 1,
                         callback: () => {
-                            // 5.B Post-processing (Cancel)
-                            // (ÂØ¶‰?Ê≠•È? 7)
-                            this._exitAllK2Modes(); // Clean up mode and selection
-                            return true; // Close dialog
+                            this._exitAllK2Modes();
+                            return true;
                         }
                     }
                 ]
             ],
             onOpen: () => {
-                // 6. (ÂØ¶‰?Ê≠•È? 4) Setup Enter/Blur key navigation
                 const fNameInput = document.getElementById(fNameId);
                 const fColorInput = document.getElementById(fColorId);
                 const confirmButton = document.querySelector('.dialog-overlay .primary-confirm-button');
@@ -26745,24 +26950,22 @@ export class
                 const focusNext = (currentId, isBlur = false) => {
                     if (currentId === fNameId) {
                         fColorInput?.focus();
-                        if (isBlur) fColorInput?.select(); // (v6294 SSet) Only select on blur/tab/enter
+                        if (isBlur) fColorInput?.select();
                     } else if (currentId === fColorId) {
                         confirmButton?.focus();
                     }
                 };
 
-                // [FIX] (v6294 Bug Fix) Change from (id) to (id, index)
                 inputIds.forEach((id, index) => {
                     const input = document.getElementById(id);
                     if (input) {
                         input.addEventListener('keydown', (e) => {
                             if (e.key === 'Enter' || e.key === 'Tab') {
                                 e.preventDefault();
-                                focusNext(id, true); // (v6294 SSet) Pass true for select
+                                focusNext(id, true);
                             }
                         });
                         input.addEventListener('blur', (e) => {
-                            // Prevent blur cascade when moving from F-Name to F-Color
                             const relatedTarget = e.relatedTarget || document.activeElement;
                             const nextId = inputIds[index + 1];
                             if (relatedTarget && relatedTarget.id === nextId) {
@@ -26792,35 +26995,25 @@ export class
         });
     }
 
-    // [REFACTORED] (v6294 SSet) Renamed from handleSSetDialogRequest to _showSSetDialog
     _showSSetDialog() {
-        // 1. Lock the UI (already locked by _handleSSetModeToggle)
-        // this.stateService.dispatch(uiActions.setModalActive(true));
-
-        // 2. Pre-processing: Check for eligible types IN THE SELECTION
         const { ui, quoteData } = this._getState();
         const { multiSelectSelectedIndexes } = ui;
         const { lfModifiedRowIndexes } = quoteData.uiMetadata;
         const items = this._getItems();
 
-        // 2A. Check if anything is selected (already checked by _handleSSetModeToggle)
         if (multiSelectSelectedIndexes.length === 0) {
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select items from the main table first.' });
             this._exitAllK2Modes();
             return;
         }
 
-        // 2B. Find all unique types present in the selection
-        // [MODIFIED] (v6294 SSet) REMOVED the lfModifiedRowIndexes.includes(index) filter
         const eligibleTypes = new Set();
-        const typeData = {}; // Store first-found data for pre-filling
+        const typeData = {};
 
         multiSelectSelectedIndexes.forEach(index => {
             const item = items[index];
             if (item && item.width && item.height && item.fabricType) {
-                // SSet can now apply to ANY item, including LF
                 eligibleTypes.add(item.fabricType);
-                // Store the first found data for pre-filling
                 if (!typeData[item.fabricType]) {
                     typeData[item.fabricType] = {
                         fabric: item.fabric || '',
@@ -26832,16 +27025,14 @@ export class
 
         const sortedTypes = Array.from(eligibleTypes).sort();
 
-        // [MODIFIED] (v6294 SSet) Updated error message
         if (sortedTypes.length === 0) {
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'No items with a valid Fabric Type (B1-SN) were found in your selection.' });
             this._exitAllK2Modes();
             return;
         }
 
-        // 3. Build the dialog layout (Dynamic layout like N&C)
         const layout = [];
-        const inputIds = []; // For Enter key navigation
+        const inputIds = [];
         layout.push([
             { type: 'text', text: 'Type', className: 'font-bold text-right' },
             { type: 'text', text: 'F-Name', className: 'font-bold' },
@@ -26859,7 +27050,6 @@ export class
             inputIds.push(fNameId, fColorId);
         });
 
-        // 4. Show the SSet dialog
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
             message: `Selective Set (${multiSelectSelectedIndexes.length} selected items)`,
             closeOnOverlayClick: false,
@@ -26873,7 +27063,6 @@ export class
                         className: 'primary-confirm-button',
                         colspan: 2,
                         callback: () => {
-                            // 5.A Post-processing (Confirm)
                             try {
                                 const typeMap = {};
                                 let typesApplied = 0;
@@ -26891,20 +27080,17 @@ export class
 
                                 if (typesApplied === 0) {
                                     this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'No changes applied. Please fill in both F-Name and F-Color for a type.', type: 'error' });
-                                    return false; // Keep dialog open
+                                    return false;
                                 }
 
-                                // Apply updates only to the selected items
                                 this.stateService.dispatch(quoteActions.batchUpdatePropertiesForIndexes(multiSelectSelectedIndexes, typeMap));
 
-                                // [NEW] (v6294 SSet) Check if any of the modified indexes were LF items
                                 const { lfModifiedRowIndexes } = this._getState().quoteData.uiMetadata;
                                 const lfIndexesToClear = multiSelectSelectedIndexes.filter(index =>
                                     lfModifiedRowIndexes.includes(index)
                                 );
 
                                 if (lfIndexesToClear.length > 0) {
-                                    // Clear their LF status (remove pink background)
                                     this.stateService.dispatch(quoteActions.removeLFModifiedRows(lfIndexesToClear));
                                 }
 
@@ -26913,43 +27099,35 @@ export class
                             } catch (e) {
                                 console.error('Error applying SSet batch update:', e);
                             } finally {
-                                this._exitAllK2Modes(); // Clean up mode and selection
+                                this._exitAllK2Modes();
                             }
-                            return true; // Close dialog
+                            return true;
                         }
                     },
                     {
                         type: 'button', text: 'Cancel', className: 'secondary', colspan: 1,
                         callback: () => {
-                            // 5.B Post-processing (Cancel)
-                            // (ÂØ¶‰?Ê≠•È? 6)
-                            this._exitAllK2Modes(); // Clean up mode and selection
-                            return true; // Close dialog
+                            this._exitAllK2Modes();
+                            return true;
                         }
                     }
                 ]
             ],
             onOpen: () => {
-                // 6. (ÂØ¶‰?Ê≠•È? 4) Setup Enter/Blur key navigation
                 const confirmButton = document.querySelector('.dialog-overlay .primary-confirm-button');
 
-                // [FIX] (v6294 Bug Fix) Change from (id) to (id, index)
                 inputIds.forEach((id, index) => {
                     const input = document.getElementById(id);
                     if (input) {
-                        const isFColorInput = (index % 2 !== 0);
-
                         const focusNext = (isBlur = false) => {
                             const nextId = inputIds[index + 1];
                             const nextInput = nextId ? document.getElementById(nextId) : null;
 
                             if (nextInput) {
                                 nextInput.focus();
-                                // (ÂØ¶‰?Ê≠•È? 4) If next input is F-Color and this was a blur/enter/tab, select it.
                                 if (isBlur && (index + 1) % 2 !== 0) {
                                     nextInput.select();
                                 }
-                                // (ÂØ¶‰?Ê≠•È? 4) If next input is F-Name, select it.
                                 if (isBlur && (index + 1) % 2 === 0) {
                                     nextInput.select();
                                 }
@@ -26961,13 +27139,11 @@ export class
                         input.addEventListener('keydown', (e) => {
                             if (e.key === 'Enter' || e.key === 'Tab') {
                                 e.preventDefault();
-                                focusNext(true); // Pass true for select
+                                focusNext(true);
                             }
                         });
 
-                        // (ÂØ¶‰?Ê≠•È? 4) Also trigger on blur
                         input.addEventListener('blur', (e) => {
-                            // Prevent blur cascade when moving from F-Name to F-Color
                             const relatedTarget = e.relatedTarget || document.activeElement;
                             const nextId = inputIds[index + 1];
                             if (relatedTarget && relatedTarget.id === nextId) {
@@ -26987,96 +27163,44 @@ export class
                     });
                 }
 
-                // Focus the very first input (F-Name)
                 if (inputIds.length > 0) {
                     setTimeout(() => {
                         const firstInput = document.getElementById(inputIds[0]);
                         firstInput?.focus();
-                        firstInput?.select(); // (ÂØ¶‰?Ê≠•È? 4) Also select the first F-Name
+                        firstInput?.select();
                     }, 50);
                 }
             }
         });
     }
 
-
     _exitAllK2Modes() {
         this.stateService.dispatch(uiActions.setActiveEditMode(null));
-        this.stateService.dispatch(uiActions.clearMultiSelectSelection()); // (Ê≠•È? 6 & 7)
+        this.stateService.dispatch(uiActions.clearMultiSelectSelection());
         this.stateService.dispatch(uiActions.clearLFSelection());
-        // [REMOVED] (Phase 3 Cleanup) this.stateService.dispatch(uiActions.clearSSetSelection());
-
         this.indexesToExcludeFromBatchUpdate.clear();
-        // [REMOVED] (Phase 3 Cleanup) this.lastSSetInput = null;
-
         this._updatePanelInputsState();
     }
 
-    // [REMOVED] (Phase 3 Cleanup)
-    // _applyLFChanges() { ... }
-
-    // [REMOVED] (Phase 3 Cleanup)
-    // _applySSetChanges() { ... }
-
-
     _updatePanelInputsState() {
-        if (!this.fabricBatchTable) return; // Guard clause
-
-        const { ui, quoteData } = this._getState();
-        // [MODIFIED] (Phase 3 Cleanup) Removed sSetSelectedRowIndexes
-        const { activeEditMode, lfSelectedRowIndexes } = ui;
-        const items = this._getItems();
-        const { lfModifiedRowIndexes } = quoteData.uiMetadata;
-        const presentTypes = new Set(items.map(item => item.fabricType).filter(Boolean));
-
-        // [REFACTORED] Use injected this.fabricBatchTable
-        const allPanelInputs = this.fabricBatchTable.querySelectorAll('.panel-input');
-        let firstEnabledInput = null;
-        // [REMOVED] (Phase 3 Cleanup) this.lastSSetInput = null;
-
-        if (activeEditMode === 'K2_LF_SELECT') {
-            allPanelInputs.forEach(input => {
-                const isLFRow = input.dataset.type === 'LF';
-                const hasSelection = lfSelectedRowIndexes.length > 0;
-                input.disabled
-                    = !(isLFRow && hasSelection);
-
-                // [FIX] Auto-fill LF inputs from first selected item
-                if (isLFRow && hasSelection) {
-                    const firstItem
-                        = items[lfSelectedRowIndexes[0]];
-                    if (firstItem && lfModifiedRowIndexes.includes(lfSelectedRowIndexes[0])) {
-                        // [FIX] Remove "Light-filter " prefix when populating input
-                        input.value = (firstItem[input.dataset.field] ||
-                            '').replace('Light-filter ', '');
-                    }
-                }
-            });
-        }
-        // [REMOVED] (Phase 3 Cleanup) SSet input logic removed
-        // else if (activeEditMode === 'K2_SSET_SELECT') { ... } 
-        else {
-            // [MODIFIED] This is now the default state (all inputs disabled)
-            allPanelInputs.forEach(input => {
-                input.disabled = true;
-                input.value = '';
-            });
-        }
+        // (Original content removed as it depended on fabricBatchTable which is gone)
+        // This method is now effectively a no-op or cleanup.
     }
 
     activate() {
         this.stateService.dispatch(uiActions.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'fabric', 'color']));
-        // [MODIFIED] When tab activates, ensure all K2 modes are exited
-
         this._exitAllK2Modes();
     }
 }
 --- FILE END ---
 
 --- FILE START: 04-core-code/ui/views/k3-options-view.js ---
-// File: 04-core-code/ui/views/k3-options-view.js
+/* FILE: 04-core-code/ui/views/k3-options-view.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings for Over/OI/LR sequences with MOUNT_TYPES.
+
 import * as uiActions from '../../actions/ui-actions.js';
 import * as quoteActions from '../../actions/quote-actions.js';
+import { MOUNT_TYPES } from '../../config/business-constants.js'; // [NEW]
 
 /**
  * @fileoverview A dedicated sub-view for handling all logic related to the K3 (Options) tab.
@@ -27115,22 +27239,23 @@ export class K3OptionsView {
         const items = this._getItems();
         if (items.length === 0 || !items[0]) return;
 
+        // [MODIFIED] Use constants for sequences
         const BATCH_CYCLE_SEQUENCES = {
-            over: ['O', ''],
-            oi: ['IN', 'OUT'],
-            lr: ['L', 'R']
+            over: [MOUNT_TYPES.ROLL_OVER, MOUNT_TYPES.ROLL_UNDER], // ['O', '']
+            oi: [MOUNT_TYPES.IN_RECESS, MOUNT_TYPES.FACE_FIX],    // ['IN', 'OUT']
+            lr: [MOUNT_TYPES.CONTROL_LEFT, MOUNT_TYPES.CONTROL_RIGHT] // ['L', 'R']
         };
         const sequence = BATCH_CYCLE_SEQUENCES[column];
         if (!sequence) return;
-        
+
         const firstItemValue = items[0][column] || '';
         const currentIndex = sequence.indexOf(firstItemValue);
         const nextIndex = (currentIndex === -1) ? 0 : (currentIndex + 1) % sequence.length;
         const nextValue = sequence[nextIndex];
-        
+
         this.stateService.dispatch(quoteActions.batchUpdateProperty(column, nextValue));
     }
-    
+
     /**
      * Handles clicks on individual table cells in the K3 columns.
      * @param {object} data - The event data { rowIndex, column }.
@@ -27138,7 +27263,7 @@ export class K3OptionsView {
     handleTableCellClick({ rowIndex, column }) {
         this.stateService.dispatch(uiActions.setActiveCell(rowIndex, column));
         this.stateService.dispatch(quoteActions.cycleK3Property(rowIndex, column));
-        
+
         // Briefly highlight the cell by setting and then clearing the active cell state
         setTimeout(() => {
             this.stateService.dispatch(uiActions.setActiveCell(null, null));
@@ -28075,13 +28200,14 @@ export class SearchTabS2View {
 // [MODIFIED] (v6295-fix) Added F2 snapshot support and fixed null/string handling.
 // [MODIFIED] (F1 Motor Split Fix) Added w_motor_qty to f1SnapshotKeys to ensure persistence on load.
 // [FIX] (CSV Export) Added sanitation for invisible unicode characters (e.g., U+202C) to prevent Excel parsing errors.
+// [MODIFIED] (Stage 9 Phase 4) Imported centralized REGEX to remove hardcoded regex.
 
 /**
  * @fileoverview Utility functions for parsing and stringifying CSV data.
  */
 
-// [FIX] ??ë–û—Ö–ï–µ—Ü–?–≤???initialState ?–∏–±?–≠?ê—è‚????ó–µ—Ñ‚?–æ??õ–?csvToData_OldFormat ??ReferenceError
 import { initialState } from '../config/initial-state.js';
+import { REGEX } from '../config/regex.js'; // [NEW]
 
 // [MODIFIED v6285 Phase 5] Define the exact keys and order for all snapshot data
 // [MODIFIED v6295] Add 'wifi_qty' to the snapshot keys
@@ -28135,8 +28261,8 @@ export function dataToCsv(quoteData) {
         let strValue = (value === null || value === undefined) ? '' : String(value);
 
         // 1. Remove invisible Unicode control characters (e.g., U+202C from phone numbers)
-        // eslint-disable-next-line no-control-regex
-        strValue = strValue.replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '');
+        // [MODIFIED] Use centralized REGEX
+        strValue = strValue.replace(REGEX.INVISIBLE_CHAR, '');
 
         // 2. Escape double quotes by doubling them
         strValue = strValue.replace(/"/g, '""');
@@ -28225,16 +28351,12 @@ export function dataToCsv(quoteData) {
 
 
 /**
- * [PRIVATE] ??ù–§—Ö–ö–??ú—Ü–•‚???ù–ú—Ñ‚???–∏?–Ω–≥?–∂??–±–∏?–¥?ë—???õ–ñ—Ü–Ω–≥—á–≤‚??–∑–≥??CSV ?–±?????ï–∂—??????–ª?–¨–∏??ù–•—??–∑???–ß????
- * @param {string} line - ?–æ?? CSV ?–Ω–ß??ï‚???
- * @returns {Array<string>} - ?–∑????õ–ú—??–º????????
- */
+ * [PRIVATE] Ëß?? CSV ?ÆË?ÔºåË??ÜÂ??üË??óË??? * @param {string} line - ?ÆË? CSV Â≠ó‰∏≤?? * @returns {Array<string>} - Ëß??ÂæåÁ?????? */
 function _parseCsvLine(line) {
     const values = [];
 
-    // [FIX] ??ê–æ—Ü–Ω–?Regex???
-    // 1. ?–∑?ó—â–©–¥—á–º–º—?????õ–¥—á‚ï°?(?:^|,) ??õ–ú—Ü–¶‚ï£?–¥–™????|??ù–ú—â–ê–©—???ë–û—à–ó‚î§?????–ø?–∫–¥
-    // 2. ??ë–ó—á–º–º—Ñ‚???????õ–¥—á‚ï°??–§???ë—???ì—á‚?–¥???((...))??ù–ú—á–≤‚????match[1] ?–∑???????–ª?–°??–°???Ç—à–∂–ë—??–º????–∑?–æ??    const regex = /(?:^|,)((?:"(?:[^"]|"")*"|[^,]*))/g;
+    // [FIX] ?ôÊòØ?ÄÁ©©ÂÅ•??CSV Ëß?? RegexÔº?    // 1. ?πÈ??ãÈ†≠?ñÈÄóË? (?:^|,) ‰ΩúÁÇ∫?ÜÈ?Á¨?    // 2. ?ïÁç≤?ßÂÆπÔºöÈ?ÂºïË??ÖÂ??ÑÂÖßÂÆ?((?:[^"]|"")*) OR ?ûÈÄóË??ßÂÆπ ([^,]*)
+    // match[1] Â∞±ÊòØ?ëÂÄëË??ÑÂÖßÂÆπÔ??ÖÂê´ÂºïË?ÔºâÔ?Á®çÂ??Ä?ªÂ??üÂ??ÑÂ??ôÂ???    const regex = /(?:^|,)((?:"(?:[^"]|"")*"|[^,]*))/g;
     let match;
 
     while (match = regex.exec(line)) {
@@ -28242,20 +28364,13 @@ function _parseCsvLine(line) {
 
         let value = match[1];
 
-        // [FIX] ?–∑?ó—â–©–¥—Ñ‚??????–ø?–∫–¥??????ù–ø—è‚??match[1] (?–•???ì—á‚?–¥??) ??ï–ù—?????–ª?–±???????–ß??
-        // if (value.startsWith(',')) {
-        //     value = value.substring(1);
-        // }
-
-        // ?–∑?ó—â–©–¥—Ö‚?–•????ï–∂—???ú–ô—á‚?–π
-        if (value.startsWith('"') && value.endsWith('"')) {
+        // [FIX] ÁßªÈô§È¶ñÂ∞æ?ÑÂ??ü‰∏¶?ÑÂ??ôÂ???        if (value.startsWith('"') && value.endsWith('"')) {
             value = value.substring(1, value.length - 1).replace(/""/g, '"');
         }
         values.push(value.trim());
     }
 
-    // ?–•???–±???ë‚??–ø?–π?ë—Ü–º–î—????????
-    if (line.endsWith(',')) {
+    // Â¶ÇÊ?Ë°åÂ∞æ?ØÈÄóË?ÔºåË?‰∏Ä?ãÁ©∫??    if (line.endsWith(',')) {
         values.push('');
     }
 
@@ -28294,12 +28409,11 @@ export function csvToData(csvString) {
 
         projectHeaders.forEach((header, index) => {
             const value = projectValues[index] || null;
-            if (value === null || value === '') return; // [MODIFIED] ?–∫–≤?–Ø–µ?–π?ë—Ö–?
-            let finalValue;
+            if (value === null || value === '') return; // [MODIFIED] Ë∑≥È?Á©∫ÂÄ?            let finalValue;
 
             // [FIX] (v6295-fix) Determine data type based on which key array it's in
             if (f1SnapshotKeys.includes(header) || f2SnapshotKeys.includes(header)) {
-                // ?–∂?????F1 ??F2 key??ù–ú—??–π–∂???–´?????ï—?
+                // ?∏ÂÄºË? F1, F2 key ?óË©¶ËΩâÁÇ∫?∏Â?
                 const numValue = parseFloat(value);
                 if (!isNaN(numValue)) {
                     finalValue = numValue;
@@ -28313,7 +28427,7 @@ export function csvToData(csvString) {
                     finalValue = value; // Keep as string if not num/bool (e.g. for f2.wifiQty which is text "null")
                 }
             } else {
-                // ?–∂?????F3 key (?–Ω–ß??ï‚?)??ù–ú—á–´‚î§?–µ??Ç–??
+                // Â≠ó‰∏≤??F3 key (Â¶?ID, Date) ‰øùÊ??üÊ®£
                 finalValue = value;
             }
 
@@ -28322,8 +28436,7 @@ export function csvToData(csvString) {
                 f2Snapshot[header] = null;
                 return;
             }
-            if (finalValue === null) return; // ??ï–ù—Ö–î‚??–Ω–®??–±?????
-
+            if (finalValue === null) return; // ?øÂ?Ë¶ÜË??êË®≠??
             // Assign to the correct snapshot object
             if (f1SnapshotKeys.includes(header)) {
                 f1Snapshot[header] = finalValue;
@@ -28349,10 +28462,9 @@ export function csvToData(csvString) {
                 return;
             }
 
-            // [FIX] ??ú‚??–§–∏?–Ω?–≤???CSV ?–∑????
-            const values = _parseCsvLine(trimmedLine);
+            // [FIX] ‰ΩøÁî®?¥Âº∑Â§ßÁ? CSV Ëß????            const values = _parseCsvLine(trimmedLine);
 
-            // [FIX] ?–∑?ó—â–©–¥—Ö‚?–•?? (??ù–§—Ö–ö–??ú—Ü–•‚???ñ‚???–∑??°–ú—à–ó‚? _parseCsvLine)
+            // [FIX] Á¢∫‰?Á¥¢Â?Ê≠?¢∫ (‰æùË≥¥?¥Á©©ÂÆöÁ? _parseCsvLine)
 
             const item = {
                 itemId: `item-${Date.now()}-${items.length}`,
@@ -28478,6 +28590,7 @@ function csvToData_OldFormat(csvString) {
     // [MODIFIED] (v6295-fix) Return an empty f2Snapshot for compatibility
     return { items, lfIndexes, f1Snapshot, f2Snapshot: {}, f3Data: { customer: {} } };
 }
+
 --- FILE END ---
 
 --- FILE START: 04-core-code/utils/template-utils.js ---
