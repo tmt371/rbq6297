@@ -91,6 +91,16 @@ export class QuotePersistenceService {
 
             dataWithSnapshot.f1Snapshot.w_motor_qty = ui.f1.w_motor_qty || 0;
 
+            // [NEW] Persist F1 Cost values for backend accounting
+            const subTotal = ui.f1.f1_subTotal || 0;
+            const finalTotal = ui.f1.f1_finalTotal || 0;
+            // Calculate GST based on the difference to ensure arithmetic consistency
+            const gst = finalTotal - subTotal;
+
+            dataWithSnapshot.f1Snapshot.f1_subTotal = subTotal;
+            dataWithSnapshot.f1Snapshot.f1_gst = gst;
+            dataWithSnapshot.f1Snapshot.f1_total = finalTotal;
+
         } else {
             console.error(
                 'f1Snapshot object is missing from quoteData. Cannot save F1 state.'
