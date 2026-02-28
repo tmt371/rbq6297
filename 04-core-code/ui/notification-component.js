@@ -51,12 +51,28 @@ export class NotificationComponent {
 
     /**
      * Creates and displays a toast notification.
-     * @param {object} data The notification data { message, type }.
+     * @param {object} data The notification data { message, type, action }.
      */
-    show({ message, type = 'info' }) {
+    show({ message, type = 'info', action = null }) {
         const toast = document.createElement('div');
         toast.className = 'toast-message';
-        toast.textContent = message;
+        // Use an inner span for the text message
+        const messageSpan = document.createElement('span');
+        messageSpan.textContent = message;
+        toast.appendChild(messageSpan);
+
+        // [NEW] Add optional action button (e.g., Undo)
+        if (action && action.label && typeof action.callback === 'function') {
+            const actionBtn = document.createElement('button');
+            actionBtn.className = 'toast-action-btn';
+            actionBtn.textContent = action.label;
+            actionBtn.onclick = () => {
+                action.callback();
+                toast.remove(); // Remove immediately after action
+            };
+            toast.appendChild(actionBtn);
+            // Optionally prevent auto-hide when there's an action, or keep it. We'll keep auto-hide.
+        }
 
         if (type === 'error') {
             toast.classList.add('error');
@@ -68,6 +84,6 @@ export class NotificationComponent {
         // We just need to remove the element from the DOM after the animation is complete.
         setTimeout(() => {
             toast.remove();
-        }, 4000); // Should match the animation duration in style.css
+        }, 5000); // Should match the animation duration in style.css
     }
 }

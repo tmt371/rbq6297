@@ -1,8 +1,7 @@
-# 輸出檔案的名稱
+# 輸出檔案的名稱 (建議副檔名可改為 .txt 或 .xml，這裡使用 .txt 方便您隨時點開看)
 $outputFile = "codebase_snapshot.txt"
 
-# 【新增】定義要從快照中明確排除的檔案
-# 我們使用 Windows 路徑分隔符 '\'，因為 Get-ChildItem 的 .FullName 屬性會使用它
+# 定義要從快照中明確排除的檔案
 $excludeFile = "04-core-code\config\firebase-config.js"
 
 # 執行前先清空舊檔案，確保快照的純淨度
@@ -17,6 +16,7 @@ $includePaths = @(
     "package.json",
     "package-lock.json",
     "index.html",
+    "admin.html",
     "style.css",
     "jest.config.js",
     "babel.config.js",
@@ -27,7 +27,6 @@ $includePaths = @(
 )
 
 # 遍歷所有指定的路徑
-# 【主要變更】新增一個 -and 條件，用 -notlike 檢查 .FullName 是否以 $excludeFile 結尾
 Get-ChildItem -Path $includePaths -Recurse | Where-Object { 
     !$_.PSIsContainer -and 
     $_.FullName -notlike "*\node_modules\*" -and 
@@ -39,14 +38,10 @@ Get-ChildItem -Path $includePaths -Recurse | Where-Object {
     # 標準化路徑分隔符，將 Windows 的 '\' 轉換為 UNIX 的 '/'
     $normalizedPath = $relativePath.Replace("\", "/")
 
-    # 寫入檔案標頭
-    Add-Content -Path $outputFile -Value "--- FILE START: $normalizedPath ---"
-    
-    # 寫入檔案的完整內容
+    # 【核心修改區】改成 AI 讀取專用的 XML 標籤格式
+    Add-Content -Path $outputFile -Value "<file path=`"$normalizedPath`">"
     Add-Content -Path $outputFile -Value (Get-Content $_.FullName -Raw)
-    
-    # 寫入檔案結尾
-    Add-Content -Path $outputFile -Value "--- FILE END ---`n"
+    Add-Content -Path $outputFile -Value "</file>`n"
 }
 
 Write-Host "Codebase snapshot created successfully (Firebase config excluded): $outputFile"

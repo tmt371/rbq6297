@@ -27,11 +27,13 @@ const mockConfigManager = {
         return {}; // Return a dummy matrix for other types
     }),
     getAccessoryPrice: jest.fn((key) => {
-        const prices = { 
-            comboBracket: 10, 
+        const prices = {
+            comboBracket: 10,
             winderHD: 30,
             'cost-combo-dual': 5, // Mock cost price
-            'cost-winder': 8
+            'cost-winder': 8,
+            'ele_rem_1ch_linx': 100, // V2 remote sale price
+            'ele_charger': 50 // V2 charger sale price
         };
         return prices[key] || 0;
     }),
@@ -40,8 +42,8 @@ const mockConfigManager = {
             'dual': 'comboBracket',
             'winder': 'winderHD',
             'motor': 'motorStandard',
-            'remote': 'remoteStandard',
-            'charger': 'chargerStandard',
+            'remote': 'ele_rem_1ch_linx',
+            'charger': 'ele_charger',
             'cord': 'cord3m'
         },
         accessoryMethodNameMap: {
@@ -70,7 +72,7 @@ describe('CalculationService (Refactored)', () => {
             productFactory: { getProductStrategy: () => mockProductStrategy },
             configManager: mockConfigManager
         });
-        
+
         // Clear mocks before each test
         jest.clearAllMocks();
     });
@@ -87,7 +89,7 @@ describe('CalculationService (Refactored)', () => {
                             { width: 2000, height: 1500, fabricType: 'B1', linePrice: null },
                             { width: null, height: null, fabricType: null, linePrice: null }
                         ],
-                        summary: { 
+                        summary: {
                             totalSum: 0,
                             accessories: {
                                 winder: { price: 30 },
@@ -97,11 +99,11 @@ describe('CalculationService (Refactored)', () => {
                     }
                 }
             };
-    
+
             const { updatedQuoteData, firstError } = calculationService.calculateAndSum(quoteData, mockProductStrategy);
             const productSummary = updatedQuoteData.products.rollerBlind.summary;
             const productItems = updatedQuoteData.products.rollerBlind.items;
-    
+
             expect(productSummary.totalSum).toBe(1080);
             expect(productItems[0].linePrice).toBe(300);
             expect(productItems[1].linePrice).toBe(500);
@@ -109,7 +111,7 @@ describe('CalculationService (Refactored)', () => {
             expect(mockConfigManager.getPriceMatrix).toHaveBeenCalledTimes(2);
             expect(mockProductStrategy.calculatePrice).toHaveBeenCalledTimes(2);
         });
-    
+
         it('should return the first error encountered and still sum valid items', () => {
             const quoteData = {
                 currentProduct: 'rollerBlind',
@@ -117,18 +119,18 @@ describe('CalculationService (Refactored)', () => {
                     rollerBlind: {
                         items: [
                             { width: 1000, height: 1000, fabricType: 'B3', linePrice: null },
-                            { width: 4000, height: 1500, fabricType: 'B3', linePrice: null }, 
+                            { width: 4000, height: 1500, fabricType: 'B3', linePrice: null },
                             { width: 2000, height: 2000, fabricType: 'B3', linePrice: null }
                         ],
                         summary: { totalSum: 0, accessories: {} }
                     }
                 }
             };
-    
+
             const { updatedQuoteData, firstError } = calculationService.calculateAndSum(quoteData, mockProductStrategy);
             const productSummary = updatedQuoteData.products.rollerBlind.summary;
             const productItems = updatedQuoteData.products.rollerBlind.items;
-    
+
             expect(productSummary.totalSum).toBe(900);
             expect(productItems[0].linePrice).toBe(300);
             expect(productItems[1].linePrice).toBeNull();
@@ -144,7 +146,7 @@ describe('CalculationService (Refactored)', () => {
         it('should calculate the SALE PRICE for an accessory using the price key map', () => {
             const productType = 'rollerBlind';
             const items = [{ dual: 'D' }, { dual: 'D' }];
-            
+
             const price = calculationService.calculateAccessorySalePrice(productType, 'dual', { items });
 
             expect(price).toBe(10); // Mocked return value from strategy
@@ -160,7 +162,7 @@ describe('CalculationService (Refactored)', () => {
             const productType = 'rollerBlind';
             const winderCount = 3;
             const data = { count: winderCount, costKey: 'cost-winder' };
-            
+
             const price = calculationService.calculateAccessoryCost(productType, 'winder', data);
 
             expect(price).toBe(24); // 3 * 8 (mocked cost price)
@@ -171,9 +173,9 @@ describe('CalculationService (Refactored)', () => {
         });
 
         it('should return 0 and log an error if costKey is not provided', () => {
-            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+            const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => { });
             const productType = 'rollerBlind';
-            
+
             const price = calculationService.calculateAccessoryCost(productType, 'winder', { count: 3 });
 
             expect(price).toBe(0);

@@ -1,4 +1,4 @@
-<div id="function-panel-toggle" title="Toggle Function Panel">
+<div id="function-panel-toggle" class="f-panel-handle" title="Toggle Function Panel">
     <svg class="toggle-arrow arrow-left" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
         stroke-width="1.5" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -17,101 +17,233 @@
 </div>
 
 <div class="tab-content-container">
-    <div id="f1-content" class="tab-content active">
-        <div class="f1-grid">
-            <div class="component-cost-group">
-                <div class="grid-cell grid-span-2">Component Cost</div>
-                <div class="grid-cell price-box bg-light-purple" id="f1-price-total"></div>
+    <div id="f1-content" class="tab-content active f1-accordion-container">
 
+        <!-- Accordion 1: Component Cost -->
+        <div class="accordion-item active" id="f1-acc-components">
+            <div class="accordion-header">
+                <h3>Component Cost</h3>
+                <span class="chevron"></span>
+            </div>
+            <div class="accordion-collapse">
+                <div class="accordion-body f1-grid">
 
-                <div class="grid-cell font-bold">Item</div>
-                <div class="grid-cell font-bold" style="justify-content: center;">Qty</div>
-                <div class="grid-cell font-bold" style="justify-content: center;">$</div>
+                    <div class="grid-cell grid-span-2">Component Cost</div>
+                    <div class="grid-cell price-box bg-light-purple" id="f1-price-total"></div>
 
-                <div class="grid-cell">HD Winder</div>
-                <div class="grid-cell qty-box" id="f1-qty-winder"></div>
+                    <div class="grid-cell font-bold">Item</div>
+                    <div class="grid-cell font-bold" style="justify-content: center;">Qty</div>
+                    <div class="grid-cell font-bold" style="justify-content: center;">$</div>
 
-                <div class="grid-cell price-box bg-bright-green" id="f1-price-winder"></div>
+                    <!-- Winder -->
+                    <div class="grid-cell">HD Winder</div>
+                    <div class="grid-cell qty-box" id="f1-qty-winder" data-section="components" data-item-id="winder"
+                        data-field-type="qty-display"></div>
+                    <div class="grid-cell price-box bg-bright-green" id="f1-price-winder" data-section="components"
+                        data-item-id="winder" data-field-type="cost-display"></div>
 
-                <div class="group-row group-row-dual">
-                    <div class="grid-cell">Dual Combo</div>
-                    <div class="grid-cell qty-box" id="f1-qty-dual-combo"></div>
-
-                    <div class="grid-cell price-box bg-bright-green" id="f1-price-dual-combo"></div>
-                </div>
-                <div class="group-row group-row-dual">
-                    <div class="grid-cell">Dual Slim</div>
-                    <div class="grid-cell qty-box" id="f1-qty-slim"></div>
-
-                    <div class="grid-cell price-box bg-bright-green" id="f1-price-slim"></div>
-                </div>
-
-                <div class="group-row group-row-motor">
-                    <div class="grid-cell">B-Motor</div>
-                    <div class="grid-cell qty-box" id="f1-qty-motor"></div>
-                    <div class="grid-cell price-box bg-bright-green" id="f1-price-motor"></div>
-
-                    <div class="grid-cell">W-Motor</div>
-                    <div class="grid-cell qty-box" id="f1-qty-w-motor"></div>
-                    <div class="grid-cell price-box bg-bright-green" id="f1-price-w-motor"></div>
-                </div>
-                <div class="group-row group-row-remote">
-                    <div class="grid-cell">Remote 1 Ch</div>
-                    <div class="grid-cell qty-box" id="f1-qty-remote-1ch"></div>
-                    <div class="grid-cell price-box bg-bright-green" id="f1-price-remote-1ch"></div>
-                </div>
-
-                <div class="group-row group-row-remote">
-                    <div class="grid-cell">Remote 16 Ch</div>
-                    <div class="grid-cell qty-box" id="f1-qty-remote-16ch"></div>
-                    <div class="grid-cell price-box bg-bright-green" id="f1-price-remote-16ch"></div>
-                </div>
-
-
-                <div class="grid-cell">Charger</div>
-                <div class="grid-cell qty-box" id="f1-qty-charger"></div>
-                <div class="grid-cell price-box bg-bright-green" id="f1-price-charger"></div>
-
-                <div class="grid-cell">3M cord</div>
-                <div class="grid-cell qty-box" id="f1-qty-3m-cord"></div>
-                <div class="grid-cell price-box bg-bright-green" id="f1-price-3m-cord"></div>
-
-                <div class="group-row">
-                    <div class="grid-cell">Wifi</div>
-                    <div class="grid-cell">
-                        <input type="number" class="input-box" id="f1-qty-wifihub" placeholder="QTY"
-                            style="text-align: center; width: 100%;">
+                    <!-- Dual Combo -->
+                    <div class="group-row group-row-dual">
+                        <div class="grid-cell">Dual Combo</div>
+                        <div class="grid-cell qty-box" id="f1-qty-dual-combo" data-section="components"
+                            data-item-id="dual-combo" data-field-type="qty-display"></div>
+                        <div class="grid-cell price-box bg-bright-green" id="f1-price-dual-combo"
+                            data-section="components" data-item-id="dual-combo" data-field-type="cost-display"></div>
                     </div>
-                    <div class="grid-cell price-box bg-bright-green" id="f1-price-wifihub"></div>
+
+                    <!-- Dual Slim -->
+                    <div class="group-row group-row-dual">
+                        <div class="grid-cell">Dual Slim</div>
+                        <div class="grid-cell qty-box" id="f1-qty-slim" data-section="components" data-item-id="slim"
+                            data-field-type="qty-display"></div>
+                        <div class="grid-cell price-box bg-bright-green" id="f1-price-slim" data-section="components"
+                            data-item-id="slim" data-field-type="cost-display"></div>
+                    </div>
+
+                    <!-- Motors -->
+                    <div class="group-row group-row-motor">
+                        <div class="grid-cell">B-Motor</div>
+                        <div class="grid-cell qty-box" id="f1-qty-motor" data-section="components"
+                            data-item-id="b-motor" data-field-type="qty-display"></div>
+                        <div class="grid-cell price-box bg-bright-green" id="f1-price-motor" data-section="components"
+                            data-item-id="b-motor" data-field-type="cost-display"></div>
+
+                        <div class="grid-cell">W-Motor</div>
+                        <div class="grid-cell qty-box" id="f1-qty-w-motor" data-section="components"
+                            data-item-id="w-motor" data-field-type="qty-display"></div>
+                        <div class="grid-cell price-box bg-bright-green" id="f1-price-w-motor" data-section="components"
+                            data-item-id="w-motor" data-field-type="cost-display"></div>
+                    </div>
+
+                    <!-- Remotes -->
+                    <div class="group-row group-row-remote">
+                        <div class="grid-cell">Remote 1 Ch</div>
+                        <div class="grid-cell qty-box" id="f1-qty-remote-1ch" data-section="components"
+                            data-item-id="remote-1ch" data-field-type="qty-display"></div>
+                        <div class="grid-cell price-box bg-bright-green" id="f1-price-remote-1ch"
+                            data-section="components" data-item-id="remote-1ch" data-field-type="cost-display"></div>
+                    </div>
+                    <div class="group-row group-row-remote">
+                        <div class="grid-cell">Remote 16 Ch</div>
+                        <div class="grid-cell qty-box" id="f1-qty-remote-16ch" data-section="components"
+                            data-item-id="remote-16ch" data-field-type="qty-display"></div>
+                        <div class="grid-cell price-box bg-bright-green" id="f1-price-remote-16ch"
+                            data-section="components" data-item-id="remote-16ch" data-field-type="cost-display"></div>
+                    </div>
+
+                    <!-- Accessories -->
+                    <div class="grid-cell">Charger</div>
+                    <div class="grid-cell qty-box" id="f1-qty-charger" data-section="components" data-item-id="charger"
+                        data-field-type="qty-display"></div>
+                    <div class="grid-cell price-box bg-bright-green" id="f1-price-charger" data-section="components"
+                        data-item-id="charger" data-field-type="cost-display"></div>
+
+                    <div class="grid-cell">3M cord</div>
+                    <div class="grid-cell qty-box" id="f1-qty-3m-cord" data-section="components" data-item-id="3m-cord"
+                        data-field-type="qty-display"></div>
+                    <div class="grid-cell price-box bg-bright-green" id="f1-price-3m-cord" data-section="components"
+                        data-item-id="3m-cord" data-field-type="cost-display"></div>
+
+                    <!-- Wifi -->
+                    <div class="group-row">
+                        <div class="grid-cell">Wifi</div>
+                        <div class="grid-cell">
+                            <input type="number" class="input-box" id="f1-qty-wifihub" placeholder="QTY"
+                                style="text-align: center; width: 100%;" data-section="components" data-item-id="wifi"
+                                data-field-type="qty-input">
+                        </div>
+                        <div class="grid-cell price-box bg-bright-green" id="f1-price-wifihub" data-section="components"
+                            data-item-id="wifi" data-field-type="cost-display"></div>
+                    </div>
+
                 </div>
-            </div>
-
-            <div class="rb-pricing-group">
-                <div class="grid-cell">RB Pricing</div>
-                <div class="grid-cell font-bold text-right">Retail</div>
-                <div class="grid-cell price-box bg-bright-green" id="f1-rb-retail"></div>
-
-                <div class="grid-cell">Discnt %</div>
-                <div class="grid-cell">
-                    <input type="number" class="input-box" id="f1-rb-discount-input" placeholder="%">
-                </div>
-                <div class="grid-cell price-box bg-light-purple" id="f1-rb-price"></div>
-
-            </div>
-
-            <div class="final-summary-group">
-                <div class="grid-cell">Final Summary</div>
-                <div class="grid-cell font-bold text-right">Sub Total</div>
-                <div class="grid-cell price-box bg-light-purple" id="f1-sub-total"></div>
-
-
-                <div class="grid-cell grid-col-start-2 font-bold text-right">GST</div>
-                <div class="grid-cell price-box bg-bright-green" id="f1-gst"></div>
-
-                <div class="grid-cell grid-col-start-2 text-right font-bold">Total</div>
-                <div class="grid-cell price-box bg-pink" id="f1-final-total"></div>
             </div>
         </div>
+
+        <!-- Accordion 2: RB Pricing -->
+        <div class="accordion-item" id="f1-acc-rb-pricing">
+            <div class="accordion-header">
+                <h3>RB Pricing</h3>
+                <span class="chevron"></span>
+            </div>
+            <div class="accordion-collapse">
+                <div class="accordion-body f1-grid rb-pricing-group">
+
+                    <div class="f1-pricing-grid">
+                        <div class="pricing-label">Retail</div>
+                        <div class="pricing-value">
+                            <div class="price-box bg-bright-green" id="f1-rb-retail" data-section="rb-pricing"
+                                data-item-id="retail-base" data-field-type="price-display"></div>
+                        </div>
+
+                        <div class="pricing-label">Discnt %</div>
+                        <div class="pricing-value">
+                            <input type="number" class="input-box" id="f1-rb-discount-input" placeholder="%"
+                                data-section="rb-pricing" data-item-id="discount" data-field-type="discount-input">
+                        </div>
+
+                        <div class="pricing-label">Cost</div>
+                        <div class="pricing-value">
+                            <div class="price-box bg-light-purple" id="f1-rb-price" data-section="rb-pricing"
+                                data-item-id="discounted-price" data-field-type="price-display"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Accordion 3: Final Summary -->
+        <div class="accordion-item" id="f1-acc-final-summary">
+            <div class="accordion-header">
+                <h3>Final Summary <span id="f1-header-total"
+                        style="float: right; margin-right: 15px; font-weight: normal;"></span></h3>
+                <span class="chevron"></span>
+            </div>
+            <div class="accordion-collapse">
+                <div class="accordion-body f1-grid final-summary-group">
+
+                    <div class="f1-pricing-grid">
+                        <div class="pricing-label">Sub Total</div>
+                        <div class="pricing-value">
+                            <div class="price-box bg-light-purple" id="f1-sub-total" data-section="summary"
+                                data-item-id="sub-total" data-field-type="price-display"></div>
+                        </div>
+
+                        <div class="pricing-label">GST</div>
+                        <div class="pricing-value">
+                            <div class="price-box bg-bright-green" id="f1-gst" data-section="summary" data-item-id="gst"
+                                data-field-type="price-display"></div>
+                        </div>
+
+                        <div
+                            style="grid-column: 1 / -1; border-top: 1px dashed #ccc; margin-top: 5px; margin-bottom: 5px;">
+                        </div>
+                        <div class="pricing-label" style="font-weight: bold; font-size: 16px;">
+                            Total</div>
+                        <div class="pricing-value">
+                            <div class="price-box bg-pink" id="f1-final-total" data-section="summary"
+                                data-item-id="total" data-field-type="price-display"></div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Accordion 4: Brand Configuration -->
+        <div class="accordion-item" id="f1-acc-brand-config">
+            <div class="accordion-header">
+                <h3>Brand Configuration</h3>
+                <span class="chevron"></span>
+            </div>
+            <div class="accordion-collapse">
+                <div class="accordion-body accessory-detail-container" style="padding-top: 10px;">
+
+                    <div class="brand-category border-hd">
+                        <div class="brand-category-title">HD Winder</div>
+                        <div class="brand-grid">
+                            <div class="brand-item"><span>Free</span><input type="text" id="f1-brand-hd-free" readonly
+                                    value="0"></div>
+                            <div class="brand-item"><span>Paid</span><input type="text" id="f1-brand-hd-paid" readonly
+                                    value="0"></div>
+                        </div>
+                    </div>
+                    <div class="brand-category border-motor">
+                        <div class="brand-category-title">Motor</div>
+                        <div class="brand-item-single">
+                            <select id="f1-motor-brand-select" class="brand-select" data-section="brand-config"
+                                data-item-id="motor-brand" data-field-type="brand-select">
+                                <!-- Options populated dynamically from V2 data -->
+                            </select>
+                            <input type="text" id="f1-motor-total-qty" readonly value="0">
+                        </div>
+                    </div>
+                    <div class="brand-category border-remote">
+                        <div class="brand-category-title">Remote</div>
+                        <div class="brand-item-single">
+                            <select id="f1-remote-brand-select" class="brand-select" data-section="brand-config"
+                                data-item-id="remote-brand" data-field-type="brand-select">
+                                <!-- Options populated dynamically from V2 data -->
+                            </select>
+                            <input type="text" id="f1-remote-total-qty" readonly value="0">
+                        </div>
+                    </div>
+                    <div class="brand-category border-wifi">
+                        <div class="brand-category-title">WiFi Hub</div>
+                        <div class="brand-item-single">
+                            <select id="f1-wifi-brand-select" class="brand-select" data-section="brand-config"
+                                data-item-id="wifi-brand" data-field-type="brand-select">
+                                <!-- Options populated dynamically from V2 data -->
+                            </select>
+                            <input type="text" id="f1-wifi-total-qty" readonly value="0">
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
     </div>
     <div id="f2-content" class="tab-content">
 
@@ -151,18 +283,39 @@
                 <div class="section-header">Fee</div>
                 <div class="grid-cell-value section-header-total" id="f2-b16-surcharge-fee">$0</div>
 
-                <div class="grid-cell-label">Delivery</div>
+                <!-- [MODIFIED] Phase 8.3b: Horizontal spacing matching Roller Summary -->
+                <div class="f2-fee-subgrid grid-span-3"
+                    style="display:grid; grid-template-columns: minmax(55px,1fr) 22% 18% 25%; column-gap:8px; row-gap:2px; align-items:center; width:100%; box-sizing:border-box;">
+                    <div class="grid-cell-label" style="font-size:11px;">Delivery</div>
+                    <input type="number" class="grid-cell-input f2-unit-price" id="f2-delivery-unit" placeholder="$"
+                        onfocus="this.select();"
+                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                    <input type="number" class="grid-cell-input" id="f2-b13-delivery-qty" placeholder="QTY"
+                        onfocus="this.select();"
+                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                    <div class="grid-cell-value" id="f2-c13-delivery-fee" style="text-align:right; padding-right:2px;">
+                        $0</div>
 
-                <input type="number" class="grid-cell-input" id="f2-b13-delivery-qty" placeholder="QTY">
-                <div class="grid-cell-value" id="f2-c13-delivery-fee">$0</div>
+                    <div class="grid-cell-label" style="font-size:11px;">Install</div>
+                    <input type="number" class="grid-cell-input f2-unit-price" id="f2-install-unit" placeholder="$"
+                        onfocus="this.select();"
+                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                    <input type="number" class="grid-cell-input" id="f2-b14-install-qty" placeholder="QTY"
+                        onfocus="this.select();"
+                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                    <div class="grid-cell-value" id="f2-c14-install-fee" style="text-align:right; padding-right:2px;">$0
+                    </div>
 
-                <div class="grid-cell-label">Install</div>
-                <input type="number" class="grid-cell-input" id="f2-b14-install-qty" placeholder="QTY">
-                <div class="grid-cell-value" id="f2-c14-install-fee">$0</div>
-
-                <div class="grid-cell-label">Removal</div>
-                <input type="number" class="grid-cell-input" id="f2-b15-removal-qty" placeholder="QTY">
-                <div class="grid-cell-value" id="f2-c15-removal-fee">$0</div>
+                    <div class="grid-cell-label" style="font-size:11px;">Removal</div>
+                    <input type="number" class="grid-cell-input f2-unit-price" id="f2-removal-unit" placeholder="$"
+                        onfocus="this.select();"
+                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                    <input type="number" class="grid-cell-input" id="f2-b15-removal-qty" placeholder="QTY"
+                        onfocus="this.select();"
+                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                    <div class="grid-cell-value" id="f2-c15-removal-fee" style="text-align:right; padding-right:2px;">$0
+                    </div>
+                </div>
             </div>
             <div class="f2-group-summary grid-span-3">
                 <div class="section-header" style="grid-column: 1 / -1;">Roller Summary</div>
@@ -316,6 +469,8 @@
 
             <div class="f4-separator"></div>
 
+            <div class="f4-separator"></div>
+
             <div class="f4-group-actions">
                 <button id="f4-key-logout" class="f4-button btn-pink">Logout</button>
                 <button id="f4-key-relogin" class="f4-button btn-pink">Re-Login</button>
@@ -323,6 +478,7 @@
                 <div class="f4-blank-cell"></div>
                 <button id="f1-key-reset" class="f4-button btn-red">Reset</button>
             </div>
+
 
             <div class="f4-separator"></div>
 
@@ -339,6 +495,12 @@
 
                 <select id="f4-status-dropdown" class="f4-status-select"></select>
                 <button id="f4-status-update-btn" class="f4-button f4-status-button">&#x23CE;</button>
+            </div>
+
+            <!-- [MODIFIED] Phase 6.4: Admin Panel Entry — repositioned below correction controls -->
+            <div class="f4-group" style="margin-top: 15px; text-align: center;">
+                <button id="f4-btn-admin-entry" class="f4-button"
+                    style="width: 50%; max-width: 200px; margin: 0 auto; display: block; border: 2px solid #90ee90; background: #fff; color: #333; font-weight: 700; border-radius: 6px; padding: 10px 0;">Admin</button>
             </div>
 
         </div>

@@ -1,28 +1,32 @@
-/* FILE: 04-core-code/ui/tabs/k2-tab/k2-tab-input-handler.js */
-// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES to match reducer logic.
+// File: 04-core-code/ui/tabs/k2-tab/k2-tab-input-handler.js
 
-import { EVENTS, DOM_IDS } from '../../../config/constants.js';
-import { LOGIC_CODES } from '../../../config/business-constants.js'; // [NEW]
+import { EVENTS } from '../../../config/constants.js';
 
 /**
  * @fileoverview A dedicated input handler for all user interactions
- * within the K2 (Fabric) tab.
+ * within the K2 (Options) tab.
  */
 export class K2TabInputHandler {
     constructor({ eventAggregator }) {
         this.eventAggregator = eventAggregator;
 
         // [NEW] (v6298-fix-4) Store element references
-        this.fabricButton = document.getElementById('btn-focus-fabric');
-        this.lfButton = document.getElementById('btn-light-filter');
-        this.lfDelButton = document.getElementById('btn-lf-del');
-        this.sSetButton = document.getElementById('btn-k2-sset');
+        this.editButton = document.getElementById('btn-k2-edit');
+        this.batchCycleButtons = [
+            { id: 'btn-batch-cycle-over', column: 'over' },
+            { id: 'btn-batch-cycle-oi', column: 'oi' },
+            { id: 'btn-batch-cycle-lr', column: 'lr' }
+        ];
 
         // [NEW] (v6298-fix-4) Store bound handlers
         this.boundHandlers = [];
+        this.appController = null; // [REMOVED]
+
 
         console.log("K2TabInputHandler Initialized.");
     }
+
+
 
     /**
      * [NEW] (v6298-fix-4) Helper to add and store listeners
@@ -47,31 +51,25 @@ export class K2TabInputHandler {
         console.log("K2TabInputHandler destroyed.");
     }
 
+
     initialize() {
-        // [MODIFIED] (v6298-fix-4) Use helper
-        this._addListener(this.fabricButton, 'click', this._onFabricClick);
-        this._addListener(this.lfButton, 'click', this._onLFFClick);
-        this._addListener(this.lfDelButton, 'click', this._onLFDClick);
-        this._addListener(this.sSetButton, 'click', this._onSSetClick);
+        // [MODIFIED] (v6298-fix-4) Use helper with explicit arrow function
+        this._addListener(this.editButton, 'click', (e) => this._onEditClick(e));
+
+        this.batchCycleButtons.forEach(({ id, column }) => {
+            const button = document.getElementById(id);
+            if (button) {
+                // Create a specific handler for each button
+                const handler = () => {
+                    this.eventAggregator.publish(EVENTS.USER_REQUESTED_BATCH_CYCLE, { column });
+                };
+                this._addListener(button, 'click', handler);
+            }
+        });
     }
 
     // [NEW] (v6298-fix-4) Extracted handlers
-    _onFabricClick() {
-        this.eventAggregator.publish(EVENTS.USER_REQUESTED_NC_DIALOG);
-    }
-
-    _onLFFClick() {
-        // [MODIFIED] Use constant
-        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: LOGIC_CODES.MODE_LF });
-    }
-
-    _onLFDClick() {
-        // [MODIFIED] Use constant
-        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: LOGIC_CODES.MODE_LF_DEL });
-    }
-
-    _onSSetClick() {
-        // [MODIFIED] Use constant
-        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_MODE, { mode: LOGIC_CODES.MODE_SSET });
+    _onEditClick() {
+        this.eventAggregator.publish(EVENTS.USER_TOGGLED_K2_EDIT_MODE);
     }
 }

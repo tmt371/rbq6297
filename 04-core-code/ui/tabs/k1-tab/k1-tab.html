@@ -1,8 +1,25 @@
+<!-- [MODIFIED] (Phase 3.5a) K1 panel: merged Location + Fabric (formerly K2) -->
 <div class="feature-grid">
-    <div class="feature-group">
-         <div class="feature-buttons">
-             <button id="btn-focus-location" class="feature-button">#Location</button>
-            <input type="text" id="location-input-box" class="panel-input" placeholder="Location..." disabled>
-         </div>
-    </div>
- </div>
+    <!-- Location Section -->
+    <fieldset class="group-loc">
+        <legend>Location</legend>
+        <div class="feature-group">
+            <div class="feature-buttons">
+                <button id="btn-focus-location" class="feature-button">#Location</button>
+                <input type="text" id="location-input-box" class="panel-input" placeholder="Location..." disabled>
+            </div>
+        </div>
+    </fieldset>
+    <!-- Fabric Section (migrated from K2) -->
+    <fieldset class="group-fab">
+        <legend>Fabric</legend>
+        <div class="feature-group">
+            <div class="feature-buttons">
+                <button id="btn-focus-fabric" class="feature-button">N&C</button>
+                <button id="btn-light-filter" class="feature-button">Light-Filter</button>
+                <button id="btn-lf-del" class="feature-button">LF-Del</button>
+                <button id="btn-k2-sset" class="feature-button">SSet</button>
+            </div>
+        </div>
+    </fieldset>
+</div>

@@ -1,14 +1,15 @@
-/* FILE: 04-core-code/ui/views/k2-fabric-view.js */
+/* FILE: 04-core-code/ui/views/fabric-config-view.js */
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with FABRIC_CODES and LOGIC_CODES.
 
-import { EVENTS } from '../../config/constants.js';
+import { EVENTS, DOM_IDS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
 import * as quoteActions from '../../actions/quote-actions.js';
-import { FABRIC_CODES, LOGIC_CODES } from '../../config/business-constants.js';
+import { FABRIC_CODES, LOGIC_CODES } from '../../config/business-constants.js'; // [NEW]
 
 /**
- * @fileoverview A dedicated sub-view for handling all logic related to the K2 (Fabric) tab.
+ * @fileoverview A dedicated sub-view for handling all logic related to the Fabric configuration.
  */
-export class K2FabricView {
+export class FabricConfigView {
     constructor({ stateService, eventAggregator }) {
         this.stateService = stateService;
         this.eventAggregator = eventAggregator;
@@ -19,7 +20,7 @@ export class K2FabricView {
         this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_LF_DIALOG, () => this._showLFDialog());
         this.eventAggregator.subscribe(EVENTS.USER_REQUESTED_SSET_DIALOG, () => this._showSSetDialog());
 
-        console.log("K2FabricView Initialized.");
+        console.log("FabricConfigView Initialized.");
     }
 
     _getState() {
@@ -31,47 +32,53 @@ export class K2FabricView {
         return quoteData.products[quoteData.currentProduct].items;
     }
 
-    handleFocusModeRequest() {
-        this._exitAllK2Modes();
+    async handleFocusModeRequest() {
+        await this._exitAllK2Modes();
     }
 
-    handleSequenceCellClick({ rowIndex }) {
+    async handleSequenceCellClick({ rowIndex }) {
         const { activeEditMode } = this._getState().ui;
         const item = this._getItems()[rowIndex];
         if (!item || (item.width === null && item.height === null)) return;
 
+        // [MODIFIED] Use constants for mode checks
         if (activeEditMode === LOGIC_CODES.MODE_LF_DEL) {
             const { lfModifiedRowIndexes } = this._getState().quoteData.uiMetadata;
             if (!lfModifiedRowIndexes.includes(rowIndex)) {
-                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Only items with a Light-Filter setting (pink background) can be selected for deletion.', type: 'error' });
+                await this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Only items with a Light-Filter setting (pink background) can be selected for deletion.', type: 'error' });
                 return;
             }
-            this.stateService.dispatch(uiActions.toggleLFSelection(rowIndex));
+            await this.stateService.dispatch(uiActions.toggleLFSelection(rowIndex));
 
         } else if (activeEditMode === LOGIC_CODES.MODE_LF || activeEditMode === LOGIC_CODES.MODE_SSET) {
-            this.stateService.dispatch(uiActions.toggleMultiSelectSelection(rowIndex));
+            await this.stateService.dispatch(uiActions.toggleMultiSelectSelection(rowIndex));
         }
     }
 
-    handleModeToggle({ mode }) {
+    async handleModeToggle({ mode }) {
+        // [NEW] (Phase 3.5a-Fix) Switch to Fabric View columns when any K2 mode is activated
+        this.stateService.dispatch(uiActions.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'fabric', 'color']));
+
+        // [MODIFIED] Compare against constant values (which match the button ID parts or event data)
         if (mode === LOGIC_CODES.MODE_LF) {
-            this._handleLFModeToggle();
+            await this._handleLFModeToggle();
         } else if (mode === LOGIC_CODES.MODE_LF_DEL) {
-            this._handleLFDModeToggle();
+            await this._handleLFDModeToggle();
         } else if (mode === LOGIC_CODES.MODE_SSET) {
-            this._handleSSetModeToggle();
+            await this._handleSSetModeToggle();
         }
     }
 
-    _handleLFModeToggle() {
+    async _handleLFModeToggle() {
         const { activeEditMode } = this._getState().ui;
 
+        // [MODIFIED] Use constant
         if (activeEditMode === LOGIC_CODES.MODE_LF) {
             const { multiSelectSelectedIndexes } = this._getState().ui;
 
             if (multiSelectSelectedIndexes.length === 0) {
-                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'LF mode cancelled. No items selected.' });
-                this._exitAllK2Modes();
+                await this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'LF mode cancelled. No items selected.' });
+                await this._exitAllK2Modes();
                 return;
             }
 
@@ -79,25 +86,28 @@ export class K2FabricView {
 
         } else {
             const items = this._getItems();
+            // [MODIFIED] Use FABRIC_CODES constants
             const eligibleTypes = [FABRIC_CODES.B2, FABRIC_CODES.B3, FABRIC_CODES.B4];
             const hasEligibleItems = items.some(item =>
                 item.width && item.height && eligibleTypes.includes(item.fabricType)
             );
 
             if (!hasEligibleItems) {
-                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'LF is only applicable for B2, B3, and B4 items.' });
+                await this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'LF is only applicable for B2, B3, and B4 items.' });
                 return;
             }
 
-            this._exitAllK2Modes();
-            this.stateService.dispatch(uiActions.setActiveEditMode(LOGIC_CODES.MODE_LF));
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select items from the main table.' });
+            await this._exitAllK2Modes();
+            // [MODIFIED] Dispatch constant value
+            await this.stateService.dispatch(uiActions.setActiveEditMode(LOGIC_CODES.MODE_LF));
+            await this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select items from the main table.' });
         }
     }
 
     _handleLFDModeToggle() {
         const { activeEditMode } = this._getState().ui;
 
+        // [MODIFIED] Use constant
         if (activeEditMode === LOGIC_CODES.MODE_LF_DEL) {
             const { lfSelectedRowIndexes } = this._getState().ui;
             if (lfSelectedRowIndexes.length > 0) {
@@ -108,6 +118,7 @@ export class K2FabricView {
             this._exitAllK2Modes();
         } else {
             this._exitAllK2Modes();
+            // [MODIFIED] Dispatch constant value
             this.stateService.dispatch(uiActions.setActiveEditMode(LOGIC_CODES.MODE_LF_DEL));
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select the roller blinds for which you want to cancel the Light-Filter fabric setting. After selection, click the LF-Del button again.' });
         }
@@ -116,6 +127,7 @@ export class K2FabricView {
     _handleSSetModeToggle() {
         const { activeEditMode } = this._getState().ui;
 
+        // [MODIFIED] Use constant
         if (activeEditMode === LOGIC_CODES.MODE_SSET) {
             const { multiSelectSelectedIndexes } = this._getState().ui;
 
@@ -129,12 +141,16 @@ export class K2FabricView {
 
         } else {
             this._exitAllK2Modes();
+            // [MODIFIED] Dispatch constant value
             this.stateService.dispatch(uiActions.setActiveEditMode(LOGIC_CODES.MODE_SSET));
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Please select items from the main table.' });
         }
     }
 
     handleNCDialogRequest() {
+        // [NEW] (Phase 3.5a-Fix) Switch to Fabric View columns when N&C button is clicked
+        this.stateService.dispatch(uiActions.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'fabric', 'color']));
+
         this.stateService.dispatch(uiActions.setModalActive(true));
 
         const { lfModifiedRowIndexes } = this._getState().quoteData.uiMetadata;
@@ -360,6 +376,7 @@ export class K2FabricView {
             return;
         }
 
+        // [MODIFIED] Use FABRIC_CODES constants
         const eligibleTypes = [FABRIC_CODES.B2, FABRIC_CODES.B3, FABRIC_CODES.B4];
 
         const eligibleIndexes = multiSelectSelectedIndexes.filter(index => {
@@ -385,6 +402,7 @@ export class K2FabricView {
                 { type: 'text', text: 'F-Color', className: 'font-bold' },
             ],
             [
+                // [MODIFIED] Use LOGIC_CODES.LIGHT_FILTER ('LF') for data-type
                 { type: 'text', text: LOGIC_CODES.LIGHT_FILTER, className: 'text-right' },
                 { type: 'input', id: fNameId, value: '', 'data-type': LOGIC_CODES.LIGHT_FILTER, 'data-field': 'fabric', inputType: 'text', disableEnterConfirm: true },
                 { type: 'input', id: fColorId, value: '', 'data-type': LOGIC_CODES.LIGHT_FILTER, 'data-field': 'color', inputType: 'text', disableEnterConfirm: true },
@@ -669,19 +687,23 @@ export class K2FabricView {
         });
     }
 
-    _exitAllK2Modes() {
-        this.stateService.dispatch(uiActions.setActiveEditMode(null));
-        this.stateService.dispatch(uiActions.clearMultiSelectSelection());
-        this.stateService.dispatch(uiActions.clearLFSelection());
+    async _exitAllK2Modes() {
+        await this.stateService.dispatch(uiActions.setActiveEditMode(null));
+        await this.stateService.dispatch(uiActions.clearMultiSelectSelection());
+        await this.stateService.dispatch(uiActions.clearLFSelection());
         this.indexesToExcludeFromBatchUpdate.clear();
         this._updatePanelInputsState();
     }
 
     _updatePanelInputsState() {
+        // (Original content removed as it depended on fabricBatchTable which is gone)
+        // This method is now effectively a no-op or cleanup.
     }
 
     activate() {
-        this.stateService.dispatch(uiActions.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'fabric', 'color']));
+        // [MODIFIED] (Phase 3.5a-Fix) Removed setVisibleColumns — column switching is now
+        // handled dynamically by button clicks (handleModeToggle / handleNCDialogRequest).
+        // This prevents Fabric columns from overriding Location columns on K1 tab activation.
         this._exitAllK2Modes();
     }
 }

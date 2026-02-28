@@ -64,8 +64,8 @@ export const updateWinderMotorProperty = (rowIndex, property, value) => ({
     payload: { rowIndex, property, value },
 });
 
-export const cycleK3Property = (rowIndex, column) => ({
-    type: QUOTE_ACTION_TYPES.CYCLE_K3_PROPERTY,
+export const cycleK2Property = (rowIndex, column) => ({
+    type: QUOTE_ACTION_TYPES.CYCLE_K2_PROPERTY,
     payload: { rowIndex, column },
 });
 
@@ -78,6 +78,12 @@ export const cycleItemType = (rowIndex) => ({
 export const setItemType = (rowIndex, newType) => ({
     type: QUOTE_ACTION_TYPES.SET_ITEM_TYPE,
     payload: { rowIndex, newType },
+});
+
+// [NEW] K2 Snapshot Recovery
+export const restoreK2Snapshot = (snapshotData) => ({
+    type: QUOTE_ACTION_TYPES.RESTORE_K2_SNAPSHOT,
+    payload: { snapshotData },
 });
 
 // --- Batch Item Updates ---

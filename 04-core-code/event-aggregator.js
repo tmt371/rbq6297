@@ -1,8 +1,8 @@
 // /04_CoreCode/EventAggregator.js
 
 /**
- * EventAggregator (溝通中樞 / 中央神經系統)
- * 實作了「發布-訂閱」模式，是整個應用的事件總線核心。
+ * EventAggregator (Pub-Sub Event Bus)
+ * Central nervous system implementing the publish-subscribe pattern.
  */
 export class EventAggregator {
     constructor() {
@@ -10,11 +10,16 @@ export class EventAggregator {
     }
 
     /**
-     * 訂閱一個事件
-     * @param {string} eventName - 事件名稱
-     * @param {Function} callback - 事件觸發時要執行的回調函數
+     * Subscribe to an event
+     * @param {string} eventName - Event name
+     * @param {Function} callback - Callback function
      */
     subscribe(eventName, callback) {
+        // [NEW] (Phase 3.3f) Block undefined/null subscriptions to prevent cross-talk
+        if (!eventName) {
+            console.error('[EventAggregator] ERROR: Blocked attempt to subscribe to undefined/null event!', callback);
+            return;
+        }
         if (!this.events[eventName]) {
             this.events[eventName] = [];
         }
@@ -22,9 +27,9 @@ export class EventAggregator {
     }
 
     /**
-     * [NEW] 取消訂閱一個事件
-     * @param {string} eventName - 事件名稱
-     * @param {Function} callback - 先前註冊的回調函數
+     * Unsubscribe from an event
+     * @param {string} eventName - Event name
+     * @param {Function} callback - Previously registered callback
      */
     unsubscribe(eventName, callback) {
         if (!this.events[eventName]) {
@@ -37,13 +42,29 @@ export class EventAggregator {
     }
 
     /**
-     * 發布一個事件
-     * @param {string} eventName - 事件名稱
-     * @param {*} data - 要傳遞給訂閱者的資料
+     * Publish an event
+     * @param {string} eventName - Event name
+     * @param {*} data - Data to pass to subscribers
+     * @returns {Promise<void>}
      */
-    publish(eventName, data) {
+    async publish(eventName, data) {
+        // [NEW] (Phase 3.3f) Block undefined/null publishes to prevent cross-talk
+        if (!eventName) {
+            console.error('[EventAggregator] ERROR: Blocked attempt to publish undefined/null event!', data);
+            return;
+        }
         if (this.events[eventName]) {
-            this.events[eventName].forEach(callback => callback(data));
+            // [MODIFIED] (Phase 11.2b) Isolate subscriber execution — one failure must not break others.
+            // Wrap each callback in try-catch so a single crash doesn't kill the pipeline.
+            const results = this.events[eventName].map(callback => {
+                try {
+                    return Promise.resolve(callback(data));
+                } catch (error) {
+                    console.error(`[EventAggregator] Subscriber error on '${eventName}':`, error);
+                    return Promise.resolve();
+                }
+            });
+            await Promise.allSettled(results);
         }
     }
 }

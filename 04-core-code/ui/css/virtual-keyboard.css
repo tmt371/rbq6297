@@ -5,7 +5,8 @@
     flex-shrink: 0;
     background-color: var(--keyboard-bg-color);
     border-top: 1px solid var(--panel-border-color);
-    padding: 8px 15px;
+    padding: 8px 15px 25px 15px;
+    /* [MODIFIED] Increased bottom padding to prevent cutoff */
     position: relative;
     transition: all 0.3s ease-in-out;
     box-sizing: border-box;
@@ -16,9 +17,12 @@
     display: flex;
     /* justify-content: space-between; REMOVED to allow custom alignment */
     align-items: center;
-    margin-bottom: 8px; /* Space between top controls and keyboard grid */
-    height: 30px; /* Explicit height for alignment */
-    gap: 20px; /* Default gap between items */
+    margin-bottom: 8px;
+    /* Space between top controls and keyboard grid */
+    height: 30px;
+    /* Explicit height for alignment */
+    gap: 20px;
+    /* Default gap between items */
 }
 
 .virtual-keyboard {
@@ -53,24 +57,91 @@
 }
 
 /* --- Keyboard Grid Layout --- */
-#key-7 { grid-area: 1 / 1; }
-#key-8 { grid-area: 1 / 2; }
-#key-9 { grid-area: 1 / 3; }
-#key-w { grid-area: 1 / 4; background-color: #e5e7eb; }
-#key-type { grid-area: 1 / 5; font-weight: bold; }
-#key-4 { grid-area: 2 / 1; }
-#key-5 { grid-area: 2 / 2; }
-#key-6 { grid-area: 2 / 3; }
-#key-h { grid-area: 2 / 4; background-color: #e5e7eb; }
-#key-price { grid-area: 2 / 5; font-size: 1.5em; color: #059669; font-weight: bold; }
-#key-1 { grid-area: 3 / 1; }
-#key-2 { grid-area: 3 / 2; }
-#key-3 { grid-area: 3 / 3; }
-#key-enter { grid-area: 3 / 4 / 5 / 5; background-color: #e5e7eb; font-size: 2.2em; padding-bottom: 20px; }
-#key-ins-grid { grid-area: 3 / 5; background-color: #e0f2fe; } /* [NEW] Position for new Ins button */
-#key-0 { grid-area: 4 / 1 / 4 / 3; }
-#key-del { grid-area: 4 / 3; font-size: 1.8em; }
-#key-clear { grid-area: 4 / 5; color: #ec4899; font-weight: bold; }
+#key-7 {
+    grid-area: 1 / 1;
+}
+
+#key-8 {
+    grid-area: 1 / 2;
+}
+
+#key-9 {
+    grid-area: 1 / 3;
+}
+
+#key-w {
+    grid-area: 1 / 4;
+    background-color: #e5e7eb;
+}
+
+#key-type {
+    grid-area: 1 / 5;
+    font-weight: bold;
+}
+
+#key-4 {
+    grid-area: 2 / 1;
+}
+
+#key-5 {
+    grid-area: 2 / 2;
+}
+
+#key-6 {
+    grid-area: 2 / 3;
+}
+
+#key-h {
+    grid-area: 2 / 4;
+    background-color: #e5e7eb;
+}
+
+#key-price {
+    grid-area: 2 / 5;
+    font-size: 1.5em;
+    color: #059669;
+    font-weight: bold;
+}
+
+#key-1 {
+    grid-area: 3 / 1;
+}
+
+#key-2 {
+    grid-area: 3 / 2;
+}
+
+#key-3 {
+    grid-area: 3 / 3;
+}
+
+#key-enter {
+    grid-area: 3 / 4 / 5 / 5;
+    background-color: #e5e7eb;
+    font-size: 2.2em;
+    padding-bottom: 20px;
+}
+
+#key-ins-grid {
+    grid-area: 3 / 5;
+    background-color: #e0f2fe;
+}
+
+/* [NEW] Position for new Ins button */
+#key-0 {
+    grid-area: 4 / 1 / 4 / 3;
+}
+
+#key-del {
+    grid-area: 4 / 3;
+    font-size: 1.8em;
+}
+
+#key-clear {
+    grid-area: 4 / 5;
+    color: #ec4899;
+    font-weight: bold;
+}
 
 /* --- Panel Toggle & Summary (Now Flex Items) --- */
 .panel-toggle {
@@ -147,30 +218,53 @@
     position: absolute;
 }
 
-/* --- Collapsed Panel State --- */
-.keyboard-panel .arrow-down { opacity: 1; }
-.keyboard-panel .arrow-up { opacity: 0; }
+/* --- Collapsed Panel State (Consolidated) --- */
+.keyboard-panel .arrow-down {
+    opacity: 1;
+}
+
+.keyboard-panel .arrow-up {
+    opacity: 0;
+}
 
 .keyboard-panel.is-collapsed {
-    height: 30px;
-    padding: 0 15px;
+    height: 60px;
+    /* [MODIFIED] Increased from 30px to ensure handle is visible */
+    padding: 0 15px 10px 15px;
+    /* [MODIFIED] Added bottom padding for safe area */
     border-top-width: 1px;
+    transform: translateY(0);
+    /* [MODIFIED] Explicitly reset transform to prevent hiding */
 }
 
 .keyboard-panel.is-collapsed .top-controls-container {
     margin-bottom: 0;
     justify-content: center;
+    height: 100%;
+    /* Ensure container fills the panel */
+    align-items: flex-start;
+    /* Align handle to top */
+    padding-top: 5px;
 }
 
-.keyboard-panel.is-collapsed .arrow-down { opacity: 0; }
-.keyboard-panel.is-collapsed .arrow-up { opacity: 1; }
+.keyboard-panel.is-collapsed .arrow-down {
+    opacity: 0;
+}
+
+.keyboard-panel.is-collapsed .arrow-up {
+    opacity: 1;
+}
 
 .keyboard-panel.is-collapsed .virtual-keyboard {
     visibility: hidden;
     opacity: 0;
+    display: none;
+    /* [MODIFIED] Remove from flow to prevent spacing issues */
 }
 
-.keyboard-panel.is-collapsed .top-controls-container > *:not(.panel-toggle) {
+.keyboard-panel.is-collapsed .top-controls-container>*:not(.panel-toggle) {
     visibility: hidden;
     opacity: 0;
+    display: none;
+    /* [MODIFIED] Remove from flow */
 }

@@ -1,31 +1,34 @@
 /* FILE: 04-core-code/ui/views/detail-config-view.js */
-
-import * as uiActions from '../../actions/ui-actions.js';
-import { LOGIC_CODES } from '../../config/business-constants.js';
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES to fix LF-DEL selection bug.
 
 /**
  * @fileoverview A "Manager" view that delegates logic to specific sub-views for each tab.
  */
+
+import * as uiActions from '../../actions/ui-actions.js';
+import { EVENTS } from '../../config/constants.js';
+import { LOGIC_CODES } from '../../config/business-constants.js'; // [NEW]
+
 export class DetailConfigView {
     constructor({
         stateService,
         eventAggregator,
+        // Sub-views are injected here
         k1LocationView,
-        k2FabricView,
-        k3OptionsView,
-        driveAccessoriesView,
-        dualChainView
+        fabricConfigView,
+        k2OptionsView,
+        driveAccessoriesView
     }) {
         this.stateService = stateService;
         this.eventAggregator = eventAggregator;
 
+        // Store instances of sub-views
         this.k1View = k1LocationView;
-        this.k2View = k2FabricView;
-        this.k3View = k3OptionsView;
+        this.fabricView = fabricConfigView;
+        this.k2View = k2OptionsView;
         this.driveAccessoriesView = driveAccessoriesView;
-        this.dualChainView = dualChainView;
 
-        console.log("DetailConfigView Initialized.");
+        console.log("DetailConfigView Refactored as a Manager View.");
     }
 
     activateTab(tabId) {
@@ -34,23 +37,22 @@ export class DetailConfigView {
         switch (tabId) {
             case 'k1-tab':
                 this.k1View.activate();
+                this.fabricView.activate(); // [MODIFIED] (Phase 3.5a/3.6b) K2 Fabric now lives in K1
                 break;
+            // [REMOVED] (Phase 3.5a) 'k2-tab' case removed — K2 merged into K1
             case 'k2-tab':
                 this.k2View.activate();
                 break;
             case 'k3-tab':
-                this.k3View.activate();
-                break;
-            case 'k4-tab':
                 this.driveAccessoriesView.activate();
                 break;
-            case 'k5-tab':
-                this.dualChainView.activate();
-                break;
+            // [REMOVED] (Phase 3.5b) K5 merged into K3
             default:
                 break;
         }
     }
+
+    // --- Event Handlers that delegate to sub-views ---
 
     handleFocusModeRequest({ column }) {
         if (column === 'location') {
@@ -59,73 +61,97 @@ export class DetailConfigView {
         }
     }
 
-    handleLocationInputEnter({ value }) {
-        this.k1View.handleLocationInputEnter({ value });
+    async handleLocationInputEnter({ value }) {
+        await this.k1View.handleLocationInputEnter({ value });
     }
 
-    handleSequenceCellClick({ rowIndex }) {
+    async handleSequenceCellClick({ rowIndex }) {
         const { ui } = this.stateService.getState();
         const { activeEditMode } = ui;
 
+        // [MODIFIED] Use LOGIC_CODES constants to match the state set by K2FabricView
+        // This fixes the bug where LF-DEL mode ('LFD') was not recognized.
         if (activeEditMode === LOGIC_CODES.MODE_LF_DEL ||
             activeEditMode === LOGIC_CODES.MODE_LF ||
             activeEditMode === LOGIC_CODES.MODE_SSET) {
 
-            this.k2View.handleSequenceCellClick({ rowIndex });
+            await this.fabricView.handleSequenceCellClick({ rowIndex });
         } else {
-            this.stateService.dispatch(uiActions.toggleMultiSelectSelection(rowIndex));
+            // [NEW] DEFAULT BEHAVIOR (for new LF/SSet flows):
+            // Use the main multi-select action (pink highlight)
+            // This allows the user to select rows *before* clicking the LF button.
+            await this.stateService.dispatch(uiActions.toggleMultiSelectSelection(rowIndex));
         }
     }
 
-    handleModeToggle({ mode }) {
-        this.k2View.handleModeToggle({ mode });
+    // [NEW] (v6294) Handle the new K2 mode toggle event
+    async handleModeToggle({ mode }) {
+        await this.fabricView.handleModeToggle({ mode });
     }
 
-    handleToggleK3EditMode() {
-        this.k3View.handleToggleK3EditMode();
+    async handleToggleK2EditMode() {
+        await this.k2View.handleToggleK2EditMode();
     }
 
-    handleBatchCycle({ column }) {
-        this.k3View.handleBatchCycle({ column });
+    async handleBatchCycle({ column }) {
+        await this.k2View.handleBatchCycle({ column });
     }
 
-    handleDualChainModeChange({ mode }) {
-        this.dualChainView.handleModeChange({ mode });
+    // [MODIFIED] (Phase 3 Patch) 加上 async/await 修補 Promise 鏈結斷層
+    async handleDualChainModeChange({ mode }) {
+        await this.driveAccessoriesView.handleDualChainModeChange({ mode });
     }
 
-    handleChainEnterPressed({ value }) {
-        this.dualChainView.handleChainEnterPressed({ value });
+    // [MODIFIED] (Phase 3 Patch) 加上 async/await 修補 Promise 鏈結斷層
+    async handleChainEnterPressed({ value }) {
+        await this.driveAccessoriesView.handleChainEnterPressed({ value });
     }
 
-    handleDriveModeChange({ mode }) {
-        this.driveAccessoriesView.handleModeChange({ mode });
+    // [MODIFIED] (Phase 3 Patch) 加上 async/await 修補 Promise 鏈結斷層
+    async handleDriveModeChange({ mode }) {
+        await this.driveAccessoriesView.handleModeChange({ mode });
     }
 
-    handleAccessoryCounterChange({ accessory, direction }) {
-        this.driveAccessoriesView.handleCounterChange({ accessory, direction });
+    // [MODIFIED] (Phase 3.4b) Pass full data object to preserve 'value' from number inputs
+    async handleAccessoryCounterChange(data) {
+        await this.driveAccessoriesView.handleCounterChange(data);
     }
 
-    handleTableCellClick({ rowIndex, column }) {
+    // [NEW] (Phase 3.4c) K3 Batch delegates
+    async handleK3BatchStart(data) {
+        await this.driveAccessoriesView.startBatchMode(data);
+    }
+
+    async handleK3BatchConfirm(data) {
+        await this.driveAccessoriesView.confirmBatch(data);
+    }
+
+    async handleK3BatchCancel(data) {
+        await this.driveAccessoriesView.cancelBatch(data);
+    }
+
+    async handleTableCellClick({ rowIndex, column }) {
         const { ui } = this.stateService.getState();
         const { activeEditMode, dualChainMode, driveAccessoryMode } = ui;
 
-        if (driveAccessoryMode) {
-            this.driveAccessoriesView.handleTableCellClick({ rowIndex, column });
+        // [MODIFIED] (Phase 3.4c) Also route when in activeBatchMode
+        if (driveAccessoryMode || this.driveAccessoriesView.activeBatchMode) {
+            await this.driveAccessoriesView.handleTableCellClick({ rowIndex, column });
             return;
         }
 
         if (activeEditMode === 'K1') {
-            this.k1View.handleTableCellClick({ rowIndex });
+            await this.k1View.handleTableCellClick({ rowIndex });
             return;
         }
 
-        if (activeEditMode === 'K3') {
-            this.k3View.handleTableCellClick({ rowIndex, column });
+        if (activeEditMode === 'K2') {
+            await this.k2View.handleTableCellClick({ rowIndex, column });
             return;
         }
 
         if (dualChainMode) {
-            this.dualChainView.handleTableCellClick({ rowIndex, column });
+            await this.driveAccessoriesView.handleTableCellClick({ rowIndex, column });
             return;
         }
     }

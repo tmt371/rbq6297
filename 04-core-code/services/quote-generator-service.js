@@ -1,4 +1,8 @@
 /* FILE: 04-core-code/services/quote-generator-service.js */
+// [MODIFIED] (???╨╛??4) Refactored: GTH logic moved to GthQuoteStrategy.
+// [FIX] (v6299 Phase 5 Fix) Update generateWorkOrderHtml to pass raw quoteData to strategy.
+// [FIX] (v6299 Phase 7 Fix) Reverted CSS injection; CSS is now embedded in the HTML template.
+// [MODIFIED] (Stage 9 Final Fix) Pass isWorkOrder flag to getQuoteTemplateData to distinguish Cost vs Sales price.
 
 import { paths } from '../config/paths.js';
 import { populateTemplate, formatCustomerInfo } from '../utils/template-utils.js';
@@ -95,7 +99,9 @@ export class QuoteGeneratorService {
             this.workOrderRowTemplate
         );
 
-        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData, true);
+        // [MODIFIED] (Phase 11.5) Ensure we strictly fetch the absolute latest state to avoid stale names/dates.
+        const latestQuoteData = this.calculationService.stateService.getState().quoteData;
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, latestQuoteData, true);
 
         const populatedData = {
             ...templateData,
@@ -115,6 +121,7 @@ export class QuoteGeneratorService {
             return null;
         }
 
+        // [MODIFIED] Pass 'false' (default) for isWorkOrder to use Sales Prices
         const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data, false);
 
         let gstRowHtml = '';
@@ -163,6 +170,7 @@ export class QuoteGeneratorService {
             return null;
         }
 
+        // [MODIFIED] Pass 'false' (default) for isWorkOrder to use Sales Prices
         const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data, false);
 
         let gstRowHtml = '';

@@ -127,10 +127,10 @@ export class LeftPanelTabManager {
 
         const panelBgColors = {
             'k1-tab': 'var(--k1-bg-color)',
+            // [REMOVED] (Phase 3.5a) K2 tab merged into K1
             'k2-tab': 'var(--k2-bg-color)',
-            'k3-tab': 'var(--k3-bg-color)',
-            'k4-tab': 'var(--k4-bg-color)',
-            'k5-tab': 'var(--k5-bg-color)',
+            'k3-tab': 'var(--k3-bg-color)'
+            // [REMOVED] (Phase 3.5b) K5 tab merged into K3
         };
         this.panelElement.style.backgroundColor = panelBgColors[activeTabId] || 'var(--k1-bg-color)';
     }

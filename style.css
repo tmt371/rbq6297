@@ -7,9 +7,12 @@
 /* [REMOVED] @import url('./04-core-code/ui/css/virtual-keyboard.css'); */
 /* [REMOVED] @import url('./04-core-code/ui/css/results-table.css'); */
 /* [REMOVED] @import url('./04-core-code/ui/css/toast-notification.css'); */
-/* [REMOVED] @import url('./04-core-code/ui/css/login-component.css'); */
-/* [REMOVED] @import url('./04-core-code/ui/css/search-dialog.css'); */
-/* [REMOVED] @import url('./04-core-code/ui/css/work-order.css'); */
+/* [NEW] Import the new login component CSS */
+@import url('./04-core-code/ui/css/login-component.css');
+/* [NEW] (v6298-F4-Search) Import the new search dialog CSS */
+@import url('./04-core-code/ui/css/search-dialog.css');
+/* [NEW] (?段 1) Import the new work order CSS */
+@import url('./04-core-code/ui/css/work-order.css');
 
 /* --- Global Variables --- */
 :root {
@@ -24,9 +27,8 @@
     /* [NEW] K-Tab variables restored from left-panel.css */
     --tab-active-color: #1a237e;
     --k1-bg-color: hsl(220, 15%, 96%);
-    --k2-bg-color: hsl(220, 15%, 91%);
-    --k3-bg-color: hsl(220, 15%, 86%);
-    --k4-bg-color: hsl(220, 15%, 81%);
+    --k2-bg-color: hsl(220, 15%, 86%);
+    --k3-bg-color: hsl(220, 15%, 81%);
     --k5-bg-color: hsl(220, 15%, 76%);
 }
 
@@ -146,6 +148,13 @@ body {
     pointer-events: auto !important;
     opacity: 1;
     filter: none;
+}
+
+/* --- [NEW] Global UI Lock Class --- */
+.ui-locked {
+    pointer-events: none !important;
+    opacity: 0.6 !important;
+    cursor: not-allowed !important;
 }
 
 
@@ -275,17 +284,11 @@ body {
 #k2-tab.active {
     background-color: var(--k2-bg-color);
     border-color: var(--tab-active-color);
-    color: var(--tab-active-color);
+    color: #2c3e50;
 }
 
 #k3-tab.active {
     background-color: var(--k3-bg-color);
-    border-color: var(--tab-active-color);
-    color: #2c3e50;
-}
-
-#k4-tab.active {
-    background-color: var(--k4-bg-color);
     border-color: var(--tab-active-color);
     color: #2c3e50;
 }
@@ -300,6 +303,8 @@ body {
     flex-grow: 1;
     padding: 15px;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .tab-content {
@@ -307,7 +312,9 @@ body {
 }
 
 .tab-content.active {
-    display: block;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
 }
 
 #k1-content {
@@ -320,10 +327,6 @@ body {
 
 #k3-content {
     background-color: var(--k3-bg-color);
-}
-
-#k4-content {
-    background-color: var(--k4-bg-color);
 }
 
 #k5-content {
@@ -400,4 +403,128 @@ body {
 
 .batch-button:hover {
     background-color: #bae6fd;
+}
+
+
+/* [REFACTOR] All component-specific styles below this line have been
+    moved to their respective files in the /ui/css/ directory.
+    This file now only contains global settings and layout.
+*/
+
+/* =========================================
+   [NEW] (Phase 4.7c) Block ONLY input areas, NEVER the navigation handles 
+   ========================================= */
+.global-ui-locked .results-panel,
+.global-ui-locked .keyboard-panel,
+.global-ui-locked .tab-content-container {
+    pointer-events: none !important;
+    opacity: 0.85;
+}
+
+/* Ensure handles and tab buttons are ALWAYS interactive */
+#function-panel-toggle,
+#left-panel-toggle,
+.tab-container,
+#eruda {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+/* =========================================
+   [NEW] (Phase 5) 使用者流程禁制令 (User Flow Lock)
+   當 K 盤任何操作模式啟動時，禁用數字盤、F盤把手、K盤頁籤
+   ========================================= */
+body.flow-locked #panel-toggle,
+body.flow-locked .panel-toggle,
+body.flow-locked .numpad-handle,
+body.flow-locked #function-panel-toggle,
+body.flow-locked .f-panel-handle,
+body.flow-locked .tab-button,
+body.flow-locked .nav-item {
+    pointer-events: none !important;
+    opacity: 0.3 !important;
+    filter: grayscale(100%) !important;
+    cursor: not-allowed !important;
+}
+
+/* =========================================
+   [NEW] (Phase 3.9d) F1 Accordion Styles 
+   ========================================= */
+.f1-accordion-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.accordion-item {
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background-color: white;
+    overflow: hidden;
+}
+
+.accordion-header {
+    background-color: #f3f4f6;
+    padding: 12px 16px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid transparent;
+}
+
+.accordion-header h3 {
+    margin: 0;
+    font-size: 14px;
+    color: #1f2937;
+    flex-grow: 1;
+    /* allow total to align right */
+}
+
+.accordion-item.active .accordion-header {
+    border-bottom: 1px solid #d1d5db;
+}
+
+.chevron {
+    width: 12px;
+    height: 12px;
+    border-right: 2px solid #6b7280;
+    border-bottom: 2px solid #6b7280;
+    transform: rotate(45deg);
+    transition: transform 0.3s ease;
+}
+
+.accordion-item.active .chevron {
+    transform: rotate(-135deg);
+}
+
+.accordion-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s ease-in-out;
+}
+
+.accordion-item.active .accordion-collapse {
+    grid-template-rows: 1fr;
+}
+
+.accordion-body {
+    overflow: hidden;
+    min-height: 0;
+    padding: 0 16px;
+    box-sizing: border-box;
+    border-top: 1px solid transparent;
+}
+
+.accordion-item.active .accordion-body {
+    padding: 16px;
+    border-top: 1px solid #eee;
+}
+
+/* ⚠️ 關鍵修復：處理 Padding 外漏 */
+.accordion-collapse:not(.accordion-item.active .accordion-collapse) .accordion-body {
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top: none;
+    margin: 0;
 }

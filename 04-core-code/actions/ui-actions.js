@@ -103,7 +103,7 @@ export const clearLFSelection = () => ({
 // });
 
 
-// --- K4 & K5 State ---
+// --- K3 & K5 State ---
 export const setDualChainMode = (mode) => ({
     type: UI_ACTION_TYPES.SET_DUAL_CHAIN_MODE,
     payload: { mode },
@@ -207,6 +207,18 @@ export const setF1WifiQty = (quantity) => ({
     payload: { quantity },
 });
 
+// [NEW] (Phase 4.1a) Action creator for cached costs
+export const setF1CachedCosts = (costs) => ({
+    type: UI_ACTION_TYPES.SET_F1_CACHED_COSTS,
+    payload: { costs },
+});
+
+// [NEW] (Phase 3.3b) Brand selection action creator
+export const setF1Brand = (field, value) => ({
+    type: UI_ACTION_TYPES.SET_F1_BRAND,
+    payload: { field, value },
+});
+
 // --- F2 State ---
 export const setF2Value = (key, value) => ({
     type: UI_ACTION_TYPES.SET_F2_VALUE,
@@ -263,4 +275,10 @@ export const restoreF1Snapshot = (snapshotData) => ({
 export const restoreF2Snapshot = (snapshotData) => ({
     type: UI_ACTION_TYPES.RESTORE_F2_SNAPSHOT,
     payload: snapshotData,
+});
+
+// [NEW] Global processing flag
+export const setIsProcessing = (isProcessing) => ({
+    type: UI_ACTION_TYPES.SET_IS_PROCESSING,
+    payload: { isProcessing },
 });

@@ -34,11 +34,28 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     opacity: 0;
     transform: translateX(100%);
-    animation: slideInAndFadeOut 4s forwards;
+    animation: slideInAndFadeOut 5s forwards;
 }
 
 .toast-message.error {
     background-color: #c0392b;
+}
+
+/* [NEW] Toast action button (e.g., Undo) */
+.toast-action-btn {
+    background: none;
+    border: none;
+    color: #f1c40f;
+    /* Noticeable yellow color */
+    font-weight: bold;
+    cursor: pointer;
+    margin-left: 15px;
+    padding: 0;
+    text-decoration: underline;
+}
+
+.toast-action-btn:hover {
+    color: #f39c12;
 }
 
 @keyframes slideInAndFadeOut {

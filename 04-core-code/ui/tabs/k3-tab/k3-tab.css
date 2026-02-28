@@ -1,4 +1,202 @@
 /* File: 04-core-code/ui/tabs/k3-tab/k3-tab.css */
+/* [MODIFIED] (Phase 3.4c) K3 UI: Batch states, UI lock, smart styling */
 
-/* K3 (Options) specific styles. */
-/* (目前 K3 的按鈕樣式是通用的 .feature-button，因此此處暫時為空) */
+.k3-merged-container {
+    flex-grow: 1;
+    overflow-y: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Fieldset Colors --- */
+.group-drive {
+    flex-shrink: 0;
+    border: 2px solid #27ae60 !important;
+    border-radius: 6px;
+    padding: 4px 8px 6px 8px !important;
+    margin-bottom: 4px !important;
+}
+
+.group-drive legend {
+    color: #27ae60 !important;
+    font-weight: bold;
+    font-size: 12px !important;
+    padding: 0 4px !important;
+    margin-bottom: 0 !important;
+}
+
+.group-hardware {
+    flex-shrink: 0;
+    border: 2px solid #e67e22 !important;
+    border-radius: 6px;
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1fr 1.5fr;
+    /* DualBtn, DualInput, ChainBtn, ChainInput */
+    gap: 8px;
+    align-items: center;
+    padding: 4px 8px 6px 8px !important;
+    margin-bottom: 4px !important;
+    margin-top: 4px;
+}
+
+.group-hardware legend {
+    color: #e67e22 !important;
+    font-weight: bold;
+    font-size: 12px !important;
+    padding: 0 4px !important;
+    margin-bottom: 0 !important;
+}
+
+/* Force all inputs to respect the grid */
+#k3-content .panel-input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* --- K3 Button Grid --- */
+#k3-content .feature-buttons {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+}
+
+#k3-content .feature-button {
+    flex-grow: 0;
+    padding: 8px 4px;
+    font-size: 0.8em;
+    text-align: center;
+}
+
+/* Label-only buttons: no active state */
+#k3-content .feature-button.k3-label-only {
+    pointer-events: none;
+    cursor: default;
+    background-color: #f8f9fa;
+    border-color: #dee2e6;
+    color: #495057;
+    font-weight: 600;
+}
+
+/* --- K3 Action Row --- */
+.k3-action-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    align-items: center;
+}
+
+/* Batch container */
+.batch-container {
+    position: relative;
+    height: 32px;
+}
+
+/* Batch start button */
+.batch-btn.batch-start {
+    width: 100%;
+    height: 100%;
+    border: 1px solid #3498db;
+    background-color: #ecf5ff;
+    color: #3498db;
+    font-size: 0.8em;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.15s;
+}
+
+.batch-btn.batch-start:hover {
+    background-color: #d4eaff;
+}
+
+.batch-btn.batch-start:active {
+    background-color: #bfddff;
+}
+
+/* [NEW] (Phase 3.4d) Disabled Batch button — greyed out when mode not active */
+.batch-btn.batch-start:disabled {
+    background-color: #e9ecef;
+    color: #adb5bd;
+    border-color: #dee2e6;
+    cursor: not-allowed;
+}
+
+/* [NEW] (Phase 3.4c) Batch confirm/cancel group */
+.batch-confirm-group {
+    display: flex;
+    gap: 4px;
+    height: 100%;
+}
+
+.batch-confirm-btn,
+.batch-cancel-btn {
+    flex: 1;
+    border: none;
+    border-radius: 4px;
+    font-size: 1em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.15s;
+}
+
+.batch-confirm-btn {
+    background-color: #27ae60;
+    color: #fff;
+}
+
+.batch-confirm-btn:hover {
+    background-color: #219a52;
+}
+
+.batch-cancel-btn {
+    background-color: #e74c3c;
+    color: #fff;
+}
+
+.batch-cancel-btn:hover {
+    background-color: #c0392b;
+}
+
+/* Pro number input — clean, no native spinners */
+.pro-input {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1em;
+    padding: 6px 4px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #2c3e50;
+    height: 32px;
+    -moz-appearance: textfield;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.pro-input::-webkit-outer-spin-button,
+.pro-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.pro-input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 3px rgba(52, 152, 219, 0.3);
+}
+
+/* [NEW] (Phase 3.4c) Disabled state for pro-input during K3 mode lock */
+.pro-input:disabled {
+    background-color: #e9ecef;
+    color: #adb5bd;
+    cursor: not-allowed;
+    border-color: #dee2e6;
+}
+
+/* Table cell highlights */
+.results-table td.winder-cell-active,
+.results-table td.motor-cell-active {
+    background-color: #fffacd;
+    font-weight: bold;
+}

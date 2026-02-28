@@ -2,21 +2,20 @@
 // [MODIFIED] (v6298-F4-Search) This component manages the advanced search UI.
 // [MODIFIED] (Tweak 1) Removed statusBar updates, replaced with Toast notifications.
 // [MODIFIED] (Tweak 2) Added ReDo button logic.
-// [MODIFIED] (Final Cleanup) Added memory leak prevention in destroy().
 
 import { EVENTS, DOM_IDS } from '../config/constants.js';
 // [NEW] (v6298-F4-Search) Import new advanced search function and state actions
 import { searchQuotesAdvanced } from '../services/online-storage-service.js';
 import * as uiActions from '../actions/ui-actions.js';
 import * as quoteActions from '../actions/quote-actions.js';
-// [REMOVED] ?Оцо╡ 4я╝Ъф??Нщ?шж?import S1/S2я╝Мх??СчФ▒ app-context ц│ихЕе
+// [REMOVED] 階段 4：不再需要 import S1/S2，它們由 app-context 注入
 
 export class SearchDialogComponent {
-    constructor({ containerElement, eventAggregator, stateService, authService, s1View, s2View }) { // [MODIFIED] ?Оцо╡ 4я╝ЪцОе??s1View, s2View
+    constructor({ containerElement, eventAggregator, stateService, authService, s1View, s2View }) { // [MODIFIED] 階段 4：接收 s1View, s2View
         if (!containerElement || !eventAggregator || !stateService || !authService) {
             throw new Error("SearchDialogComponent requires container, eventAggregator, stateService, and authService.");
         }
-        // [MODIFIED] ?Оцо╡ 4я╝Ъs1View ??s2View ф╣ЯцШпх┐Еш???
+        // [MODIFIED] 階段 4：s1View 和 s2View 也是必要的
         if (!s1View || !s2View) {
             throw new Error("SearchDialogComponent requires s1View and s2View.");
         }
@@ -27,26 +26,26 @@ export class SearchDialogComponent {
         this.stateService = stateService;
         this.authService = authService;
 
-        // [NEW] ?Оцо╡ 4я╝ЪхД▓хнШх?шжЦх?хпжф?
+        // [NEW] 階段 4：儲存子視圖實例
         this.s1View = s1View;
         this.s2View = s2View;
 
         this.box = this.container.querySelector('.search-dialog-box');
 
-        // [REMOVED] ?Оцо╡ 3я╝ЪS2 ?Пш╝пх╖▓чз╗??S2View
+        // [REMOVED] 階段 3：S2 邏輯已移至 S2View
         // this.selectedQuoteData = null; 
 
-        // [MODIFIED] ?Оцо╡ 3я╝Ъх┐л??DOM ?Гч? (хдзх?ч░бх?)
-        // ?кх┐л?Цчоб?ЖхУб?кш║л?АшжБч??Гч?
+        // [MODIFIED] 階段 3：快取 DOM 元素 (大幅簡化)
+        // 只快取管理員自身需要的元素
         this.elements = {
             closeBtn: this.container.querySelector(`#${DOM_IDS.SEARCH_DIALOG_CLOSE_BTN}`),
-            // [REMOVED] Tweak 1: ф╕Нх?х┐лх? statusBar
+            // [REMOVED] Tweak 1: 不再快取 statusBar
             // statusBar: this.container.querySelector(`#${DOM_IDS.SEARCH_STATUS_BAR}`),
 
-            // [NEW] Tweak 2: х┐лх? ReDo ?Йщ?
+            // [NEW] Tweak 2: 快取 ReDo 按鈕
             redoBtn: this.container.querySelector('#search-dialog-redo-btn'),
 
-            // --- ?Бч▒дчобч? DOM ---
+            // --- 頁籤管理 DOM ---
             tabContainer: this.container.querySelector('.search-tab-nav'),
             tabButtons: {
                 s1: this.container.querySelector('#search-tab-s1'),
@@ -56,14 +55,14 @@ export class SearchDialogComponent {
                 s1: this.container.querySelector('#s1-content'),
                 s2: this.container.querySelector('#s2-content'),
             }
-            // --- [REMOVED] S1 (filters) ??S2 (resultsList, previewContent, loadBtn) ??DOM х┐лх? ---
+            // --- [REMOVED] S1 (filters) 和 S2 (resultsList, previewContent, loadBtn) 的 DOM 快取 ---
         };
 
         // Store subscriptions and listeners for destruction
         this.subscriptions = [];
         this.boundListeners = new Map();
 
-        // [MODIFIED] ?Оцо╡ 4я╝??ЬщН╡ф┐ох╛й) ??constructor ф╕нхС╝??initialize()
+        // [MODIFIED] 階段 4：(關鍵修復) 在 constructor 中呼叫 initialize()
         this.initialize();
         console.log("SearchDialogComponent Refactored as Manager.");
     }
@@ -102,57 +101,52 @@ export class SearchDialogComponent {
             }
         });
         this.boundListeners.clear();
-
-        // [NEW] (Final Cleanup) Explicitly release sub-views to prevent memory leaks
-        this.s1View = null;
-        this.s2View = null;
-
         console.log("SearchDialogComponent destroyed.");
     }
 
     /**
-     * [MODIFIED] ?Оцо╡ 4я╝?
-     * цн?initialize ?╛хЬи?кч?хоЪчоб?ЖхУб?кш║л?Дф?ф╗╢уА?
+     * [MODIFIED] 階段 4：
+     * 此 initialize 現在只綁定管理員自身的事件。
      */
     initialize() {
         // --- Subscribe to global events ---
-        // (?ЬщН╡ф┐ох╛й) ч╢Бх? SHOW_SEARCH_DIALOG ф║Лф╗╢
+        // (關鍵修復) 綁定 SHOW_SEARCH_DIALOG 事件
         this._subscribe(EVENTS.SHOW_SEARCH_DIALOG, this.show);
 
-        // --- [NEW] ?Оцо╡ 3я╝ЪчЫг?╜ф???S1View ?Дц?х░Лш?ц▒?---
+        // --- [NEW] 階段 3：監聽來自 S1View 的搜尋請求 ---
         this._subscribe(EVENTS.USER_REQUESTED_EXECUTE_SEARCH, this._onExecuteSearch);
 
-        // [NEW] ?Оцо╡ 3я╝ЪчЫг?╜ф???S2View ?Дщ??Йш?ц▒?(х╛?S2View ??_onLoadClick ?Оф?)
+        // [NEW] 階段 3：監聽來自 S2View 的關閉請求 (從 S2View 的 _onLoadClick 過來)
         this._subscribe(EVENTS.USER_REQUESTED_CLOSE_SEARCH_DIALOG, this.hide);
 
         // --- Bind internal UI element events ---
         this._addListener(this.elements.closeBtn, 'click', this.hide);
         this._addListener(this.container, 'click', this._onOverlayClick);
 
-        // --- [NEW] Tweak 2: ч╢Бх? ReDo ?Йщ?ф║Лф╗╢ ---
+        // --- [NEW] Tweak 2: 綁定 ReDo 按鈕事件 ---
         this._addListener(this.elements.redoBtn, 'click', this._onReDoClick);
 
-        // --- [REMOVED] ?Оцо╡ 3я╝ЪS1 (searchBtn) ??S2 (loadBtn, resultsList) ?ДчЫг?╜хЩи ---
+        // --- [REMOVED] 階段 3：S1 (searchBtn) 和 S2 (loadBtn, resultsList) 的監聽器 ---
 
-        // --- ?Бч▒д?Зц? (?Оцо╡ 2 ?Пш╝пф┐Эч?) ---
+        // --- 頁籤切換 (階段 2 邏輯保留) ---
         this._addListener(this.elements.tabButtons.s1, 'click', () => this._switchTab('search-tab-s1'));
         this._addListener(this.elements.tabButtons.s2, 'click', () => this._switchTab('search-tab-s2'));
     }
 
-    // --- [RETAINED] ?Оцо╡ 2я╝Ъщ?ч▒дх??Ыщ?ш╝?---
+    // --- [RETAINED] 階段 2：頁籤切換邏輯 ---
     /**
-     * ?Хч? S1/S2 ?Бч▒д?Йщ??МхЕзхо╣ч??╝ф??Уч? active class ?Зц?
-     * @param {string} tabId - шжБх??ЫхИ░?Дщ?ч▒?ID (ф╛Лх? 'search-tab-s1')
+     * 處理 S1/S2 頁籤按鈕和內容窗格之間的 active class 切換
+     * @param {string} tabId - 要切換到的頁籤 ID (例如 'search-tab-s1')
      */
     _switchTab(tabId) {
-        // ?Хч??Йщ?
+        // 處理按鈕
         Object.values(this.elements.tabButtons).forEach(button => {
             if (button) {
                 button.classList.toggle('active', button.id === tabId);
             }
         });
 
-        // ?Хч??зхо╣чкЧца╝
+        // 處理內容窗格
         if (this.elements.tabContents.s1) {
             this.elements.tabContents.s1.classList.toggle('active', tabId === 'search-tab-s1');
         }
@@ -160,7 +154,7 @@ export class SearchDialogComponent {
             this.elements.tabContents.s2.classList.toggle('active', tabId === 'search-tab-s2');
         }
 
-        // [NEW] ?Оцо╡ 4я╝??пщБ╕) S1 focus ?Пш╝п
+        // [NEW] 階段 4：(可選) S1 focus 邏輯
         if (tabId === 'search-tab-s1' && typeof this.s1View?.activate === 'function') {
             this.s1View.activate();
         }
@@ -168,7 +162,7 @@ export class SearchDialogComponent {
 
 
     show() {
-        // [MODIFIED] ?Оцо╡ 4я╝Ъц│и??S1/S2 View х╛Мя??ищАЩшгб?Эх??Цх???
+        // [MODIFIED] 階段 4：注入 S1/S2 View 後，在這裡初始化它們
         if (this.s1View && typeof this.s1View.initialize === 'function') {
             this.s1View.initialize();
         }
@@ -180,7 +174,7 @@ export class SearchDialogComponent {
         this.container.classList.remove('is-hidden');
         this.stateService.dispatch(uiActions.setModalActive(true)); // [NEW] Lock background app
 
-        // [MODIFIED] ?Оцо╡ 4я╝ЪFocus ?Пш╝п?╛хЬиф║дч╡ж S1View
+        // [MODIFIED] 階段 4：Focus 邏輯現在交給 S1View
         if (typeof this.s1View?.activate === 'function') {
             this.s1View.activate();
         }
@@ -190,7 +184,7 @@ export class SearchDialogComponent {
         this.container.classList.add('is-hidden');
         this.stateService.dispatch(uiActions.setModalActive(false)); // [NEW] Unlock background app
 
-        // [NEW] ?Оцо╡ 4я╝ЪщК╖цпА S1/S2 View ?ДчЫг?╜хЩи
+        // [NEW] 階段 4：銷毀 S1/S2 View 的監聽器
         if (this.s1View && typeof this.s1View.destroy === 'function') {
             this.s1View.destroy();
         }
@@ -199,16 +193,16 @@ export class SearchDialogComponent {
         }
     }
 
-    // [MODIFIED] ?Оцо╡ 3я╝Ъ_resetSearch хдзх?ч░бх?
+    // [MODIFIED] 階段 3：_resetSearch 大幅簡化
     _resetSearch() {
-        // [REMOVED] Tweak 1: чз╗щЩд _updateStatusBar
+        // [REMOVED] Tweak 1: 移除 _updateStatusBar
 
-        // [NEW] Tweak 1: (ReDo ?Пш╝п) ц╕Ечй║ S1 чпйщБ╕??
+        // [NEW] Tweak 1: (ReDo 邏輯) 清空 S1 篩選器
         if (this.s1View && typeof this.s1View.clearFilters === 'function') {
             this.s1View.clearFilters();
         }
 
-        // чв║ф? S1 ?Бч▒дц░╕щ??пщ?шинхА?
+        // 確保 S1 頁籤永遠是預設值
         this._switchTab('search-tab-s1');
     }
 
@@ -218,29 +212,29 @@ export class SearchDialogComponent {
         }
     }
 
-    // --- [NEW] Tweak 2: ReDo ?Йщ??Пш╝п ---
+    // --- [NEW] Tweak 2: ReDo 按鈕邏輯 ---
     _onReDoClick() {
-        // [MODIFIED] Tweak 1: ?их??Ых??╝хПл _resetSearch ф╛Жц?чй║ц?ф╜?
+        // [MODIFIED] Tweak 1: 在切換前呼叫 _resetSearch 來清空欄位
         this._resetSearch();
 
-        // ?Зц???S1 (х╖▓хЬи _resetSearch ф╕нх???
+        // 切換回 S1 (已在 _resetSearch 中完成)
         // this._switchTab('search-tab-s1');
 
-        // S1View х╖▓ч?швлц│и?ея??╝хПлхоГч? activate ?╣ц?ф╛?focus
+        // S1View 已經被注入，呼叫它的 activate 方法來 focus
         if (typeof this.s1View?.activate === 'function') {
             this.s1View.activate();
         }
     }
 
-    // --- [NEW] ?Оцо╡ 3я╝Ъ_onExecuteSearch (?Цф╗г _onSearchClick) ---
+    // --- [NEW] 階段 3：_onExecuteSearch (取代 _onSearchClick) ---
     /**
-     * ??Б╜ S1View ?╝хЗ║??USER_REQUESTED_EXECUTE_SEARCH ф║Лф╗╢
-     * @param {object} data - ?ЕхРл { filters } ?ДчЙйф╗?
+     * 監聽 S1View 發出的 USER_REQUESTED_EXECUTE_SEARCH 事件
+     * @param {object} data - 包含 { filters } 的物件
      */
     async _onExecuteSearch({ filters }) {
         const uid = this.authService.currentUser?.uid;
         if (!uid) {
-            // [MODIFIED] Tweak 1: ?╣чВ║?ЯхП╕
+            // [MODIFIED] Tweak 1: 改為土司
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                 message: 'Error: You are not logged in.',
                 type: 'error'
@@ -248,9 +242,9 @@ export class SearchDialogComponent {
             return;
         }
 
-        // ч░бхЦощйЧш? (?ЦчД╢ S1View ф╣Ях?ф║?
+        // 簡單驗證 (雖然 S1View 也做了)
         if (Object.values(filters).every(v => !v && v !== false)) {
-            // [MODIFIED] Tweak 1: ?╣чВ║?ЯхП╕
+            // [MODIFIED] Tweak 1: 改為土司
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                 message: 'Please enter at least one search criteria.',
                 type: 'error'
@@ -258,8 +252,8 @@ export class SearchDialogComponent {
             return;
         }
 
-        // 2. ?╖ш??Ьх?
-        // [REMOVED] Tweak 4: чз╗щЩд "Searching..." ?ЯхП╕
+        // 2. 執行搜尋
+        // [REMOVED] Tweak 4: 移除 "Searching..." 土司
         // this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
         //     message: 'Searching...',
         //     type: 'info'
@@ -267,34 +261,34 @@ export class SearchDialogComponent {
 
         const result = await searchQuotesAdvanced(uid, filters);
 
-        // [REMOVED] Tweak 1: чз╗щЩд statusBar ?┤цЦ░
+        // [REMOVED] Tweak 1: 移除 statusBar 更新
 
-        // 3. ?Хч?ч╡Рц?
+        // 3. 處理結果
         if (result.success) {
-            // [MODIFIED] Tweak 4: ?╣ц??пхРж?Йш??Щщбпчд║ф??Мш???
+            // [MODIFIED] Tweak 4: 根據是否有資料顯示不同訊息
             const message = result.data.length > 0 ? `Found ${result.data.length} quotes.` : 'Not found.';
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                 message: message,
                 type: 'info'
             });
 
-            // [MODIFIED] ?Оцо╡ 3я╝?
-            // A. х░Зч??ЬцХ╕?ЪчЩ╝х╕Гч╡ж S2View
+            // [MODIFIED] 階段 3：
+            // A. 將結果數據發布給 S2View
             this.eventAggregator.publish(EVENTS.SEARCH_RESULTS_SUCCESSFUL, result.data);
 
-            // B. ?кх??Зц???S2 ?Бч▒д
+            // B. 自動切換到 S2 頁籤
             this._switchTab('search-tab-s2');
 
         } else if (result.needsIndex) {
-            // ч┤вх??пшкд
-            // [MODIFIED] Tweak 1: ?╣чВ║?ЯхП╕
+            // 索引錯誤
+            // [MODIFIED] Tweak 1: 改為土司
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                 message: 'Index required. Link logged to console.',
                 type: 'error'
             });
         } else {
-            // ?╢ф??пшкд
-            // [MODIFIED] Tweak 1: ?╣чВ║?ЯхП╕
+            // 其他錯誤
+            // [MODIFIED] Tweak 1: 改為土司
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                 message: `Error: ${result.message}`,
                 type: 'error'
@@ -303,7 +297,7 @@ export class SearchDialogComponent {
     }
 
 
-    // --- [REMOVED] ?Оцо╡ 3я╝ЪS2 ?Дц??Йщ?ш╝пх╖▓чз╗шЗ│ S2View ---
+    // --- [REMOVED] 階段 3：S2 的所有邏輯已移至 S2View ---
 
-    // --- [REMOVED] Tweak 1я╝Ъ_updateStatusBar х╖▓ф??Нщ?шж?---
+    // --- [REMOVED] Tweak 1：_updateStatusBar 已不再需要 ---
 }

@@ -1,14 +1,52 @@
-<div class="feature-grid">
-     <div class="feature-group">
-        <div class="feature-buttons">
-             <button id="btn-k3-edit" class="feature-button">Edit</button>
-        </div>
-     </div>
-    <div class="feature-group">
-         <div class="feature-buttons">
-            <button id="btn-batch-cycle-over" class="feature-button">Over</button>
-             <button id="btn-batch-cycle-oi" class="feature-button">O/I</button>
-             <button id="btn-batch-cycle-lr" class="feature-button">L/R</button>
-        </div>
-    </div>
- </div>
+<!-- [MODIFIED] (Phase 3.5b) K3 UI: Merged K5 Hardware elements -->
+<div class="k3-merged-container">
+     <fieldset class="group-drive">
+          <legend>Drive & Accessories</legend>
+          <div class="feature-grid k3-grid">
+               <div class="feature-group">
+                    <div class="feature-buttons">
+                         <button id="btn-k3-winder" class="feature-button">Winder</button>
+                         <button id="btn-k3-motor" class="feature-button">Motor</button>
+                         <button id="btn-k3-remote" class="feature-button k3-label-only">Remote</button>
+                         <button id="btn-k3-charger" class="feature-button k3-label-only">Charger</button>
+                         <button id="btn-k3-3m-cord" class="feature-button k3-label-only">3MCord</button>
+                    </div>
+               </div>
+               <!-- Row 2: Action Row — Batch buttons for Winder/Motor, number inputs for accessories -->
+               <div class="feature-group k3-action-row">
+                    <div class="batch-container" id="batch-winder">
+                         <button class="batch-btn batch-start" data-batch-type="winder">Batch</button>
+                         <div class="batch-confirm-group" style="display: none;">
+                              <button class="batch-confirm-btn" data-batch-type="winder"
+                                   title="Confirm batch">&#10004;</button>
+                              <button class="batch-cancel-btn" data-batch-type="winder"
+                                   title="Cancel batch">&#10008;</button>
+                         </div>
+                    </div>
+                    <div class="batch-container" id="batch-motor">
+                         <button class="batch-btn batch-start" data-batch-type="motor">Batch</button>
+                         <div class="batch-confirm-group" style="display: none;">
+                              <button class="batch-confirm-btn" data-batch-type="motor"
+                                   title="Confirm batch">&#10004;</button>
+                              <button class="batch-cancel-btn" data-batch-type="motor"
+                                   title="Cancel batch">&#10008;</button>
+                         </div>
+                    </div>
+                    <input type="number" id="input-k3-remote" min="0" class="pro-input" value="0">
+                    <input type="number" id="input-k3-charger" min="0" class="pro-input" value="0">
+                    <input type="number" id="input-k3-3mcord" min="0" class="pro-input" value="0">
+               </div>
+          </div>
+     </fieldset>
+
+     <fieldset class="group-hardware">
+          <legend>Hardware</legend>
+          <button id="btn-k5-dual" class="feature-button">Dual</button>
+          <div id="k5-dual-price-display" class="k5-price-box">
+               <span class="price-value"></span>
+          </div>
+          <button id="btn-k5-chain" class="feature-button">Chain</button>
+          <input type="text" id="k5-input-display" class="panel-input k5-display-box" placeholder="Chain length..."
+               disabled>
+     </fieldset>
+</div>

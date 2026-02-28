@@ -20,16 +20,16 @@ import { QUOTE_STATUS } from '../config/status-config.js';
 
 
 export class UIManager {
-    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k4TabComponent, k5TabComponent, searchDialogComponent }) { // [MODIFIED] authService removed, searchDialogComponent added
+    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k5TabComponent, searchDialogComponent }) { // [MODIFIED] (Phase 3.5a) k2TabComponent removed (merged into K1)
         this.appElement = appElement;
         this.eventAggregator = eventAggregator;
         this.calculationService = calculationService;
         this.rightPanelComponent = rightPanelComponent; // [MODIFIED] Receive instance
         this.leftPanelTabManager = leftPanelTabManager; // [NEW] Store instance
         this.k1TabComponent = k1TabComponent; // [NEW] Store instance
-        this.k2TabComponent = k2TabComponent; // [NEW] (v6294) Store instance
+        // [REMOVED] (Phase 3.5a) K2 component merged into K1
+        this.k2TabComponent = k2TabComponent; // [NEW] Store instance
         this.k3TabComponent = k3TabComponent; // [NEW] Store instance
-        this.k4TabComponent = k4TabComponent; // [NEW] Store instance
         this.k5TabComponent = k5TabComponent; // [NEW] Store instance
         // [NEW] (v6298-F4-Search) Store search dialog component
         this.searchDialogComponent = searchDialogComponent;
@@ -240,6 +240,7 @@ export class UIManager {
 
         // --- [NEW] (Correction Flow Phase 5) Update Quote ID Banner ---
         if (this.quoteIdBanner && this.quoteIdText && this.quoteStatusTag) {
+            // [MODIFIED] (Phase 4.6b) Strategic Unlock for Admin/Correction Mode
             const { quoteId, status } = state.quoteData;
             const { isCorrectionMode } = state.ui;
 
@@ -249,12 +250,9 @@ export class UIManager {
             // 2. Update Status Tag
             this.quoteStatusTag.textContent = status || 'Configuring';
 
-            // 3. Update Lock Styling (Pink Background)
-            // Condition: Locked if status is "established" (B~I, X, J) AND NOT in Correction Mode.
-            // A. Saved is NOT locked.
-
-            // Helper: Check if status is considered "Locked" (same logic as in F4 and persistence)
-            const nonSalesStates = [
+            // 3. Update Lock Styling & Global Lock
+            // 判斷是否為「應鎖定狀態」 (B~J, X)
+            const shouldBeLockedByStatus = [
                 QUOTE_STATUS.B_VALID_ORDER,
                 QUOTE_STATUS.C_SENT_TO_FACTORY,
                 QUOTE_STATUS.D_IN_PRODUCTION,
@@ -265,12 +263,15 @@ export class UIManager {
                 QUOTE_STATUS.I_INVOICE_OVERDUE,
                 QUOTE_STATUS.X_CANCELLED,
                 QUOTE_STATUS.J_CLOSED
-            ];
+            ].includes(status);
 
-            const isStatusLocked = nonSalesStates.includes(status);
-            const isBannerLocked = isStatusLocked && !isCorrectionMode;
+            // [KEY CHANGE] 只有當「非更正模式」且「處於應鎖定狀態」時，才真正執行 UI 鎖定
+            const finalLockState = shouldBeLockedByStatus && !isCorrectionMode;
 
-            this.quoteIdBanner.classList.toggle('is-locked', isBannerLocked);
+            // Apply lock to body
+            document.body.classList.toggle('global-ui-locked', finalLockState);
+            // Apply lock to banner
+            this.quoteIdBanner.classList.toggle('is-locked', finalLockState);
         }
         // --- End Quote ID Banner ---
 
@@ -288,19 +289,16 @@ export class UIManager {
             this.leftPanelTabManager.render(state.ui);
         }
 
-        // [MODIFIED] Delegate K1/K3/K4/K5 rendering to their own components
+        // [MODIFIED] Delegate K1/K2/K3/K5 rendering to their own components
         if (this.k1TabComponent) {
             this.k1TabComponent.render(state.ui); // Renders K1
         }
-        // [NEW] (v6294) Render K2 component
+        // [REMOVED] (Phase 3.5a) K2 rendering merged into K1TabComponent
         if (this.k2TabComponent) {
             this.k2TabComponent.render(state.ui); // Renders K2
         }
-        if (this.k3TabComponent) {
-            this.k3TabComponent.render(state.ui); // Renders K3
-        }
-        if (this.k4TabComponent) { // [NEW] Check and render K4
-            this.k4TabComponent.render(state.ui);
+        if (this.k3TabComponent) { // [NEW] Check and render K3
+            this.k3TabComponent.render(state.ui, state.quoteData);
         }
         if (this.k5TabComponent) {
             this.k5TabComponent.render(state.ui, state.quoteData); // Renders K5

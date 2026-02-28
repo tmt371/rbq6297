@@ -59,10 +59,19 @@
 .dialog-content-grid {
     display: grid;
     /* grid-template-columns are now set dynamically via JS */
-    gap: 3px 10px;
+    gap: 12px 10px;
     align-items: center;
     width: 100%;
     /* Ensure it takes full width of the dialog box */
+}
+
+/* [NEW] (Phase 3.25) 分配對話框 label 樣式 */
+.dialog-grid-cell.text-cell.dialog-label {
+    text-align: right;
+    white-space: nowrap;
+    font-weight: 600;
+    font-size: 0.95em;
+    color: #333;
 }
 
 /* [NEW] Styles for the input field cell and the input itself */

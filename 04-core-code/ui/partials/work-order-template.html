@@ -500,9 +500,9 @@
 
 
             <div class="main-header">
-                <h1>Work Order</h1>
+                <h1>Customer: {{customerFullName}}</h1>
                 <div class="quote-number">
-                    <strong>Quote No:</strong> {{quoteId}}
+                    <strong>Order NO:</strong> {{quoteId}}
                 </div>
             </div>
 
@@ -692,10 +692,11 @@
             const TABLE_RIGHT_X = LEFT_MARGIN + TABLE_WIDTH; // 287
 
             const quoteId = document.querySelector('.quote-number').innerText.split(':')[1].trim();
+            const customerName = document.querySelector('.main-header h1').innerText.replace('Customer: ', '');
             doc.setFontSize(18);
-            doc.text("Work Order", LEFT_MARGIN, 15);
+            doc.text(`Customer: ${customerName}`, LEFT_MARGIN, 15);
             doc.setFontSize(12);
-            doc.text(`Quote No: ${quoteId}`, LEFT_MARGIN, 22);
+            doc.text(`Order NO: ${quoteId}`, LEFT_MARGIN, 22);
 
             // --- Main Table ---
             doc.autoTable({
@@ -857,7 +858,7 @@
             doc.text("Dual: Double Bracket", legendX, legendY + 26);
 
 
-            doc.save(`WorkOrder_${quoteId}.pdf`);
+            doc.save(`{{pdfFileName}}.pdf`);
         });
     </script>
 

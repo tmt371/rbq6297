@@ -1,4 +1,6 @@
 /* FILE: 04-core-code/ui/views/f1-cost-view.js */
+// [MODIFIED] (v6297) 移除本地 F1 成本計算邏輯，改為呼叫 calculationService.calculateF1Costs
+// [MODIFIED] (F1 Motor Split) Added W-Motor display cache, render logic, and handleMotorDistribution dialog.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
@@ -11,15 +13,20 @@ export class F1CostView {
         this.panelElement = panelElement;
         this.eventAggregator = eventAggregator;
         this.calculationService = calculationService;
-        this.stateService = stateService;
+        this.stateService = stateService; // [NEW] Injected dependency
 
+        // [NEW] (v6298-fix-5) Store bound handlers
         this.boundHandlers = [];
 
         this._cacheF1Elements();
+        this._populateBrandDropdowns(); // [NEW] (Phase 5.10) Dynamic brand options
         this._initializeF1Listeners();
         console.log("F1CostView Initialized.");
     }
 
+    /**
+     * [NEW] (v6298-fix-5) Helper to add and store listeners
+     */
     _addListener(element, event, handler) {
         if (!element) return;
         const boundHandler = handler.bind(this);
@@ -27,6 +34,9 @@ export class F1CostView {
         element.addEventListener(event, boundHandler);
     }
 
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners
+     */
     destroy() {
         this.boundHandlers.forEach(({ element, event, handler }) => {
             if (element) {
@@ -37,18 +47,33 @@ export class F1CostView {
         console.log("F1CostView destroyed.");
     }
 
+    // [NEW] (Phase 4.1b) Method to update F1 cost cache without triggering render loops
+    updateF1Cache() {
+        const state = this.stateService.getState();
+        if (!state || !state.quoteData || !state.ui) return;
+
+        // 1. Calculate costs based on current state
+        const f1Costs = this.calculationService.calculateF1Costs(state.quoteData, state.ui);
+
+        // 2. Dispatch to Redux cache
+        this.stateService.dispatch(uiActions.setF1CachedCosts(f1Costs));
+
+        // 3. Validation Log
+        console.log("🟢 [4.1b Validation] F1 Cache Updated! Component Total: $" + f1Costs.componentTotal);
+    }
+
     _cacheF1Elements() {
         const query = (id) => this.panelElement.querySelector(id);
         this.f1 = {
             inputs: {
                 'discount': query(`#${DOM_IDS.F1_RB_DISCOUNT_INPUT}`),
-                'wifihub': query('#f1-qty-wifihub'),
+                'wifihub': query('#f1-qty-wifihub'), // [NEW] (v6295)
             },
             displays: {
                 qty: {
                     'winder': query(`#${DOM_IDS.F1_QTY_WINDER}`),
                     'motor': query(`#${DOM_IDS.F1_QTY_MOTOR}`),
-                    'w-motor': query(`#${DOM_IDS.F1_QTY_W_MOTOR}`),
+                    'w-motor': query(`#${DOM_IDS.F1_QTY_W_MOTOR}`), // [NEW] (F1 Motor Split)
                     'remote-1ch': query(`#${DOM_IDS.F1_QTY_REMOTE_1CH}`),
                     'remote-16ch': query(`#${DOM_IDS.F1_QTY_REMOTE_16CH}`),
                     'charger': query(`#${DOM_IDS.F1_QTY_CHARGER}`),
@@ -59,14 +84,14 @@ export class F1CostView {
                 price: {
                     'winder': query(`#${DOM_IDS.F1_PRICE_WINDER}`),
                     'motor': query(`#${DOM_IDS.F1_PRICE_MOTOR}`),
-                    'w-motor': query(`#${DOM_IDS.F1_PRICE_W_MOTOR}`),
+                    'w-motor': query(`#${DOM_IDS.F1_PRICE_W_MOTOR}`), // [NEW] (F1 Motor Split)
                     'remote-1ch': query(`#${DOM_IDS.F1_PRICE_REMOTE_1CH}`),
                     'remote-16ch': query(`#${DOM_IDS.F1_PRICE_REMOTE_16CH}`),
                     'charger': query(`#${DOM_IDS.F1_PRICE_CHARGER}`),
                     '3m-cord': query(`#${DOM_IDS.F1_PRICE_3M_CORD}`),
                     'dual-combo': query(`#${DOM_IDS.F1_PRICE_DUAL_COMBO}`),
                     'slim': query(`#${DOM_IDS.F1_PRICE_SLIM}`),
-                    'wifihub': query('#f1-price-wifihub'),
+                    'wifihub': query('#f1-price-wifihub'), // [NEW] (v6295)
                     'total': query(`#${DOM_IDS.F1_PRICE_TOTAL}`),
                     'rb-retail': query(`#${DOM_IDS.F1_RB_RETAIL}`),
                     'rb-price': query(`#${DOM_IDS.F1_RB_PRICE}`),
@@ -74,43 +99,145 @@ export class F1CostView {
                     'gst': query(`#${DOM_IDS.F1_GST}`),
                     'final-total': query(`#${DOM_IDS.F1_FINAL_TOTAL}`),
                 }
+            },
+            // [NEW] (Phase 3.3b) Brand config section elements
+            brand: {
+                hdFree: query('#f1-brand-hd-free'),
+                hdPaid: query('#f1-brand-hd-paid'),
+                motorSelect: query('#f1-motor-brand-select'),
+                motorQty: query('#f1-motor-total-qty'),
+                remoteSelect: query('#f1-remote-brand-select'),
+                remoteQty: query('#f1-remote-total-qty'),
+                wifiSelect: query('#f1-wifi-brand-select'),
+                wifiQty: query('#f1-wifi-total-qty'),
             }
         };
     }
 
+    /**
+     * [NEW] (Phase 5.10) Dynamically populate brand dropdowns from V2 motors array.
+     * Extracts unique brand names and creates <option> elements for all brand selects.
+     */
+    _populateBrandDropdowns() {
+        const configManager = this.calculationService.configManager;
+        if (!configManager) return;
+
+        const motors = configManager.getMotors ? configManager.getMotors() : [];
+        // Extract unique brands from the motors array
+        const uniqueBrands = [...new Set(motors.map(m => m.brand))];
+
+        // Get default brand from state, or fallback to 'linx'
+        const state = this.stateService.getState();
+        const defaultBrand = state?.ui?.f1?.motorBrand || 'linx';
+
+        const selects = [
+            this.f1.brand.motorSelect,
+            this.f1.brand.remoteSelect,
+            this.f1.brand.wifiSelect
+        ];
+
+        selects.forEach(select => {
+            if (!select) return;
+            select.innerHTML = ''; // Clear any existing options
+            uniqueBrands.forEach(brand => {
+                const option = document.createElement('option');
+                option.value = brand.toLowerCase();
+                option.textContent = brand;
+                if (brand.toLowerCase() === defaultBrand.toLowerCase()) {
+                    option.selected = true;
+                }
+                select.appendChild(option);
+            });
+        });
+
+        console.log(`🟢 [Phase 5.10] Brand dropdowns populated with ${uniqueBrands.length} brands: ${uniqueBrands.join(', ')}`);
+    }
+
     _initializeF1Listeners() {
         const remote1chQtyDiv = this.f1.displays.qty['remote-1ch'];
+        // [MODIFIED] (v6298-fix-5) Use helper
         this._addListener(remote1chQtyDiv, 'click', this.handleRemoteDistribution);
 
         const slimQtyDiv = this.f1.displays.qty['slim'];
+        // [MODIFIED] (v6298-fix-5) Use helper
         this._addListener(slimQtyDiv, 'click', this.handleDualDistribution);
 
+        // [NEW] (F1 Motor Split) Listener for W-Motor distribution
         const wMotorQtyDiv = this.f1.displays.qty['w-motor'];
         this._addListener(wMotorQtyDiv, 'click', this.handleMotorDistribution);
 
+
         const discountInput = this.f1.inputs['discount'];
+        // [MODIFIED] (v6298-fix-5) Use helper
         this._addListener(discountInput, 'input', this._onDiscountInput);
         this._addListener(discountInput, 'keydown', this._onInputKeydown);
 
+        // [NEW] (v6295) Add listener for Wifi input
         const wifiInput = this.f1.inputs['wifihub'];
+        // [MODIFIED] (v6298-fix-5) Use helper
         this._addListener(wifiInput, 'input', this._onWifiInput);
         this._addListener(wifiInput, 'keydown', this._onInputKeydown);
+
+        // [MODIFIED] (Phase 3.3c) Unified omni-sync brand select listeners
+        if (this.f1.brand.motorSelect) {
+            this._addListener(this.f1.brand.motorSelect, 'change', this._onAnyBrandChange);
+        }
+        if (this.f1.brand.remoteSelect) {
+            this._addListener(this.f1.brand.remoteSelect, 'change', this._onAnyBrandChange);
+        }
+        if (this.f1.brand.wifiSelect) {
+            this._addListener(this.f1.brand.wifiSelect, 'change', this._onAnyBrandChange);
+        }
+
+        // --- [NEW] (Phase 3.9b) Accordion Toggle Listeners ---
+        const accordionHeaders = this.panelElement.querySelectorAll('.accordion-header');
+        accordionHeaders.forEach(header => {
+            this._addListener(header, 'click', (e) => {
+                const item = e.currentTarget.closest('.accordion-item');
+                if (item) {
+                    item.classList.toggle('active');
+                }
+            });
+        });
     }
 
+    // [NEW] (v6298-fix-5) Extracted handlers
     _onDiscountInput(event) {
         const percentage = parseFloat(event.target.value) || 0;
         this.eventAggregator.publish(EVENTS.F1_DISCOUNT_CHANGED, { percentage });
+        this.updateF1Cache();
     }
 
     _onWifiInput(event) {
         const quantity = parseFloat(event.target.value) || 0;
+        // Dispatch the new action to update state
         this.stateService.dispatch(uiActions.setF1WifiQty(quantity));
+        this.updateF1Cache();
     }
 
     _onInputKeydown(event) {
         if (event.key === 'Enter') {
             event.target.blur();
         }
+    }
+
+    // [MODIFIED] (Phase 3.3f) Omni-directional brand sync handler — ghost event fix
+    _onAnyBrandChange(event) {
+        event.preventDefault();
+        event.stopPropagation();
+        const newBrand = event.target.value;
+        // 1. Update all three brand states
+        this.stateService.dispatch(uiActions.setF1Brand('motorBrand', newBrand));
+        this.stateService.dispatch(uiActions.setF1Brand('remoteBrand', newBrand));
+        this.stateService.dispatch(uiActions.setF1Brand('wifiBrand', newBrand));
+        // 2. Sync all three select UI elements
+        if (this.f1.brand.motorSelect) this.f1.brand.motorSelect.value = newBrand;
+        if (this.f1.brand.remoteSelect) this.f1.brand.remoteSelect.value = newBrand;
+        if (this.f1.brand.wifiSelect) this.f1.brand.wifiSelect.value = newBrand;
+        // 3. Trigger full recalculation
+        // [FIX] (Phase 3.3f) Was EVENTS.CALCULATE_QUOTE (undefined!) → cross-talk with handleSaveThenLoad
+        this.eventAggregator.publish(EVENTS.USER_REQUESTED_CALCULATE_AND_SUM);
+        this.updateF1Cache();
     }
 
 
@@ -121,17 +248,38 @@ export class F1CostView {
         const formatPrice = (price) => (typeof price === 'number' && price > 0 ? `$${price.toFixed(2)}` : '');
         const formatDisplay = (value) => (value !== null && value !== undefined) ? value : '';
 
-        const f1Costs = this.calculationService.calculateF1Costs(quoteData, ui);
+        // [NEW] (Phase 4.3a) Financial rounding to 2 decimal places to prevent float errors
+        const roundPrice = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
+
+
+        // --- [NEW] (第 7 次編修) ---
+        // 1. 從 CalculationService 獲取 F1 成本的數據
+        // [NEW] (Phase 4.1c) Read from decoupled cache instead of calculating on every render
+        const f1Costs = state.ui.f1.cachedCosts;
+
+        // 安全防護：如果快取尚未準備好，直接略過渲染，等待 updateF1Cache 觸發
+        if (!f1Costs) {
+            console.log("🟡 [4.1c] Render skipped: F1 cache is empty.");
+            return;
+        }
+        // --- [END NEW] ---
+
+
+        // --- [MODIFIED] (F1 Motor Split) Update Render Logic ---
 
         // --- Component Cost Display ---
         if (this.f1.displays.qty.winder) this.f1.displays.qty.winder.textContent = f1Costs.qtys.winder;
         if (this.f1.displays.price.winder) this.f1.displays.price.winder.textContent = formatPrice(f1Costs.winderCost);
 
+        // [MODIFIED] Motor (B-Motor)
+        // Using b_motor Qty and Cost from calculation service
         if (this.f1.displays.qty.motor) this.f1.displays.qty.motor.textContent = f1Costs.qtys.b_motor;
         if (this.f1.displays.price.motor) this.f1.displays.price.motor.textContent = formatPrice(f1Costs.bMotorCost);
 
+        // [NEW] W-Motor
         if (this.f1.displays.qty['w-motor']) this.f1.displays.qty['w-motor'].textContent = f1Costs.qtys.w_motor;
         if (this.f1.displays.price['w-motor']) this.f1.displays.price['w-motor'].textContent = formatPrice(f1Costs.wMotorCost);
+
 
         if (this.f1.displays.qty['remote-1ch']) this.f1.displays.qty['remote-1ch'].textContent = f1Costs.qtys.remote1ch;
         if (this.f1.displays.price['remote-1ch']) this.f1.displays.price['remote-1ch'].textContent = formatPrice(f1Costs.remote1chCost);
@@ -158,13 +306,51 @@ export class F1CostView {
             this.f1.displays.price.wifihub.textContent = formatPrice(f1Costs.wifiCost);
         }
 
-        if (this.f1.displays.price.total) this.f1.displays.price.total.textContent = formatPrice(f1Costs.componentTotal);
+        if (this.f1.displays.price.total) {
+            this.f1.displays.price.total.textContent = formatPrice(f1Costs.componentTotal);
+        }
+        // --- [END MODIFIED] ---
+
+        // --- [MODIFIED] (Phase 3.3c) Brand config rendering - read HD from f1Costs ---
+        if (this.f1.brand.hdFree) this.f1.brand.hdFree.value = f1Costs.qtys.hdFree ?? 0;
+        if (this.f1.brand.hdPaid) this.f1.brand.hdPaid.value = f1Costs.qtys.hdPaid ?? 0;
+
+        // Motor total qty = B-Motor + W-Motor
+        const totalMotorQty = (f1Costs.qtys.b_motor || 0) + (f1Costs.qtys.w_motor || 0);
+        if (this.f1.brand.motorQty) this.f1.brand.motorQty.value = totalMotorQty;
+
+        // Remote total qty = 1ch + 16ch
+        const totalRemoteQty = (f1Costs.qtys.remote1ch || 0) + (f1Costs.qtys.remote16ch || 0);
+        if (this.f1.brand.remoteQty) this.f1.brand.remoteQty.value = totalRemoteQty;
+
+        // Wifi qty
+        if (this.f1.brand.wifiQty) this.f1.brand.wifiQty.value = f1Costs.qtys.wifi || 0;
+
+        // Sync brand selects with state (only update if not focused)
+        const f1State = ui.f1 || {};
+        if (this.f1.brand.motorSelect && document.activeElement !== this.f1.brand.motorSelect) {
+            this.f1.brand.motorSelect.value = f1State.motorBrand || 'linx';
+        }
+        if (this.f1.brand.remoteSelect && document.activeElement !== this.f1.brand.remoteSelect) {
+            this.f1.brand.remoteSelect.value = f1State.remoteBrand || 'linx';
+        }
+        if (this.f1.brand.wifiSelect && document.activeElement !== this.f1.brand.wifiSelect) {
+            this.f1.brand.wifiSelect.value = f1State.wifiBrand || 'linx';
+        }
+
+        // [NEW] (Phase 3.3d) Zero-qty disable logic: disable selects when qty is 0
+        if (this.f1.brand.motorSelect) this.f1.brand.motorSelect.disabled = (totalMotorQty === 0);
+        if (this.f1.brand.remoteSelect) this.f1.brand.remoteSelect.disabled = (totalRemoteQty === 0);
+        if (this.f1.brand.wifiSelect) this.f1.brand.wifiSelect.disabled = ((f1Costs.qtys.wifi || 0) === 0);
+        // --- [END MODIFIED] (Phase 3.3d) ---
 
 
         // --- RB Pricing Calculation ---
         const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
         const discountPercentage = ui.f1.discountPercentage || 0;
-        const rbPrice = retailTotal * (1 - (discountPercentage / 100));
+
+        // [MODIFIED] (Phase 4.3a) Wrapped in roundPrice
+        const rbPrice = roundPrice(retailTotal * (1 - (discountPercentage / 100)));
 
         if (this.f1.displays.price['rb-retail']) this.f1.displays.price['rb-retail'].textContent = formatPrice(retailTotal);
         if (this.f1.inputs.discount && document.activeElement !== this.f1.inputs.discount) {
@@ -173,50 +359,71 @@ export class F1CostView {
         if (this.f1.displays.price['rb-price']) this.f1.displays.price['rb-price'].textContent = formatPrice(rbPrice);
 
         // --- Final Summary Calculation ---
-        const subTotal = f1Costs.componentTotal + rbPrice;
-        const gst = subTotal * 0.10;
-        const finalTotal = subTotal + gst;
+        // [MODIFIED] (Phase 4.3a) Wrapped all monetary sums in roundPrice
+        const subTotal = roundPrice(f1Costs.componentTotal + rbPrice);
+        const gst = roundPrice(subTotal * 0.10);
+        const finalTotal = roundPrice(subTotal + gst);
 
+        // [NEW] (F1/F2 Refactor Phase 2) Dispatch the calculated totals to the central state
         this.stateService.dispatch(uiActions.setF1CostTotals(subTotal, finalTotal));
         if (this.f1.displays.price['sub-total']) this.f1.displays.price['sub-total'].textContent = formatPrice(subTotal);
         if (this.f1.displays.price.gst) this.f1.displays.price.gst.textContent = formatPrice(gst);
         if (this.f1.displays.price['final-total']) this.f1.displays.price['final-total'].textContent = formatPrice(finalTotal);
+
+        // --- [NEW] (Phase 3.9b) Sync Header Total ---
+        const headerTotal = this.panelElement.querySelector('#f1-header-total');
+        if (headerTotal) {
+            headerTotal.textContent = formatPrice(finalTotal);
+        }
     }
 
     activate() {
         this.eventAggregator.publish(EVENTS.F1_TAB_ACTIVATED);
 
+        // [MODIFIED] (v6294) (第 12 次編修)
+        // 恢復 F1 標籤的自動對焦功能，使其與 F2 標籤的行為一致
+        // if (!window.matchMedia("(max-width: 600px)").matches) {
         setTimeout(() => {
             const discountInput = this.f1.inputs.discount;
             if (discountInput) {
                 discountInput.focus();
                 discountInput.select();
             }
-        }, 50);
+        }, 50); // A small delay ensures the element is visible and focusable.
+        // }
+
+        // [NEW] (Phase 4.1b) Populate cache when F1 tab is opened
+        this.updateF1Cache();
     }
+
+    // --- [NEW] Methods migrated from WorkflowService ---
 
     handleRemoteDistribution() {
         const { ui } = this.stateService.getState();
         const totalRemoteCount = ui.driveRemoteCount || 0;
 
+        // [FIX] (v6295-fix) Read remote quantities directly from state
         const initial1ch = ui.f1.remote_1ch_qty || 0;
         const initial16ch = ui.f1.remote_16ch_qty || 0;
 
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
             message: `Total remotes: ${totalRemoteCount}. Please distribute them.`,
+            gridTemplateColumns: '1fr 1fr',
             layout: [
                 [
                     { type: 'text', text: '1-Ch Qty:', className: 'dialog-label' },
-                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_1CH, value: initial1ch },
+                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_1CH, value: initial1ch, inputType: 'number' }
+                ],
+                [
                     { type: 'text', text: '16-Ch Qty:', className: 'dialog-label' },
-                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_16CH, value: initial16ch }
+                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_16CH, value: initial16ch, inputType: 'number' }
                 ],
                 [
                     {
                         type: 'button',
                         text: 'Confirm',
                         className: 'primary-confirm-button',
-                        colspan: 2,
+                        colspan: 1,
                         callback: () => {
                             const qty1ch = parseInt(document.getElementById(DOM_IDS.DIALOG_INPUT_1CH).value, 10);
                             const qty16ch = parseInt(document.getElementById(DOM_IDS.DIALOG_INPUT_16CH).value, 10);
@@ -235,10 +442,11 @@ export class F1CostView {
                             }
 
                             this.stateService.dispatch(uiActions.setF1RemoteDistribution(qty1ch, qty16ch));
+                            this.updateF1Cache();
                             return true;
                         }
                     },
-                    { type: 'button', text: 'Cancel', className: 'secondary', colspan: 2, callback: () => { } }
+                    { type: 'button', text: 'Cancel', className: 'secondary', colspan: 1, callback: () => { } }
                 ]
             ],
             onOpen: () => {
@@ -277,19 +485,22 @@ export class F1CostView {
 
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
             message: `Total Dual pairs: ${totalDualPairs}. Please distribute them.`,
+            gridTemplateColumns: '1fr 1fr',
             layout: [
                 [
                     { type: 'text', text: 'Combo Qty:', className: 'dialog-label' },
-                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_COMBO, value: initialCombo },
+                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_COMBO, value: initialCombo, inputType: 'number' }
+                ],
+                [
                     { type: 'text', text: 'Slim Qty:', className: 'dialog-label' },
-                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_SLIM, value: initialSlim }
+                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_SLIM, value: initialSlim, inputType: 'number' }
                 ],
                 [
                     {
                         type: 'button',
                         text: 'Confirm',
                         className: 'primary-confirm-button',
-                        colspan: 2,
+                        colspan: 1,
                         callback: () => {
                             const qtyCombo = parseInt(document.getElementById(DOM_IDS.DIALOG_INPUT_COMBO).value, 10);
                             const qtySlim = parseInt(document.getElementById(DOM_IDS.DIALOG_INPUT_SLIM).value, 10);
@@ -308,10 +519,11 @@ export class F1CostView {
                             }
 
                             this.stateService.dispatch(uiActions.setF1DualDistribution(qtyCombo, qtySlim));
+                            this.updateF1Cache();
                             return true;
                         }
                     },
-                    { type: 'button', text: 'Cancel', className: 'secondary', colspan: 2, callback: () => { } }
+                    { type: 'button', text: 'Cancel', className: 'secondary', colspan: 1, callback: () => { } }
                 ]
             ],
             onOpen: () => {
@@ -338,20 +550,24 @@ export class F1CostView {
         });
     }
 
+    // [NEW] (F1 Motor Split) Handle Motor Distribution Dialog
     handleMotorDistribution() {
         const { quoteData, ui } = this.stateService.getState();
+        // Calculate total motor quantity from items (Truth source)
         const items = quoteData.products[quoteData.currentProduct].items;
         const totalMotorQty = items.filter(item => !!item.motor).length;
 
+        // Get current W-Motor quantity from state (default 0)
         const currentWQty = ui.f1.w_motor_qty || 0;
         const currentBQty = totalMotorQty - currentWQty;
 
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
             message: `Total motor qty : ${totalMotorQty}. Please distribute them.`,
+            gridTemplateColumns: '1fr 1fr',
             layout: [
                 [
                     { type: 'text', text: 'Battery-motor qty', className: 'dialog-label' },
-                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_BATTERY, value: currentBQty, inputType: 'number', disableEnterConfirm: true }
+                    { type: 'input', id: DOM_IDS.DIALOG_INPUT_BATTERY, value: currentBQty, inputType: 'number', disableEnterConfirm: true } // Read-only/Auto-calc typically, but input type for consistency
                 ],
                 [
                     { type: 'text', text: 'Wired-motor qty', className: 'dialog-label' },
@@ -379,7 +595,9 @@ export class F1CostView {
                                 return false;
                             }
 
+                            // Dispatch action to set W-Motor quantity. B-Motor is derived.
                             this.stateService.dispatch(uiActions.setF1MotorDistribution(wQty));
+                            this.updateF1Cache();
                             return true;
                         }
                     },
@@ -390,6 +608,10 @@ export class F1CostView {
                 const inputB = document.getElementById(DOM_IDS.DIALOG_INPUT_BATTERY);
                 const inputW = document.getElementById(DOM_IDS.DIALOG_INPUT_WIRED);
 
+                // Make Battery input read-only visually or functional logic to auto-update
+                // The requirement says: "User inputs W-motor... program automatically displays B-motor"
+                // So inputB should be essentially read-only or auto-calculated.
+
                 inputW.addEventListener('input', () => {
                     const wVal = parseInt(inputW.value, 10);
                     if (!isNaN(wVal) && wVal >= 0 && wVal <= totalMotorQty) {
@@ -397,6 +619,7 @@ export class F1CostView {
                     }
                 });
 
+                // If user tries to edit Battery, update Wired
                 inputB.addEventListener('input', () => {
                     const bVal = parseInt(inputB.value, 10);
                     if (!isNaN(bVal) && bVal >= 0 && bVal <= totalMotorQty) {

@@ -1,7 +1,16 @@
 /* FILE: 04-core-code/services/generators/work-order-strategy.js */
+// [MODIFIED] (v6299 Phase 5) Injected configManager for height calculation.
+// [MODIFIED] (v6299 Phase 5 Fix) Renamed method to generateRows and updated logic for manufacturing corrections.
+// [MODIFIED] (v6299 Phase 6) Restored the Summary Row at the bottom of the table.
+// [MODIFIED] (v6299 Phase 7) Refactored Summary Row to use CSS classes.
+// [MODIFIED] (v6299 Phase 8 Fix) Implemented TYPE logic, split F-Name/F-Color, aligned columns with Excel.
+// [MODIFIED] (v6299 Phase 8 Tweak) Updated TYPE labels to short codes (BO, SN, LF).
+// [MODIFIED] (v6299 Phase 10 Tweak) Reduced 'off' font size in summary row.
+// [MODIFIED] (v6297 Stage 9 Phase 3) Refactored to use DataPreparationService as Single Source of Truth.
+// [MODIFIED] (Stage 9 Phase 3 - Constants) Replaced magic strings with LOGIC_CODES.
 
 import { populateTemplate } from '../../utils/template-utils.js';
-import { LOGIC_CODES } from '../../config/business-constants.js';
+import { LOGIC_CODES } from '../../config/business-constants.js'; // [NEW]
 
 export class WorkOrderStrategy {
     constructor({ configManager, dataPreparationService } = {}) {
@@ -22,7 +31,7 @@ export class WorkOrderStrategy {
         let hdCount = 0;
         let totalListPrice = 0;
 
-        // --- Generate HTML Rows ---
+        // 3. Generate HTML Rows
         const rowsHtml = sortedItems.map((item, index) => {
             // Stats (using standardized properties from ExportItem)
             if (item.dual === 'Y') dualCount++;
@@ -33,9 +42,9 @@ export class WorkOrderStrategy {
             let fabricClass = '';
             if (item.isLf) {
                 fabricClass = 'bg-light-filter';
-            } else if (item.typeCode === LOGIC_CODES.BLOCKOUT) {
+            } else if (item.typeCode === LOGIC_CODES.BLOCKOUT) { // [MODIFIED] Use constant
                 fabricClass = 'bg-blockout';
-            } else if (item.typeCode === LOGIC_CODES.SCREEN) {
+            } else if (item.typeCode === LOGIC_CODES.SCREEN) { // [MODIFIED] Use constant
                 fabricClass = 'bg-screen';
             }
 

@@ -74,9 +74,8 @@ export class InputHandler {
     }
 
     _onKeyDown(event) {
-        // [MODIFIED] Added 'textarea' to the selector to prevent the handler
-        // from intercepting its keyboard events, thus fixing the backspace bug.
-        if (event.target.matches('input:not([readonly]), textarea')) {
+        // [MODIFIED] (Phase 3.3d) Added 'select' to prevent intercepting select dropdown key events
+        if (event.target.matches('input:not([readonly]), textarea, select')) {
             return;
         }
 

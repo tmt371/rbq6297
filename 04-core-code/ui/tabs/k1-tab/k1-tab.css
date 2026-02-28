@@ -1,6 +1,41 @@
 /* File: 04-core-code/ui/tabs/k1-tab/k1-tab.css */
+/* [MODIFIED] (Phase 3.5a / Phase 3.5a-Fix) Merged K1 Location + K2 Fabric styles */
 
-/* K1 (Location) specific styles moved from left-panel.css */
+/* --- Fieldset Group Styling --- */
+/* [MODIFIED] (Phase 3.5a-Fix) Enforced colored borders with !important to override browser defaults */
+.group-loc {
+    border: 2px solid #3498db !important;
+    border-radius: 6px;
+    padding: 8px 10px 10px;
+    margin-bottom: 8px;
+}
+
+.group-loc>legend {
+    color: #3498db !important;
+    font-size: 0.75em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 6px;
+}
+
+.group-fab {
+    border: 2px solid #9b59b6 !important;
+    border-radius: 6px;
+    padding: 8px 10px 10px;
+    margin-bottom: 8px;
+}
+
+.group-fab>legend {
+    color: #9b59b6 !important;
+    font-size: 0.75em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 6px;
+}
+
+/* K1 (Location) specific styles */
 #location-input-box {
     width: 120px;
     background-color: #e9ecef;
@@ -8,4 +43,14 @@
 
 #location-input-box.active {
     background-color: #fffacd;
+}
+
+/* --- Fabric (migrated from K2) table cell highlights --- */
+.results-table td.lf-selection-highlight {
+    background-color: #fffacd;
+}
+
+.results-table td.is-lf-modified {
+    background-color: #ffccd5;
+    box-shadow: inset 0 0 0 1px #e5a0aa;
 }

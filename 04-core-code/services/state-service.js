@@ -21,24 +21,26 @@ export class StateService {
     }
 
     /**
-     * Returns the current state.
-     * @returns {object} The current application state.
+     * Returns a deep clone of the current state.
+     * [MODIFIED] (Phase 11.2a) Returns structuredClone to prevent direct mutation of the SSOT.
+     * All state changes MUST go through dispatch().
+     * @returns {object} A deep clone of the current application state.
      */
     getState() {
-        return this._state;
+        return structuredClone(this._state);
     }
 
     /**
      * Dispatches an action to the reducer to update the state.
      * @param {object} action The action object describing the state change.
      */
-    dispatch(action) {
+    async dispatch(action) {
         const newState = this.reducer(this._state, action);
-        
+
         // Only update and publish if the state has actually changed.
         if (newState !== this._state) {
             this._state = newState;
-            this.eventAggregator.publish(EVENTS.INTERNAL_STATE_UPDATED, this._state);
+            await this.eventAggregator.publish(EVENTS.INTERNAL_STATE_UPDATED, this._state);
         }
     }
 }

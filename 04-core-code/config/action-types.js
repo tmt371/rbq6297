@@ -36,7 +36,7 @@ export const UI_ACTION_TYPES = {
     // TOGGLE_SSET_SELECTION: 'ui/toggleSSetSelection',
     // CLEAR_SSET_SELECTION: 'ui/clearSSetSelection',
 
-    // K4 (Drive/Accessories) & K5 (Dual/Chain) State
+    // K3 (Drive/Accessories) & K5 (Dual/Chain) State
     SET_DUAL_CHAIN_MODE: 'ui/setDualChainMode',
     SET_DRIVE_ACCESSORY_MODE: 'ui/setDriveAccessoryMode',
     SET_DRIVE_ACCESSORY_COUNT: 'ui/setDriveAccessoryCount',
@@ -64,6 +64,9 @@ export const UI_ACTION_TYPES = {
     // [NEW] (F1/F2 Refactor Phase 1) Add action for F1 cost totals
     SET_F1_COST_TOTALS: 'ui/setF1CostTotals',
     SET_F1_WIFI_QTY: 'ui/setF1WifiQty', // [NEW] (v6295)
+    SET_F1_CACHED_COSTS: 'ui/setF1CachedCosts', // [NEW] (Phase 4.1a)
+    // [NEW] (Phase 3.3b) Brand selection
+    SET_F1_BRAND: 'ui/setF1Brand',
 
     // F2 Financial Summary State
     SET_F2_VALUE: 'ui/setF2Value',
@@ -74,6 +77,7 @@ export const UI_ACTION_TYPES = {
     SET_SUM_OUTDATED: 'ui/setSumOutdated',
     RESET_UI: 'ui/reset',
     SET_MODAL_ACTIVE: 'ui/setModalActive', // [NEW] Add modal lock action
+    SET_IS_PROCESSING: 'ui/setIsProcessing', // [NEW] Global processing flag
 
     // [NEW] (Correction Flow Phase 2) Set correction mode state
     SET_CORRECTION_MODE: 'ui/setCorrectionMode',
@@ -103,10 +107,13 @@ export const QUOTE_ACTION_TYPES = {
     UPDATE_ITEM_VALUE: 'quote/updateItemValue',
     UPDATE_ITEM_PROPERTY: 'quote/updateItemProperty',
     UPDATE_WINDER_MOTOR_PROPERTY: 'quote/updateWINDER_MOTOR_PROPERTY',
-    CYCLE_K3_PROPERTY: 'quote/cycleK3Property',
+    CYCLE_K2_PROPERTY: 'quote/cycleK2Property',
     CYCLE_ITEM_TYPE:
         'quote/cycleItemType',
     SET_ITEM_TYPE: 'quote/setItemType',
+
+    // [NEW] K2 Snapshot Recovery Action
+    RESTORE_K2_SNAPSHOT: 'quote/restoreK2Snapshot',
 
     // Batch Item Updates
     BATCH_UPDATE_PROPERTY: 'quote/batchUpdateProperty',

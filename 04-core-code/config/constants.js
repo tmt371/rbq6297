@@ -51,12 +51,16 @@ export const EVENTS = {
     USER_TOGGLED_K2_MODE: 'userToggledK2Mode', // [NEW] (v6294)
     LOCATION_INPUT_ENTER_PRESSED: 'locationInputEnterPressed',
     USER_REQUESTED_LF_DELETE_MODE: 'userRequestedLFDeleteMode',
-    USER_TOGGLED_K3_EDIT_MODE: 'userToggledK3EditMode',
+    USER_TOGGLED_K2_EDIT_MODE: 'userToggledK2EditMode',
     USER_REQUESTED_BATCH_CYCLE: 'userRequestedBatchCycle',
     DUAL_CHAIN_MODE_CHANGED: 'dualChainModeChanged',
     CHAIN_ENTER_PRESSED: 'chainEnterPressed',
     DRIVE_MODE_CHANGED: 'driveModeChanged',
     ACCESSORY_COUNTER_CHANGED: 'accessoryCounterChanged',
+    // [NEW] (Phase 3.4c) K3 Batch events
+    K3_BATCH_START: 'k3BatchStart',
+    K3_BATCH_CONFIRM: 'k3BatchConfirm',
+    K3_BATCH_CANCEL: 'k3BatchCancel',
 
     // --- User Actions: Panels & Navigation ---
     USER_TOGGLED_NUMERIC_KEYBOARD: 'userToggledNumericKeyboard',

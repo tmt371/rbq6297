@@ -25,6 +25,12 @@ export class K1LocationView {
         const { ui } = this.stateService.getState();
         const currentMode = ui.activeEditMode;
         const newMode = currentMode === 'K1' ? null : 'K1';
+
+        // [NEW] (Phase 3.5a-Fix) Switch to Location View columns when entering K1 mode
+        if (newMode === 'K1') {
+            this.stateService.dispatch(uiActions.setVisibleColumns(['sequence', 'fabricTypeDisplay', 'location']));
+        }
+
         this._toggleLocationEditMode(newMode);
     }
 
@@ -39,10 +45,10 @@ export class K1LocationView {
         if (newMode) {
             const targetRow = 0;
             this.stateService.dispatch(uiActions.setTargetCell({ rowIndex: targetRow, column: 'location' }));
-            
+
             const currentItem = this._getItems()[targetRow];
             this.stateService.dispatch(uiActions.setLocationInputValue(currentItem.location || ''));
-            
+
             const locationInput = document.getElementById('location-input-box');
             setTimeout(() => {
                 locationInput?.focus();
@@ -58,12 +64,12 @@ export class K1LocationView {
      * Handles the Enter key press in the location input box.
      * @param {object} data - The event data containing the value.
      */
-    handleLocationInputEnter({ value }) {
+    async handleLocationInputEnter({ value }) {
         const { ui } = this.stateService.getState();
         const { targetCell } = ui;
         if (!targetCell) return;
 
-        this.stateService.dispatch(quoteActions.updateItemProperty(targetCell.rowIndex, targetCell.column, value));
+        await this.stateService.dispatch(quoteActions.updateItemProperty(targetCell.rowIndex, targetCell.column, value));
 
         const nextRowIndex = targetCell.rowIndex + 1;
         const totalRows = this._getItems().length;
@@ -71,10 +77,10 @@ export class K1LocationView {
 
         // Move to the next row if it's not the last empty row
         if (nextRowIndex < totalRows - 1) {
-            this.stateService.dispatch(uiActions.setTargetCell({ rowIndex: nextRowIndex, column: 'location' }));
+            await this.stateService.dispatch(uiActions.setTargetCell({ rowIndex: nextRowIndex, column: 'location' }));
             const nextItem = this._getItems()[nextRowIndex];
-            this.stateService.dispatch(uiActions.setLocationInputValue(nextItem.location || ''));
-            
+            await this.stateService.dispatch(uiActions.setLocationInputValue(nextItem.location || ''));
+
             // Refocus and select the input for continuous entry
             setTimeout(() => locationInput?.select(), 0);
         } else {
@@ -87,12 +93,12 @@ export class K1LocationView {
      * Handles clicks on table cells when K1 mode is active.
      * @param {object} data - The event data { rowIndex }.
      */
-    handleTableCellClick({ rowIndex }) {
+    async handleTableCellClick({ rowIndex }) {
         // Update the target cell to the clicked row
-        this.stateService.dispatch(uiActions.setTargetCell({ rowIndex, column: 'location' }));
+        await this.stateService.dispatch(uiActions.setTargetCell({ rowIndex, column: 'location' }));
         const item = this._getItems()[rowIndex];
-        this.stateService.dispatch(uiActions.setLocationInputValue(item.location || ''));
-        
+        await this.stateService.dispatch(uiActions.setLocationInputValue(item.location || ''));
+
         const locationInput = document.getElementById('location-input-box');
         setTimeout(() => {
             locationInput?.focus();
