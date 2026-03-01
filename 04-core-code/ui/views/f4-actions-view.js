@@ -327,3 +327,9 @@ export class F4ActionsView {
         });
     }
 }
+
+window.toggleF4Accordion = function (headerElement) {
+    if (headerElement && headerElement.parentElement) {
+        headerElement.parentElement.classList.toggle('collapsed');
+    }
+};

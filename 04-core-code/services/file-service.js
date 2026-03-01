@@ -80,8 +80,19 @@ export class FileService {
     exportToCsv(quoteData) {
         try {
             const csvString = dataToCsv(quoteData);
-            // [MODIFIED] ?³é? quoteData ä»¥ç”¢?Ÿæ–°æª”å?
-            const fileName = this._generateFileName(quoteData, 'csv');
+            // [MODIFIED] Phase 13.3: Strict fallback logic for CSV filename
+            const customer = quoteData.customer || {};
+            let displayName = customer.firstName || customer.name || customer.lastName || "customer";
+            // Sanitize name to avoid invalid filename characters
+            displayName = displayName.replace(/[^a-zA-Z0-9_-]/g, '');
+
+            // Fallback 2: Add phone if it exists, otherwise empty string
+            let displayPhone = customer.phone ? `_${customer.phone.replace(/[^0-9+]/g, '')}` : "";
+
+            const quoteId = quoteData.quoteId || "Draft";
+
+            // Final filename assembly
+            const fileName = `${quoteId}_${displayName}${displayPhone}.csv`;
             this._triggerDownload(csvString, fileName, 'text/csv;charset=utf-8;');
             return { success: true, message: 'CSV file is being downloaded...' };
         } catch (error) {

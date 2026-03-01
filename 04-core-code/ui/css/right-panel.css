@@ -440,3 +440,89 @@ input.val-box {
     text-decoration: line-through !important;
     opacity: 0.6 !important;
 }
+
+/* F4 Panel Overhaul - Accordion & Card Button Styles */
+.f4-accordion-group {
+    border: 2px solid #6f42c1 !important;
+    border-radius: 4px !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    overflow: hidden !important;
+    margin-bottom: 8px !important;
+}
+
+.f4-accordion-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    background-color: #e3f2fd !important;
+    padding: 8px 12px !important;
+    font-weight: bold !important;
+    font-size: 14px !important;
+    color: #333 !important;
+    cursor: pointer !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+    user-select: none !important;
+}
+
+.f4-accordion-header:hover {
+    background-color: #d0e8f9 !important;
+}
+
+.f4-toggle-icon {
+    color: #007bff !important;
+    font-size: 12px !important;
+    transition: transform 0.2s !important;
+}
+
+.f4-accordion-group.collapsed .f4-toggle-icon {
+    transform: rotate(180deg) !important;
+}
+
+.f4-accordion-group.collapsed .f4-accordion-content {
+    display: none !important;
+}
+
+.f4-accordion-content {
+    padding: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+
+/* F4 Info Card Buttons */
+.f4-card-btn {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 10px 12px !important;
+    border: 1px solid #ced4da !important;
+    background-color: #f8f9fa !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+    transition: background-color 0.2s !important;
+    text-align: left !important;
+}
+
+.f4-card-btn:hover {
+    background-color: #e9ecef !important;
+    border-color: #adb5bd !important;
+}
+
+.f4-card-btn .main-txt {
+    font-size: 14px !important;
+    font-weight: bold !important;
+    color: #007bff !important;
+}
+
+.f4-card-btn .main-txt.text-dark {
+    color: #343a40 !important;
+}
+
+.f4-card-btn .sub-txt {
+    font-size: 11px !important;
+    color: #6c757d !important;
+    font-weight: normal !important;
+}

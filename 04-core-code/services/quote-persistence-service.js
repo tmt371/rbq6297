@@ -211,11 +211,11 @@ export class QuotePersistenceService {
         }
         // --- [END NEW] ---
 
-        const result = this.fileService.saveToJson(dataToSave);
-        const notificationType = result.success ? 'info' : 'error';
+        // [MODIFIED] Phase 13.3: Remove local JSON download. Only save to cloud.
+        // const result = this.fileService.saveToJson(dataToSave);
         this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-            message: result.message,
-            type: notificationType,
+            message: `Quote ${dataToSave.quoteId || 'Draft'} successfully saved and overwritten in Cloud.`,
+            type: 'info',
         });
     }
 
@@ -368,7 +368,8 @@ export class QuotePersistenceService {
             }
         }
 
-        const localSaveResult = this.fileService.saveToJson(dataToSave);
+        // [MODIFIED] Phase 13.3: Remove local JSON download
+        // const localSaveResult = this.fileService.saveToJson(dataToSave);
 
         // 5. Dispatch to update the app's state to this new version
         this.stateService.dispatch(quoteActions.setQuoteData(dataToSave));
@@ -376,16 +377,16 @@ export class QuotePersistenceService {
         // 6. Notify user
         let message;
         if (skipCloudSave) {
-            message = `Saved LOCALLY as: ${newQuoteId} (Cloud Offline)`;
+            message = `Cloud Offline. Cannot save new version ${newQuoteId}.`;
         } else {
             message = cloudSaveSuccess
-                ? `New version saved as: ${newQuoteId}`
-                : `New version saved locally. Cloud save failed.`;
+                ? `Saved as new version: ${newQuoteId}`
+                : `Cloud save failed for new version: ${newQuoteId}.`;
         }
 
         this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
             message: message,
-            type: localSaveResult.success ? 'info' : 'error',
+            type: cloudSaveSuccess && !skipCloudSave ? 'info' : 'error',
         });
     }
 
