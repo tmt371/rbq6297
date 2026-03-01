@@ -8,10 +8,12 @@
 .f2-summary-grid {
     display: grid;
     /* Columns: A(label) B(value/input) C(value) */
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 4px 10px;
+    grid-template-columns: auto 1fr 1fr;
+    gap: 4px 6px;
     /* Vertical and horizontal gap */
     align-items: center;
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 /* [REMOVED] (v6297 F2 Style Tweak 4) Removed all broad, brittle selectors */
@@ -89,9 +91,11 @@
 .f2-subgrid-erb {
     display: grid;
     /* [MODIFIED] (v6297 F2 Layout Fix) Adjust column ratios for better spacing */
-    grid-template-columns: 0.8fr 1.2fr 0.8fr 1.2fr;
-    gap: 4px 10px;
+    grid-template-columns: auto 1fr auto 1fr;
+    gap: 4px 6px;
     /* 保持與主網格相同的間距 */
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 /* [REMOVED] (v6297 F2 Style Tweak 4) This rule is no longer needed, */
@@ -125,14 +129,15 @@
 .f2-group-summary {
     display: grid;
     grid-template-columns: subgrid;
-    /* Inherit the 3-column layout */
-    gap: 4px 10px;
+    /* Inherit the layout */
+    gap: 4px 6px;
     /* Inherit the gap */
 
-    padding: 10px;
+    padding: 5px;
     border-radius: 4px;
     margin-top: 6px;
-    /* This plus 4px gap = 10px spacing */
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 /* Make headers inside groups have no top margin */
@@ -276,4 +281,83 @@
 
 .grid-cell-input[type=number] {
     -moz-appearance: textfield;
+}
+
+/* --- [NEW] Phase 12.2: F2 Accordion Color Coding --- */
+.f2-accordion-group {
+    border-radius: 4px;
+    margin-bottom: 8px;
+    border: 2px solid transparent;
+    padding-top: 1px !important;
+    /* Phase 12.2.2: Aggressively squash group top padding */
+}
+
+#f2-accessories-group {
+    border-color: #FFD700;
+    background-color: #e8f5e9;
+}
+
+#f2-erb-group {
+    border-color: #FF00FF;
+    background-color: #e8f5e9;
+}
+
+#f2-fee-group {
+    border-color: #00FF00;
+    background-color: #e8f5e9;
+}
+
+#f2-roller-summary-group {
+    border-color: #0000FF;
+    background-color: #e3f2fd;
+}
+
+#f2-selling-price-group {
+    border-color: #800080;
+    background-color: #e3f2fd;
+}
+
+/* Ensure inner grids don't obscure accordion background colors and reduce top spacing */
+.f2-accordion-content .f2-group-costs,
+.f2-accordion-content .f2-group-summary {
+    background-color: transparent !important;
+    border: none !important;
+    padding-top: 1px !important;
+    /* Phase 12.2.2: Reduce top spacing even more */
+}
+
+/* Phase 12.2.1 & 12.2.2: Ensure header sits flush and minimal padding */
+.f2-accordion-header {
+    margin-top: 0 !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    height: 36px !important;
+    /* Phase 12.2.3: Consistent Header Heights */
+    display: flex !important;
+    /* Phase 12.2.3: Keep items aligned */
+    align-items: center !important;
+    /* Phase 12.2.3: Vertical center */
+}
+
+/* Phase 12.2.2: Squeeze text element margins to zero to eliminate hidden browser defaults */
+.f2-accordion-header span {
+    margin: 0 !important;
+    line-height: 1.2;
+}
+
+/* Phase 12.2.1: Elastic Min-Width for Header Amounts */
+.f2-accordion-header .section-header-total {
+    min-width: 65px;
+    display: flex;
+    /* Flex ensures consistent inner alignment */
+    align-items: center;
+    justify-content: flex-end;
+}
+
+/* Phase 12.2.1: Toggle Arrow Color & Spacing */
+.f2-accordion-header .toggle-icon {
+    color: #007bff;
+    margin-left: 8px;
+    display: flex;
+    align-items: center;
 }

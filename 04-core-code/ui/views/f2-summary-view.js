@@ -82,6 +82,7 @@ export class F2SummaryView {
             b15_removalQty: query('f2-b15-removal-qty'),
             c15_removalFee: query('f2-c15-removal-fee'),
             b16_surchargeFee: query('f2-b16-surcharge-fee'),
+            rollerSummaryHeaderAmount: query('f2-roller-summary-header-amount'),
 
             // [NEW] Phase 8.1: Unit price inputs
             deliveryUnit: query('f2-delivery-unit'),
@@ -96,14 +97,16 @@ export class F2SummaryView {
             b20_singleprofit: query('f2-b20-singleprofit'),
             f2_17_pre_sum: query('f2-17-pre-sum'), // [MODIFIED]
             b21_rbProfit: query('f2-b21-rb-profit'),
-
             b22_sumprice: query('f2-b22-sumprice'),
             // [REMOVED] b23_sumprofit: query('f2-b23-sumprofit'),
+            val_stotal: query('f2-val-stotal'), // [NEW] phase 12.6
             new_offer: query('new-offer'), // [MODIFIED]
+            val_rate: query('f2-val-rate'), // [NEW] phase 12.6
             label_gst: query('f2-label-gst'), // [NEW] (Phase 2)
             b24_gst: query('f2-b24-gst'),
             grand_total: query('grand-total'), // [MODIFIED]
 
+            sellingPriceHeaderAmount: query('f2-selling-price-header-amount'), // [NEW] phase 12.6
             b25_netprofit: query('f2-b25-netprofit'),
 
             // [NEW] v6290 Deposit/Balance
@@ -162,6 +165,51 @@ export class F2SummaryView {
             // [MODIFIED] (v6298-fix-5) Use helper
             this._addListener(this.f2.label_gst, 'click', this.handleToggleGstExclusion);
         }
+
+        // [NEW] (Phase 12.6.2) Add real-time input listener for deposit
+        if (this.f2.deposit) {
+            this._addListener(this.f2.deposit, 'input', (event) => {
+                this.handleF2ValueChange({ id: event.target.id, value: event.target.value });
+            });
+        }
+    }
+
+    // --- [NEW] Phase 12.3.1: Robust Accordion Initialization ---
+    _initF2Accordions() {
+        if (this._f2AccordionsInitialized) return;
+        this._f2AccordionsInitialized = true;
+
+        const accordionHeaders = this.panelElement.querySelectorAll('.f2-accordion-header');
+        accordionHeaders.forEach(header => {
+            this._addListener(header, 'click', (e) => {
+                const content = header.nextElementSibling;
+                const icon = header.querySelector('.toggle-icon');
+                if (content && content.classList.contains('f2-accordion-content')) {
+                    const isCollapsed = content.style.display === 'none';
+                    content.style.display = isCollapsed ? 'block' : 'none';
+                    if (icon) {
+                        icon.textContent = isCollapsed ? '▲' : '▼';
+                    }
+                }
+            });
+        });
+
+        // Enforce default UI state ONLY ONCE upon first initialization
+        const setAccordionState = (groupId, isExpanded) => {
+            const group = this.panelElement.querySelector(`#${groupId}`);
+            if (group) {
+                const content = group.querySelector('.f2-accordion-content');
+                const icon = group.querySelector('.toggle-icon');
+                if (content) content.style.display = isExpanded ? 'block' : 'none';
+                if (icon) icon.textContent = isExpanded ? '▲' : '▼';
+            }
+        };
+
+        setAccordionState('f2-accessories-group', false); // Collapsed
+        setAccordionState('f2-erb-group', false);         // Collapsed
+        setAccordionState('f2-fee-group', true);          // Expanded
+        setAccordionState('f2-roller-summary-group', true);     // Expanded
+        setAccordionState('f2-selling-price-group', true);      // Expanded
     }
 
     render(state) {
@@ -230,15 +278,23 @@ export class F2SummaryView {
         if (this.f2.a17_totalSum) this.f2.a17_totalSum.textContent = formatValue(f2State.totalSumForRbTime);
         if (this.f2.c17_1stRbPrice) this.f2.c17_1stRbPrice.textContent = formatDecimalCurrency(f2State.firstRbPrice);
         if (this.f2.b19_disRbPrice) this.f2.b19_disRbPrice.textContent = formatDecimalCurrency(f2State.disRbPrice);
+        if (this.f2.rollerSummaryHeaderAmount) this.f2.rollerSummaryHeaderAmount.textContent = formatDecimalCurrency(f2State.disRbPrice);
         if (this.f2.b20_singleprofit) this.f2.b20_singleprofit.textContent = formatDecimalCurrency(f2State.singleprofit);
         if (this.f2.b21_rbProfit) this.f2.b21_rbProfit.textContent = formatDecimalCurrency(f2State.rbProfit);
 
         // [MODIFIED] (Phase 8) Use the correct state keys defined in initial-state.js
         if (this.f2.b22_sumprice) this.f2.b22_sumprice.textContent = formatDecimalCurrency(f2State.sumPrice);
+        if (this.f2.val_stotal) this.f2.val_stotal.textContent = formatDecimalCurrency(f2State.sumPrice);
         if (this.f2.f2_17_pre_sum) this.f2.f2_17_pre_sum.textContent = formatDecimalCurrency(f2State.f2_17_pre_sum);
         if (this.f2.b24_gst) this.f2.b24_gst.textContent = formatDecimalCurrency(f2State.gst);
         if (this.f2.grand_total) this.f2.grand_total.textContent = formatDecimalCurrency(f2State.grandTotal);
+        if (this.f2.sellingPriceHeaderAmount) this.f2.sellingPriceHeaderAmount.textContent = formatDecimalCurrency(f2State.grandTotal);
         if (this.f2.b25_netprofit) this.f2.b25_netprofit.textContent = formatDecimalCurrency(f2State.netProfit);
+
+        const newOfferValue = (f2State.newOffer !== null && f2State.newOffer !== undefined) ? f2State.newOffer : f2State.sumPrice;
+
+        const rate = f2State.sumPrice > 0 ? (newOfferValue / f2State.sumPrice) * 100 : 0;
+        if (this.f2.val_rate) this.f2.val_rate.textContent = rate.toFixed(1) + '%';
 
         // --- Render Inputs ---
         // [REMOVED] (v6295) Wifi input is no longer rendered
@@ -266,17 +322,21 @@ export class F2SummaryView {
             this.f2.deposit.value = formatValue(f2State.deposit);
         }
         // Balance is read-only, so no need to check activeElement
-        // [MODIFIED] Tweak 1: 使用 toFixed(2) 確ä?顯示?ä?小數
-        if (this.f2.balance) this.f2.balance.value = (f2State.balance !== null && f2State.balance !== undefined) ? f2State.balance.toFixed(2) : '';
+        // [MODIFIED] (Phase 12.6.2) Balance rendering to textContent with $
+        if (this.f2.balance) this.f2.balance.textContent = (f2State.balance !== null && f2State.balance !== undefined) ? '$' + f2State.balance.toFixed(2) : '$0.00';
 
 
         if (this.f2.c13_deliveryFee) this.f2.c13_deliveryFee.classList.toggle('is-excluded', f2State.deliveryFeeExcluded);
         if (this.f2.c14_installFee) this.f2.c14_installFee.classList.toggle('is-excluded', f2State.installFeeExcluded);
         if (this.f2.c15_removalFee) this.f2.c15_removalFee.classList.toggle('is-excluded', f2State.removalFeeExcluded);
 
-        // [NEW] (Phase 2) Toggle GST exclusion styles
-        if (this.f2.label_gst) this.f2.label_gst.classList.toggle('is-excluded', f2State.gstExcluded);
-        if (this.f2.b24_gst) this.f2.b24_gst.classList.toggle('is-excluded', f2State.gstExcluded);
+        // [NEW] (Phase 2 & 12.6.1) Toggle GST strikethrough styles
+        if (this.f2.label_gst) this.f2.label_gst.classList.toggle('strikethrough-active', f2State.gstExcluded);
+        if (this.f2.b24_gst) this.f2.b24_gst.classList.toggle('strikethrough-active', f2State.gstExcluded);
+
+        // --- [NEW] Phase 12.3.1: Mount Accordions Safely ---
+        this._initF2Accordions();
+
     }
 
     activate() {
@@ -350,7 +410,16 @@ export class F2SummaryView {
         const currentIndex = this.f2InputSequence.indexOf(currentId);
         if (currentIndex > -1 && currentIndex < this.f2InputSequence.length - 1) {
             const nextElementId = this.f2InputSequence[currentIndex + 1];
-            this.eventAggregator.publish(EVENTS.FOCUS_ELEMENT, { elementId: nextElementId });
+            const nextElement = document.getElementById(nextElementId);
+            if (nextElement) {
+                nextElement.focus();
+                if (typeof nextElement.select === 'function') {
+                    nextElement.select();
+                }
+            }
+            if (this.eventAggregator && this.eventAggregator.publish) {
+                this.eventAggregator.publish(EVENTS.FOCUS_ELEMENT, { elementId: nextElementId });
+            }
         } else {
             const currentElement = document.getElementById(currentId);
             currentElement?.blur();
@@ -411,7 +480,7 @@ export class F2SummaryView {
         const grandTotalChanged = currentGrandTotal !== previousGrandTotalInState
             || (previousGrandTotalInState === 0 && currentGrandTotal > 0);
 
-        const autoDeposit = Math.ceil(Math.ceil(currentGrandTotal / 2) / 10) * 10;
+        const autoDeposit = Math.ceil((currentGrandTotal / 2) / 10) * 10;
         const currentDepositInState = ui.f2.deposit;
 
         let finalDeposit;

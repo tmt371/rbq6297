@@ -338,3 +338,105 @@
     opacity: 0.7;
     cursor: not-allowed;
 }
+
+/* F2 Selling Price Grid & UI Updates */
+.f2-accordion-group .f2-accordion-content {
+    padding: 10px 8px !important;
+}
+
+.price-grid {
+    display: grid !important;
+    grid-template-columns: auto 10px auto 1fr !important;
+    gap: 6px 6px !important;
+    align-items: center !important;
+    font-size: 12px !important;
+}
+
+.label-pill {
+    background-color: #cfd8dc !important;
+    padding: 4px 6px !important;
+    border-radius: 4px !important;
+    text-align: right !important;
+    font-weight: bold !important;
+    color: #333 !important;
+    white-space: nowrap !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    min-height: 22px !important;
+    box-sizing: border-box !important;
+    font-size: 12px !important;
+}
+
+.f2-accordion-header .label-pill {
+    font-size: 14px !important;
+    padding: 4px 8px !important;
+}
+
+.label-center {
+    justify-content: center !important;
+    text-align: center !important;
+}
+
+.val-box {
+    padding: 4px 6px !important;
+    border-radius: 2px !important;
+    text-align: right !important;
+    min-width: 0 !important;
+    border: 1px solid #ccc !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-height: 22px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    font-size: 12px !important;
+    font-family: inherit !important;
+}
+
+input.val-box {
+    display: block !important;
+    height: 22px !important;
+}
+
+.val-green {
+    background-color: #e8f5e9 !important;
+    border-color: #81c784 !important;
+    color: #333 !important;
+    outline: none !important;
+}
+
+.val-pink {
+    background-color: #ffebee !important;
+    border-color: #ffcdd2 !important;
+    color: #c62828 !important;
+    font-weight: bold !important;
+    outline: none !important;
+}
+
+.val-blue {
+    background-color: #e1f5fe !important;
+    border-color: #81d4fa !important;
+    color: #333 !important;
+}
+
+.val-beige {
+    background-color: #fff3e0 !important;
+    border-color: #ffb74d !important;
+    color: #333 !important;
+    font-weight: bold !important;
+}
+
+.divider-pink {
+    grid-column: 1 / -1 !important;
+    height: 2px !important;
+    background-color: #ffcdd2 !important;
+    margin: 6px 0 !important;
+    border-radius: 1px !important;
+    width: 100% !important;
+}
+
+.strikethrough-active {
+    text-decoration: line-through !important;
+    opacity: 0.6 !important;
+}

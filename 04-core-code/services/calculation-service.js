@@ -475,13 +475,27 @@ export class CalculationService {
         const wifiSalePrice = Number(this.configManager.getAccessoryPrice('wifiHub')) || 300;
         const wifiSum = wifiQty * wifiSalePrice;
 
-        // [MODIFIED] Phase 8.1: Use dynamic unit prices (user-editable), fallback to f2Config defaults
-        const deliveryUnitPrice = Number(f2State.deliveryUnitPrice ?? UNIT_PRICES.delivery ?? 100) || 0;
-        const installUnitPrice = Number(f2State.installUnitPrice ?? UNIT_PRICES.install ?? 20) || 0;
-        const removalUnitPrice = Number(f2State.removalUnitPrice ?? UNIT_PRICES.removal ?? 20) || 0;
-        const deliveryFee = deliveryQty * deliveryUnitPrice;
-        const installFee = installQty * installUnitPrice;
-        const removalFee = removalQty * removalUnitPrice;
+        // [MODIFIED] (Phase 12.6.3) Parse values strictly from DOM inputs to enforce correct logic
+        const getDomVal = (id, fallback) => {
+            const el = document.getElementById(id);
+            if (el && el.value !== '') {
+                const val = parseFloat(el.value);
+                return isNaN(val) ? fallback : val;
+            }
+            return fallback;
+        };
+
+        const deliveryUnitPrice = getDomVal('f2-delivery-unit', Number(f2State.deliveryUnitPrice ?? UNIT_PRICES.delivery ?? 100) || 0);
+        const installUnitPrice = getDomVal('f2-install-unit', Number(f2State.installUnitPrice ?? UNIT_PRICES.install ?? 20) || 0);
+        const removalUnitPrice = getDomVal('f2-removal-unit', Number(f2State.removalUnitPrice ?? UNIT_PRICES.removal ?? 20) || 0);
+
+        const domDeliveryQty = getDomVal('f2-b13-delivery-qty', deliveryQty);
+        const domInstallQty = getDomVal('f2-b14-install-qty', installQty);
+        const domRemovalQty = getDomVal('f2-b15-removal-qty', removalQty);
+
+        const deliveryFee = domDeliveryQty * deliveryUnitPrice;
+        const installFee = domInstallQty * installUnitPrice;
+        const removalFee = domRemovalQty * removalUnitPrice;
 
         const acceSum = winderPrice + dualPrice;
         // [MODIFIED] Use the calculated motorPrice and other accessory prices
@@ -562,7 +576,7 @@ export class CalculationService {
             // --- New values (for Phase 2+) ---
             f2_17_pre_sum: f2_17_pre_sum,
             newOffer: newOffer,
-            new_gst: potential_gst, // [MODIFIED] Always return the potential_gst for display
+            new_gst: actual_gst, // [MODIFIED] Return actual_gst to display $0.00 when excluded
             grandTotal: grandTotal,
             netProfit: netProfit, // (new value for f2-b25)
 

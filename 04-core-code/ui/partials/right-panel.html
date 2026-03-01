@@ -247,126 +247,205 @@
     </div>
     <div id="f2-content" class="tab-content">
 
-        <div class="f2-summary-grid">
-
-            <div class="f2-group-costs grid-span-3">
-                <div class="section-header">Accessories</div>
-                <div class="grid-cell-value section-header-total" id="f2-b4-acce-sum">$0</div>
-
-                <div class="grid-cell-label">Winder</div>
-                <div class="grid-cell-value" id="f2-b2-winder-price">$0</div>
-                <div></div>
-
-                <div class="grid-cell-label">Dual</div>
-
-                <div class="grid-cell-value" id="f2-b3-dual-price">$0</div>
-                <div></div>
-
-                <div class="section-header">E RB</div>
-                <div class="grid-cell-value section-header-total" id="f2-b11-e-acce-sum">$0</div>
-
-                <div class="f2-subgrid-erb grid-span-3">
-                    <div class="grid-cell-label">Motor</div>
-                    <div class="grid-cell-value" id="f2-b6-motor-price">$0</div>
-                    <div class="grid-cell-label">Remote</div>
-                    <div class="grid-cell-value" id="f2-b7-remote-price">$0</div>
-
-                    <div class="grid-cell-label">Charger</div>
-                    <div class="grid-cell-value" id="f2-b8-charger-price">$0</div>
-                    <div class="grid-cell-label">Ext Cord</div>
-                    <div class="grid-cell-value" id="f2-b9-cord-price">$0</div>
-
-                    <div class="grid-cell-label">WIFI $300</div>
-                    <div class="grid-cell-value" id="f2-b10-wifi-qty">$0</div>
+        <!-- Section 1: Accessories -->
+        <div class="f2-accordion-group" id="f2-accessories-group">
+            <div class="section-header f2-accordion-header"
+                style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>Accessories</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="grid-cell-value section-header-total" id="f2-b4-acce-sum"
+                        style="margin: 0; padding-top: 2px; padding-bottom: 2px; min-height: auto;">$0</span>
+                    <span class="toggle-icon">▼</span>
                 </div>
+            </div>
+            <div class="f2-accordion-content">
+                <div class="f2-summary-grid">
+                    <div class="f2-group-costs grid-span-3">
+                        <div class="grid-cell-label">Winder</div>
+                        <div class="grid-cell-value" id="f2-b2-winder-price">$0</div>
+                        <div></div>
 
-                <div class="section-header">Fee</div>
-                <div class="grid-cell-value section-header-total" id="f2-b16-surcharge-fee">$0</div>
+                        <div class="grid-cell-label">Dual</div>
 
-                <!-- [MODIFIED] Phase 8.3b: Horizontal spacing matching Roller Summary -->
-                <div class="f2-fee-subgrid grid-span-3"
-                    style="display:grid; grid-template-columns: minmax(55px,1fr) 22% 18% 25%; column-gap:8px; row-gap:2px; align-items:center; width:100%; box-sizing:border-box;">
-                    <div class="grid-cell-label" style="font-size:11px;">Delivery</div>
-                    <input type="number" class="grid-cell-input f2-unit-price" id="f2-delivery-unit" placeholder="$"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <input type="number" class="grid-cell-input" id="f2-b13-delivery-qty" placeholder="QTY"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <div class="grid-cell-value" id="f2-c13-delivery-fee" style="text-align:right; padding-right:2px;">
-                        $0</div>
-
-                    <div class="grid-cell-label" style="font-size:11px;">Install</div>
-                    <input type="number" class="grid-cell-input f2-unit-price" id="f2-install-unit" placeholder="$"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <input type="number" class="grid-cell-input" id="f2-b14-install-qty" placeholder="QTY"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <div class="grid-cell-value" id="f2-c14-install-fee" style="text-align:right; padding-right:2px;">$0
-                    </div>
-
-                    <div class="grid-cell-label" style="font-size:11px;">Removal</div>
-                    <input type="number" class="grid-cell-input f2-unit-price" id="f2-removal-unit" placeholder="$"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <input type="number" class="grid-cell-input" id="f2-b15-removal-qty" placeholder="QTY"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <div class="grid-cell-value" id="f2-c15-removal-fee" style="text-align:right; padding-right:2px;">$0
+                        <div class="grid-cell-value" id="f2-b3-dual-price">$0</div>
+                        <div></div>
                     </div>
                 </div>
             </div>
-            <div class="f2-group-summary grid-span-3">
-                <div class="section-header" style="grid-column: 1 / -1;">Roller Summary</div>
+        </div>
 
-                <div class="grid-cell-value" id="f2-a17-total-sum"></div>
-                <input type="number" class="grid-cell-input" id="f2-b17-mul-times" placeholder="mul-times" step="0.01">
-                <div class="grid-cell-value" id="f2-c17-1st-rb-price"></div>
-
-                <div class="grid-cell-label">Disc. %</div>
-
-                <input type="number" class="grid-cell-input" id="f2-b18-discount" placeholder="discount" min="0"
-                    max="99">
-                <div class="grid-cell-value" id="f2-b19-dis-rb-price"></div>
-
-                <div class="grid-cell-label">S profit</div>
-                <div class="grid-cell-value" id="f2-b20-singleprofit"></div>
-                <div class="grid-cell-value" id="f2-17-pre-sum"></div>
-
-                <div class="grid-cell-label">RB Profit</div>
-                <div class="grid-cell-value" id="f2-b21-rb-profit"></div>
-
-                <div></div>
-
-                <div class="section-header">Selling Price</div>
-                <div class="grid-cell-value section-header-total" id="f2-b22-sumprice"></div>
-
-                <div class="section-header">Our Offer</div>
-                <input type="number" class="grid-cell-input" id="new-offer" value="0.00" onfocus="this.select();">
-
-                <div></div>
-
-                <div class="grid-cell-label" id="f2-label-gst" style="justify-content: flex-end; padding-right: 10px;">
-                    GST
+        <!-- Section 2: E-RB -->
+        <div class="f2-accordion-group" id="f2-erb-group">
+            <div class="section-header f2-accordion-header"
+                style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>E RB</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="grid-cell-value section-header-total" id="f2-b11-e-acce-sum"
+                        style="margin: 0; padding-top: 2px; padding-bottom: 2px; min-height: auto;">$0</span>
+                    <span class="toggle-icon">▼</span>
                 </div>
-                <div class="grid-cell-value" id="f2-b24-gst"></div>
+            </div>
+            <div class="f2-accordion-content">
+                <div class="f2-summary-grid">
+                    <div class="f2-group-costs grid-span-3">
+                        <div class="f2-subgrid-erb grid-span-3">
+                            <div class="grid-cell-label">Motor</div>
+                            <div class="grid-cell-value" id="f2-b6-motor-price">$0</div>
+                            <div class="grid-cell-label">Remote</div>
+                            <div class="grid-cell-value" id="f2-b7-remote-price">$0</div>
 
-                <div class="section-header text-red">Total</div>
-                <div class="grid-cell-value section-header-total" id="grand-total">$0.00</div>
+                            <div class="grid-cell-label">Charger</div>
+                            <div class="grid-cell-value" id="f2-b8-charger-price">$0</div>
+                            <div class="grid-cell-label">Ext Cord</div>
+                            <div class="grid-cell-value" id="f2-b9-cord-price">$0</div>
 
-                <div class="grid-cell-label">NET Profit</div>
-                <div class="grid-cell-value" id="f2-b25-netprofit"></div>
+                            <div class="grid-cell-label">WIFI $300</div>
+                            <div class="grid-cell-value" id="f2-b10-wifi-qty">$0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <div></div>
+        <!-- Section 3: Fee -->
+        <div class="f2-accordion-group" id="f2-fee-group">
+            <div class="section-header f2-accordion-header"
+                style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>Fee</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="grid-cell-value section-header-total" id="f2-b16-surcharge-fee"
+                        style="margin: 0; padding-top: 2px; padding-bottom: 2px; min-height: auto;">$0</span>
+                    <span class="toggle-icon">▼</span>
+                </div>
+            </div>
+            <div class="f2-accordion-content">
+                <div class="f2-summary-grid">
+                    <div class="f2-group-costs grid-span-3">
+                        <!-- [MODIFIED] Phase 8.3b: Horizontal spacing matching Roller Summary -->
+                        <div class="f2-fee-subgrid grid-span-3"
+                            style="display:grid; grid-template-columns: minmax(55px,1fr) 22% 18% 25%; column-gap:8px; row-gap:2px; align-items:center; width:100%; box-sizing:border-box;">
+                            <div class="grid-cell-label" style="font-size:11px;">Delivery</div>
+                            <input type="number" class="grid-cell-input f2-unit-price" id="f2-delivery-unit"
+                                placeholder="$" onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <input type="number" class="grid-cell-input" id="f2-b13-delivery-qty" placeholder="QTY"
+                                onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <div class="grid-cell-value" id="f2-c13-delivery-fee"
+                                style="text-align:right; padding-right:2px;">
+                                $0</div>
 
-                <div class="grid-cell-placeholder"></div>
-                <div class="grid-cell-label text-right">Deposit</div>
-                <input type="number" class="grid-cell-input bg-light-green" id="f2-deposit" onfocus="this.select();">
+                            <div class="grid-cell-label" style="font-size:11px;">Install</div>
+                            <input type="number" class="grid-cell-input f2-unit-price" id="f2-install-unit"
+                                placeholder="$" onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <input type="number" class="grid-cell-input" id="f2-b14-install-qty" placeholder="QTY"
+                                onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <div class="grid-cell-value" id="f2-c14-install-fee"
+                                style="text-align:right; padding-right:2px;">$0
+                            </div>
 
-                <div class="grid-cell-placeholder"></div>
-                <div class="grid-cell-label text-right">Balance</div>
-                <input type="number" class="grid-cell-input bg-light-orange" id="f2-balance" readonly>
+                            <div class="grid-cell-label" style="font-size:11px;">Removal</div>
+                            <input type="number" class="grid-cell-input f2-unit-price" id="f2-removal-unit"
+                                placeholder="$" onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <input type="number" class="grid-cell-input" id="f2-b15-removal-qty" placeholder="QTY"
+                                onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <div class="grid-cell-value" id="f2-c15-removal-fee"
+                                style="text-align:right; padding-right:2px;">$0
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Roller Summary -->
+        <div class="f2-accordion-group" id="f2-roller-summary-group">
+            <div class="section-header f2-accordion-header"
+                style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>Roller Summary</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="grid-cell-value section-header-total" id="f2-roller-summary-header-amount"
+                        style="margin: 0; padding-top: 2px; padding-bottom: 2px; min-height: auto;">$0.00</span>
+                    <span class="toggle-icon">▼</span>
+                </div>
+            </div>
+            <div class="f2-accordion-content">
+                <div class="f2-summary-grid">
+                    <div class="f2-group-summary grid-span-3">
+                        <div class="grid-cell-value" id="f2-a17-total-sum"></div>
+                        <input type="number" class="grid-cell-input" id="f2-b17-mul-times" placeholder="mul-times"
+                            step="0.01">
+                        <div class="grid-cell-value" id="f2-c17-1st-rb-price"></div>
+
+                        <div class="grid-cell-label">Disc. %</div>
+
+                        <input type="number" class="grid-cell-input" id="f2-b18-discount" placeholder="discount" min="0"
+                            max="99">
+                        <div class="grid-cell-value" id="f2-b19-dis-rb-price"></div>
+
+                        <div class="grid-cell-label">S profit</div>
+                        <div class="grid-cell-value" id="f2-b20-singleprofit"></div>
+                        <div class="grid-cell-value" id="f2-17-pre-sum"
+                            style="visibility: hidden !important; pointer-events: none !important;"></div>
+
+                        <div class="grid-cell-label">RB Profit</div>
+                        <div class="grid-cell-value" id="f2-b21-rb-profit"></div>
+
+                        <div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: Selling Price -->
+        <div class="f2-accordion-group" id="f2-selling-price-group">
+            <div class="section-header f2-accordion-header"
+                style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span class="label-pill">Selling Price</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="f2-selling-price-header-amount" class="val-box val-pink"
+                        style="display: inline-flex !important; width: auto !important; min-width: 65px !important; margin-right: 4px !important;">$0.00</span>
+                    <span class="toggle-icon">▼</span>
+                </div>
+            </div>
+            <div class="f2-accordion-content">
+                <div class="price-grid">
+                    <div></div>
+                    <div></div>
+                    <div class="label-pill">SubTotal</div>
+                    <div id="f2-val-stotal" class="val-box val-green">$0.00</div>
+
+                    <div></div>
+                    <div></div>
+                    <div class="label-pill">Our Offer</div>
+                    <input type="text" id="new-offer" class="val-box val-pink" value="0">
+
+                    <div class="label-pill label-center">Rate</div>
+                    <div></div>
+                    <div id="f2-label-gst" class="label-pill" style="cursor: pointer;" title="Toggle GST">GST</div>
+                    <div id="f2-b24-gst" class="val-box val-blue">$0.00</div>
+
+                    <div id="f2-val-rate" class="val-box val-beige label-center">0.0%</div>
+                    <div></div>
+                    <div class="label-pill">Total</div>
+                    <div id="grand-total" class="val-box val-pink">$0.00</div>
+
+                    <div class="divider-pink"></div>
+
+                    <div class="label-pill label-center">NET Profit</div>
+                    <div></div>
+                    <div class="label-pill">Deposit</div>
+                    <input type="text" id="f2-deposit" class="val-box val-green" value="0">
+
+                    <div id="f2-b25-netprofit" class="val-box val-beige label-center">$0.00</div>
+                    <div></div>
+                    <div class="label-pill">Balance</div>
+                    <div id="f2-balance" class="val-box val-blue">$0.00</div>
+                </div>
             </div>
         </div>
     </div>
