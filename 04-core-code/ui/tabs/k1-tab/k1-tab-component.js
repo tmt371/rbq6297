@@ -23,7 +23,7 @@ export class K1TabComponent {
     }
 
     render(uiState) {
-        const { activeEditMode, locationInputValue } = uiState;
+        const { activeEditMode, locationInputValue, driveAccessoryMode, dualChainMode } = uiState;
 
         // --- K1 Location Input State ---
         if (this.locationInput) {
@@ -37,6 +37,8 @@ export class K1TabComponent {
 
         if (this.locationButton) {
             this.locationButton.classList.toggle('active', activeEditMode === 'K1');
+            const isAnyOtherFlowActive = (activeEditMode !== null && activeEditMode !== 'K1') || driveAccessoryMode !== null || dualChainMode !== null;
+            this.locationButton.disabled = isAnyOtherFlowActive;
         }
 
         // --- K2 Fabric Button States (migrated from K2TabComponent) ---
@@ -47,7 +49,7 @@ export class K1TabComponent {
         const isSSetMode = activeEditMode === LOGIC_CODES.MODE_SSET;
 
         const isK2ModeActive = isLFMode || isLFDMode || isSSetMode;
-        const isOtherPanelModeActive = activeEditMode !== null && !isK2ModeActive;
+        const isOtherPanelModeActive = (activeEditMode !== null && !isK2ModeActive) || driveAccessoryMode !== null || dualChainMode !== null;
 
         // LF Button
         this.lfButton.classList.toggle('active', isLFMode);

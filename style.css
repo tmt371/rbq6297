@@ -448,6 +448,18 @@ body.flow-locked .nav-item {
 }
 
 /* =========================================
+   [NEW] (Phase 14.3) Absolute UI Lockdown during Workflows
+   ========================================= */
+body.workflow-active-lockdown #left-panel-toggle,
+body.workflow-active-lockdown #function-panel-toggle,
+body.workflow-active-lockdown #numeric-keyboard-panel .panel-toggle,
+body.workflow-active-lockdown .tab-button:not(.active) {
+    pointer-events: none !important;
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+}
+
+/* =========================================
    [NEW] (Phase 3.9d) F1 Accordion Styles 
    ========================================= */
 .f1-accordion-container {

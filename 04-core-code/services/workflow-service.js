@@ -192,7 +192,16 @@ export class WorkflowService {
             this.stateService.dispatch(
                 uiActions.setCurrentView('DETAIL_CONFIG')
             );
-            this.detailConfigView.activateTab('k1-tab');
+
+            if (ui.driveAccessoryMode !== null || ui.dualChainMode !== null) {
+                this.detailConfigView.activateTab('k3-tab');
+            } else if (ui.activeEditMode === 'K2') {
+                this.detailConfigView.activateTab('k2-tab');
+            } else if (ui.activeEditMode !== null) {
+                this.detailConfigView.activateTab('k1-tab');
+            } else {
+                this.detailConfigView.activateTab(ui.activeTabId || 'k1-tab');
+            }
         } else {
             this.stateService.dispatch(uiActions.setCurrentView('QUICK_QUOTE'));
             this.stateService.dispatch(

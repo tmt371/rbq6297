@@ -375,6 +375,17 @@ export class UIManager {
     }
 
     _toggleNumericKeyboard() {
+        const state = this.stateService.getState();
+        const isWorkflowActive = !!state.ui.activeEditMode || !!state.ui.dualChainMode || !!state.ui.driveAccessoryMode;
+        if (isWorkflowActive) {
+            console.warn('Numpad Toggle blocked by active workflow');
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Finish the current workflow before toggling panels.',
+                type: 'warning'
+            });
+            return;
+        }
+
         if (this.numericKeyboardPanel) {
             this.numericKeyboardPanel.classList.toggle('is-collapsed');
         }

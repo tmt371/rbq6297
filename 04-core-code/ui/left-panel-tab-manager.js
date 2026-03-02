@@ -74,13 +74,29 @@ export class LeftPanelTabManager {
         }
     }
 
+    // [NEW] Helper to check if any workflow is active
+    _isAnyWorkflowActive() {
+        // We do not have direct access to stateService here, but since leftPanelTabManager
+        // was originally designed without it, we can query the UI directly, or better, 
+        // since `render(uiState)` receives state, we can cache the lock boolean.
+        return document.body.classList.contains('workflow-active-lockdown');
+    }
+
     // [NEW] Event handler for toggle click
-    _onToggleClick() {
+    _onToggleClick(event) {
+        if (this._isAnyWorkflowActive()) {
+            console.warn('Left Panel Toggle blocked by active workflow');
+            return;
+        }
         this.eventAggregator.publish(EVENTS.USER_NAVIGATED_TO_DETAIL_VIEW);
     }
 
     // [NEW] Event handler for tab click
     _onTabClick(event) {
+        if (this._isAnyWorkflowActive()) {
+            console.warn('Tab Switch blocked by active workflow');
+            return;
+        }
         const target = event.target.closest('.tab-button');
         if (target && !target.disabled) {
             this.eventAggregator.publish(EVENTS.USER_SWITCHED_TAB, { tabId: target.id });

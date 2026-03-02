@@ -8890,6 +8890,18 @@ body.flow-locked .nav-item {
 }
 
 /* =========================================
+   [NEW] (Phase 14.3) Absolute UI Lockdown during Workflows
+   ========================================= */
+body.workflow-active-lockdown #left-panel-toggle,
+body.workflow-active-lockdown #function-panel-toggle,
+body.workflow-active-lockdown #numeric-keyboard-panel .panel-toggle,
+body.workflow-active-lockdown .tab-button:not(.active) {
+    pointer-events: none !important;
+    opacity: 0.4 !important;
+    cursor: not-allowed !important;
+}
+
+/* =========================================
    [NEW] (Phase 3.9d) F1 Accordion Styles 
    ========================================= */
 .f1-accordion-container {
@@ -11678,17 +11690,27 @@ export class AppController {
      * [NEW] (Phase 2 PoC) ?Ä?ãÈ?Ê®ûÁ?
      * ?¥Ê†º??async/await ?ñÂ?Ê©üÂà∂ÔºåÂ?‰ª?_withUILock ??setTimeout Ê®°Â???
      * ??InputHandler Â±§Áõ¥?•Âëº?´Ô?Á¢∫‰??¥Ê? Promise ?àÂ??≠Âà∞Â∞æË¢´ await??
+     * [MODIFIED] (Phase 11.4a) Added 15s safety timeout via Promise.race to prevent permanent deadlocks.
      * @param {Function} asyncAction - Ë¶ÅÂú®?ñÂ??Ä?ã‰??∑Ë??ÑÈ??åÊ≠•?ΩÂ?
      */
     async executeWithStateLock(asyncAction) {
+        const LOCK_TIMEOUT_MS = 15000;
+        let timeoutId;
         console.log("?? [?Ä??1] Á≥ªÁµ±?ñÂ?ÔºåÁ?Â∫èÂ???);
         this._setUILock(true);
         this.stateService.dispatch(uiActions.setIsProcessing(true));
         try {
-            await asyncAction();
+            const timeoutPromise = new Promise((resolve) => {
+                timeoutId = setTimeout(() => {
+                    console.warn(`[AppController] ?†Ô? State lock timeout exceeded (${LOCK_TIMEOUT_MS}ms). Forcing unlock.`);
+                    resolve();
+                }, LOCK_TIMEOUT_MS);
+            });
+            await Promise.race([asyncAction(), timeoutPromise]);
         } catch (error) {
             console.error("??Á®ãÂ??∑Ë??ØË™§:", error);
         } finally {
+            clearTimeout(timeoutId);
             this.stateService.dispatch(uiActions.setIsProcessing(false));
             this._setUILock(false);
             console.log("?? [?Ä??0] Á®ãÂ?ÁµêÊ?ÔºåÁ≥ªÁµ±Ëß£??);
@@ -11747,8 +11769,10 @@ export class AppController {
                     !!newState.ui.driveAccessoryMode;
                 if (isFlowActive) {
                     document.body.classList.add('flow-locked');
+                    document.body.classList.add('workflow-active-lockdown'); // [NEW] (Phase 14.3) ÁµïÂ??ñÂ?
                 } else {
                     document.body.classList.remove('flow-locked');
+                    document.body.classList.remove('workflow-active-lockdown');
                 }
 
                 this.eventAggregator.publish(EVENTS.STATE_CHANGED, newState);
@@ -12190,8 +12214,9 @@ export class ConfigManager {
             'cost-3mcord': 'hdw_cord3m',
             'cost-combo-dual': 'hdw_combo_dual',
             'cost-slim-dual': 'hdw_slim_dual',
-            'cost-L-1ch-remote': 'ele_rem_1ch_linx',
-            'cost-L-16ch-remote': 'ele_rem_16ch_linx',
+            // [FIX] (Phase 11.3) Aligned key format with regex-based remote lookup path
+            'cost-remote-1ch-linx': 'ele_rem_1ch_linx',
+            'cost-remote-16ch-linx': 'ele_rem_16ch_linx',
         };
         if (costMap[accessoryKey]) {
             const acc = this.accessories.find(a => a.id === costMap[accessoryKey]);
@@ -12213,6 +12238,8 @@ export class ConfigManager {
             'ele_rem_1ch_linx': 'ele_rem_1ch_linx',
             'ele_rem_16ch_linx': 'ele_rem_16ch_linx',
             'ele_charger': 'ele_charger',
+            // [FIX] (Phase 11.3) Add missing cord mapping so calculateAccessorySalePrice resolves
+            'cord': 'hdw_cord3m',
         };
         if (priceMap[accessoryKey]) {
             const acc = this.accessories.find(a => a.id === priceMap[accessoryKey]);
@@ -12345,10 +12372,17 @@ export class EventAggregator {
             return;
         }
         if (this.events[eventName]) {
-            // [MODIFIED] Support async handlers by returning Promise.all
-            // This ensures the caller can await all subscribers.
-            const results = this.events[eventName].map(callback => callback(data));
-            await Promise.all(results);
+            // [MODIFIED] (Phase 11.2b) Isolate subscriber execution ??one failure must not break others.
+            // Wrap each callback in try-catch so a single crash doesn't kill the pipeline.
+            const results = this.events[eventName].map(callback => {
+                try {
+                    return Promise.resolve(callback(data));
+                } catch (error) {
+                    console.error(`[EventAggregator] Subscriber error on '${eventName}':`, error);
+                    return Promise.resolve();
+                }
+            });
+            await Promise.allSettled(results);
         }
     }
 }
@@ -15086,7 +15120,6 @@ export class CalculationService {
             return productStrategy[methodName](...args);
         }
 
-
         return 0;
     }
 
@@ -15240,7 +15273,6 @@ export class CalculationService {
         // Combined Motor Cost for display if needed, but we return details
         componentPrices.motor = componentPrices.b_motor + componentPrices.w_motor;
 
-
         // Remotes (Use F1 UI state quantities)
         const totalRemoteCount = ui.driveRemoteCount || 0;
         let remote1chQty = ui.f1.remote_1ch_qty || 0;
@@ -15327,78 +15359,104 @@ export class CalculationService {
         };
     }
 
-
     /**
      * Calculates all values for the F2 summary panel.
+     * [MODIFIED] (Phase 11.4b) Added strict NaN-safe input sanitization to prevent cascading $NaN.
      */
     calculateF2Summary(quoteData, uiState) {
         const currentProductKey = quoteData.currentProduct;
         const items = quoteData.products[currentProductKey].items;
         const productSummary = quoteData.products[currentProductKey].summary;
-        const totalSumFromQuickQuote = productSummary.totalSum || 0;
 
         const f2Config = this.configManager.getF2Config();
         const UNIT_PRICES = f2Config.unitPrices || {};
 
         const accessories = productSummary.accessories || {};
-        const winderPrice = accessories.winderCostSum || 0;
-        const dualPrice = accessories.dualCostSum || 0;
+
+        // --- [MODIFIED] (Phase 11.4b) Strict NaN Sanitization Block ---
+        // Force all incoming state and UI values into safe numbers to prevent NaN cascading
+        const f1State = uiState.f1 || {};
+        const f2State = uiState.f2 || {};
+
+        const totalSumFromQuickQuote = Number(productSummary.totalSum) || 0;
+        const winderPrice = Number(accessories.winderCostSum) || 0;
+        const dualPrice = Number(accessories.dualCostSum) || 0;
+
+        const wifiQty = Number(f1State.wifi_qty) || 0;
+        const deliveryQty = Number(f2State.deliveryQty) || 0;
+        const installQty = Number(f2State.installQty) || 0;
+        const removalQty = Number(f2State.removalQty) || 0;
+
+        // mulTimes needs special care: if it's somehow missing, NaN, or explicitly 0, we default to 1
+        // to prevent the entire quote from multiplying to $0 unintentionally.
+        let safeMulTimes = Number(f2State.mulTimes);
+        if (isNaN(safeMulTimes) || safeMulTimes === 0) {
+            safeMulTimes = 1;
+        }
+        const mulTimes = safeMulTimes;
+
+        const discount = Number(f2State.discount) || 0;
+        // --------------------------------------------------------------
 
         // [MODIFIED] (F1 Motor Split) Calculate Motor Sale Price dynamically here
         const totalMotorQty = items.filter(item => !!item.motor).length;
-        let wMotorQty = uiState.f1.w_motor_qty || 0;
+        let wMotorQty = Number(f1State.w_motor_qty) || 0;
         if (wMotorQty > totalMotorQty) wMotorQty = totalMotorQty;
         const bMotorQty = totalMotorQty - wMotorQty;
 
         // [MODIFIED] (Phase 3.1) ?®Â???Key ?ïÊ??•Ë©¢È¶¨È??ÆÂÉπÔºåÂ?‰ª?°¨ÂØ?$250/$200
-        const currentMotorBrandF2 = uiState.f1?.motorBrand || 'linx';
-        const bMotorSalePrice = this.configManager.getAccessoryPrice(`price-b-motor-${currentMotorBrandF2}`) || 0;
-        const wMotorSalePrice = this.configManager.getAccessoryPrice(`price-w-motor-${currentMotorBrandF2}`) || 0;
+        const currentMotorBrandF2 = f1State.motorBrand || 'linx';
+        const bMotorSalePrice = Number(this.configManager.getAccessoryPrice(`price-b-motor-${currentMotorBrandF2}`)) || 0;
+        const wMotorSalePrice = Number(this.configManager.getAccessoryPrice(`price-w-motor-${currentMotorBrandF2}`)) || 0;
         const motorPrice = (bMotorQty * bMotorSalePrice) + (wMotorQty * wMotorSalePrice);
 
         // [MODIFIED] (Phase 4.4e) Precision dictionary mapping & Charger Business Rule
         // Default brand for remote and motor remains 'linx'
-        const currentRemoteBrand = uiState.f1?.remoteBrand || 'linx';
-        const remote1Qty = uiState.f1?.remote_1ch_qty || 0;
-        const remote16Qty = uiState.f1?.remote_16ch_qty || 0;
+        const currentRemoteBrand = f1State.remoteBrand || 'linx';
+        const remote1Qty = Number(f1State.remote_1ch_qty) || 0;
+        const remote16Qty = Number(f1State.remote_16ch_qty) || 0;
 
         // Fix: Correct DB key naming order for remotes (e.g., price-remote-1ch-linx)
-        const pR1 = this.configManager.getAccessoryPrice(`price-remote-1ch-${currentRemoteBrand}`) || 0;
-        const pR16 = this.configManager.getAccessoryPrice(`price-remote-16ch-${currentRemoteBrand}`) || 0;
+        const pR1 = Number(this.configManager.getAccessoryPrice(`price-remote-1ch-${currentRemoteBrand}`)) || 0;
+        const pR16 = Number(this.configManager.getAccessoryPrice(`price-remote-16ch-${currentRemoteBrand}`)) || 0;
         const calculatedRemotePrice = (remote1Qty * pR1) + (remote16Qty * pR16);
 
         // [MODIFIED] (Phase 5.9) Charger retail price now from V2 array
-        const chargerQty = uiState.driveChargerCount || 0;
-        const pCharger = this.configManager.getAccessoryPrice('price-charger') || 50;
+        const chargerQty = Number(uiState.driveChargerCount) || 0;
+        const pCharger = Number(this.configManager.getAccessoryPrice('price-charger')) || 50;
         const calculatedChargerPrice = chargerQty * pCharger;
 
         // Cord Fallback (to cost) since no retail price is defined in DB
-        const cordQty = uiState.driveCordCount || 0;
-        const pCord = this.configManager.getAccessoryPrice('cost-3mcord') || this.configManager.getAccessoryPrice('cord3m') || 0;
+        const cordQty = Number(uiState.driveCordCount) || 0;
+        const pCord = Number(this.configManager.getAccessoryPrice('cost-3mcord')) || Number(this.configManager.getAccessoryPrice('cord3m')) || 0;
         const calculatedCordPrice = cordQty * pCord;
-
-        const f1State = uiState.f1;
-        const f2State = uiState.f2;
-
-        const wifiQty = uiState.f1.wifi_qty || 0; // [MODIFIED] (v6295) Get Wifi Qty from F1 state
-        const deliveryQty = f2State.deliveryQty || 0;
-        const installQty = f2State.installQty || 0;
-        const removalQty = f2State.removalQty || 0;
-        const mulTimes = (f2State.mulTimes === null || f2State.mulTimes === undefined) ? 1 : f2State.mulTimes;
-        const discount = f2State.discount || 0;
 
         // [MODIFIED] (Phase 4.6a) Get WiFi Sale Price from ConfigManager instead of hardcoded $300
         // Note: Fallback to $300 only if DB entry is missing
-        const wifiSalePrice = this.configManager.getAccessoryPrice('wifiHub') || 300;
+        const wifiSalePrice = Number(this.configManager.getAccessoryPrice('wifiHub')) || 300;
         const wifiSum = wifiQty * wifiSalePrice;
 
-        // [MODIFIED] Phase 8.1: Use dynamic unit prices (user-editable), fallback to f2Config defaults
-        const deliveryUnitPrice = f2State.deliveryUnitPrice ?? UNIT_PRICES.delivery ?? 100;
-        const installUnitPrice = f2State.installUnitPrice ?? UNIT_PRICES.install ?? 20;
-        const removalUnitPrice = f2State.removalUnitPrice ?? UNIT_PRICES.removal ?? 20;
-        const deliveryFee = deliveryQty * deliveryUnitPrice;
-        const installFee = installQty * installUnitPrice;
-        const removalFee = removalQty * removalUnitPrice;
+        // [MODIFIED] (Phase 12.6.3) Parse values strictly from DOM inputs to enforce correct logic
+        const getDomVal = (id, fallback) => {
+            const el = document.getElementById(id);
+            if (el && el.value !== '') {
+                const val = parseFloat(el.value);
+                return isNaN(val) ? fallback : val;
+            }
+            return fallback;
+        };
+
+        const deliveryUnitPrice = getDomVal('f2-delivery-unit', Number(f2State.deliveryUnitPrice ?? UNIT_PRICES.delivery ?? 100) || 0);
+        const installUnitPrice = getDomVal('f2-install-unit', Number(f2State.installUnitPrice ?? UNIT_PRICES.install ?? 20) || 0);
+        const removalUnitPrice = getDomVal('f2-removal-unit', Number(f2State.removalUnitPrice ?? UNIT_PRICES.removal ?? 20) || 0);
+
+        const domDeliveryQty = getDomVal('f2-b13-delivery-qty', deliveryQty);
+        const domInstallQty = getDomVal('f2-b14-install-qty', installQty);
+        const domRemovalQty = getDomVal('f2-b15-removal-qty', removalQty);
+
+        const deliveryFee = domDeliveryQty * deliveryUnitPrice;
+        const installFee = domInstallQty * installUnitPrice;
+        const removalFee = domRemovalQty * removalUnitPrice;
 
         const acceSum = winderPrice + dualPrice;
         // [MODIFIED] Use the calculated motorPrice and other accessory prices
@@ -15417,17 +15475,17 @@ export class CalculationService {
         const f2_17_pre_sum = acceSum + eAcceSum + surchargeFee;
         const sumPrice = disRbPrice + f2_17_pre_sum; // This is the new f2-b22-sumprice
 
-        // --- [MODIFIED] (F1/F2 Refactor Phase 3) ---
+        // --- [MODIFIED] (F1/F2 Refactor Phase 3 & 11.4b NaN Safe) ---
         // --- Start: Read F1 Cost Totals from State (Refactored) ---
         // Read the pre-calculated cost totals directly from the UI state.
-        const f1SubTotal = uiState.f1.f1_subTotal || 0;
-        const f1_final_total = uiState.f1.f1_finalTotal || 0;
+        const f1SubTotal = Number(f1State.f1_subTotal) || 0;
+        const f1_final_total = Number(f1State.f1_finalTotal) || 0;
         // --- End: Read F1 Cost Totals from State ---
 
         // [MODIFIED] (F1/F2 Refactor Phase 3) We must still calculate f1_rb_price
         // because it is used for the "RB Profit" calculation.
-        const f1DiscountPercentage = f1State.discountPercentage || 0;
-        const retailTotalFromF1 = quoteData.products.rollerBlind.summary.totalSum || 0;
+        const f1DiscountPercentage = Number(f1State.discountPercentage) || 0;
+        const retailTotalFromF1 = Number(quoteData.products?.rollerBlind?.summary?.totalSum) || 0;
         const f1_rb_price = retailTotalFromF1 * (1 - (f1DiscountPercentage / 100));
         // --- End of modification ---
 
@@ -15440,7 +15498,7 @@ export class CalculationService {
         const old_gst = sumPrice * 1.1; // Old `gst` (GST-inclusive total) for getQuoteTemplateData
 
         // [MODIFIED] (Phase 2) New calculations based on `newOffer`
-        const newOffer = (f2State.newOffer !== null && f2State.newOffer !== undefined) ? f2State.newOffer : sumPrice;
+        const newOffer = (f2State.newOffer !== null && f2State.newOffer !== undefined) ? Number(f2State.newOffer) || sumPrice : sumPrice;
 
         // [MODIFIED] (Phase 11) Calculate *both* potential and actual GST
         const potential_gst = newOffer * 0.1; // The value to display
@@ -15479,7 +15537,7 @@ export class CalculationService {
             // --- New values (for Phase 2+) ---
             f2_17_pre_sum: f2_17_pre_sum,
             newOffer: newOffer,
-            new_gst: potential_gst, // [MODIFIED] Always return the potential_gst for display
+            new_gst: actual_gst, // [MODIFIED] Return actual_gst to display $0.00 when excluded
             grandTotal: grandTotal,
             netProfit: netProfit, // (new value for f2-b25)
 
@@ -16714,8 +16772,19 @@ export class FileService {
     exportToCsv(quoteData) {
         try {
             const csvString = dataToCsv(quoteData);
-            // [MODIFIED] ?¬≥√©? quoteData √§¬ª¬•√ß?ù¬?≈∏√¶?ì¬∞√¶¬™‚Äù√?
-            const fileName = this._generateFileName(quoteData, 'csv');
+            // [MODIFIED] Phase 13.3: Strict fallback logic for CSV filename
+            const customer = quoteData.customer || {};
+            let displayName = customer.firstName || customer.name || customer.lastName || "customer";
+            // Sanitize name to avoid invalid filename characters
+            displayName = displayName.replace(/[^a-zA-Z0-9_-]/g, '');
+
+            // Fallback 2: Add phone if it exists, otherwise empty string
+            let displayPhone = customer.phone ? `_${customer.phone.replace(/[^0-9+]/g, '')}` : "";
+
+            const quoteId = quoteData.quoteId || "Draft";
+
+            // Final filename assembly
+            const fileName = `${quoteId}_${displayName}${displayPhone}.csv`;
             this._triggerDownload(csvString, fileName, 'text/csv;charset=utf-8;');
             return { success: true, message: 'CSV file is being downloaded...' };
         } catch (error) {
@@ -17416,8 +17485,9 @@ export class QuoteGeneratorService {
             this.workOrderRowTemplate
         );
 
-        // [MODIFIED] Pass 'true' for isWorkOrder to use Cost Prices
-        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, quoteData, true);
+        // [MODIFIED] (Phase 11.5) Ensure we strictly fetch the absolute latest state to avoid stale names/dates.
+        const latestQuoteData = this.calculationService.stateService.getState().quoteData;
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, latestQuoteData, true);
 
         const populatedData = {
             ...templateData,
@@ -17757,11 +17827,11 @@ export class QuotePersistenceService {
         }
         // --- [END NEW] ---
 
-        const result = this.fileService.saveToJson(dataToSave);
-        const notificationType = result.success ? 'info' : 'error';
+        // [MODIFIED] Phase 13.3: Remove local JSON download. Only save to cloud.
+        // const result = this.fileService.saveToJson(dataToSave);
         this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-            message: result.message,
-            type: notificationType,
+            message: `Quote ${dataToSave.quoteId || 'Draft'} successfully saved and overwritten in Cloud.`,
+            type: 'info',
         });
     }
 
@@ -17914,7 +17984,8 @@ export class QuotePersistenceService {
             }
         }
 
-        const localSaveResult = this.fileService.saveToJson(dataToSave);
+        // [MODIFIED] Phase 13.3: Remove local JSON download
+        // const localSaveResult = this.fileService.saveToJson(dataToSave);
 
         // 5. Dispatch to update the app's state to this new version
         this.stateService.dispatch(quoteActions.setQuoteData(dataToSave));
@@ -17922,16 +17993,16 @@ export class QuotePersistenceService {
         // 6. Notify user
         let message;
         if (skipCloudSave) {
-            message = `Saved LOCALLY as: ${newQuoteId} (Cloud Offline)`;
+            message = `Cloud Offline. Cannot save new version ${newQuoteId}.`;
         } else {
             message = cloudSaveSuccess
-                ? `New version saved as: ${newQuoteId}`
-                : `New version saved locally. Cloud save failed.`;
+                ? `Saved as new version: ${newQuoteId}`
+                : `Cloud save failed for new version: ${newQuoteId}.`;
         }
 
         this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
             message: message,
-            type: localSaveResult.success ? 'info' : 'error',
+            type: cloudSaveSuccess && !skipCloudSave ? 'info' : 'error',
         });
     }
 
@@ -18078,11 +18149,13 @@ export class StateService {
     }
 
     /**
-     * Returns the current state.
-     * @returns {object} The current application state.
+     * Returns a deep clone of the current state.
+     * [MODIFIED] (Phase 11.2a) Returns structuredClone to prevent direct mutation of the SSOT.
+     * All state changes MUST go through dispatch().
+     * @returns {object} A deep clone of the current application state.
      */
     getState() {
-        return this._state;
+        return structuredClone(this._state);
     }
 
     /**
@@ -18296,7 +18369,16 @@ export class WorkflowService {
             this.stateService.dispatch(
                 uiActions.setCurrentView('DETAIL_CONFIG')
             );
-            this.detailConfigView.activateTab('k1-tab');
+
+            if (ui.driveAccessoryMode !== null || ui.dualChainMode !== null) {
+                this.detailConfigView.activateTab('k3-tab');
+            } else if (ui.activeEditMode === 'K2') {
+                this.detailConfigView.activateTab('k2-tab');
+            } else if (ui.activeEditMode !== null) {
+                this.detailConfigView.activateTab('k1-tab');
+            } else {
+                this.detailConfigView.activateTab(ui.activeTabId || 'k1-tab');
+            }
         } else {
             this.stateService.dispatch(uiActions.setCurrentView('QUICK_QUOTE'));
             this.stateService.dispatch(
@@ -19949,13 +20031,29 @@ export class LeftPanelTabManager {
         }
     }
 
+    // [NEW] Helper to check if any workflow is active
+    _isAnyWorkflowActive() {
+        // We do not have direct access to stateService here, but since leftPanelTabManager
+        // was originally designed without it, we can query the UI directly, or better, 
+        // since `render(uiState)` receives state, we can cache the lock boolean.
+        return document.body.classList.contains('workflow-active-lockdown');
+    }
+
     // [NEW] Event handler for toggle click
-    _onToggleClick() {
+    _onToggleClick(event) {
+        if (this._isAnyWorkflowActive()) {
+            console.warn('Left Panel Toggle blocked by active workflow');
+            return;
+        }
         this.eventAggregator.publish(EVENTS.USER_NAVIGATED_TO_DETAIL_VIEW);
     }
 
     // [NEW] Event handler for tab click
     _onTabClick(event) {
+        if (this._isAnyWorkflowActive()) {
+            console.warn('Tab Switch blocked by active workflow');
+            return;
+        }
         const target = event.target.closest('.tab-button');
         if (target && !target.disabled) {
             this.eventAggregator.publish(EVENTS.USER_SWITCHED_TAB, { tabId: target.id });
@@ -21274,6 +21372,17 @@ export class UIManager {
     }
 
     _toggleNumericKeyboard() {
+        const state = this.stateService.getState();
+        const isWorkflowActive = !!state.ui.activeEditMode || !!state.ui.dualChainMode || !!state.ui.driveAccessoryMode;
+        if (isWorkflowActive) {
+            console.warn('Numpad Toggle blocked by active workflow');
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Finish the current workflow before toggling panels.',
+                type: 'warning'
+            });
+            return;
+        }
+
         if (this.numericKeyboardPanel) {
             this.numericKeyboardPanel.classList.toggle('is-collapsed');
         }
@@ -21803,10 +21912,12 @@ export class UIManager {
 .f2-summary-grid {
     display: grid;
     /* Columns: A(label) B(value/input) C(value) */
-    grid-template-columns: 1fr 1fr 1fr;
-    gap: 4px 10px;
+    grid-template-columns: auto 1fr 1fr;
+    gap: 4px 6px;
     /* Vertical and horizontal gap */
     align-items: center;
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 /* [REMOVED] (v6297 F2 Style Tweak 4) Removed all broad, brittle selectors */
@@ -21884,9 +21995,11 @@ export class UIManager {
 .f2-subgrid-erb {
     display: grid;
     /* [MODIFIED] (v6297 F2 Layout Fix) Adjust column ratios for better spacing */
-    grid-template-columns: 0.8fr 1.2fr 0.8fr 1.2fr;
-    gap: 4px 10px;
+    grid-template-columns: auto 1fr auto 1fr;
+    gap: 4px 6px;
     /* ‰øùÊ??á‰∏ªÁ∂≤Ê†º?∏Â??ÑÈ?Ë∑?*/
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 /* [REMOVED] (v6297 F2 Style Tweak 4) This rule is no longer needed, */
@@ -21920,14 +22033,15 @@ export class UIManager {
 .f2-group-summary {
     display: grid;
     grid-template-columns: subgrid;
-    /* Inherit the 3-column layout */
-    gap: 4px 10px;
+    /* Inherit the layout */
+    gap: 4px 6px;
     /* Inherit the gap */
 
-    padding: 10px;
+    padding: 5px;
     border-radius: 4px;
     margin-top: 6px;
-    /* This plus 4px gap = 10px spacing */
+    box-sizing: border-box;
+    max-width: 100%;
 }
 
 /* Make headers inside groups have no top margin */
@@ -22071,6 +22185,85 @@ export class UIManager {
 
 .grid-cell-input[type=number] {
     -moz-appearance: textfield;
+}
+
+/* --- [NEW] Phase 12.2: F2 Accordion Color Coding --- */
+.f2-accordion-group {
+    border-radius: 4px;
+    margin-bottom: 8px;
+    border: 2px solid transparent;
+    padding-top: 1px !important;
+    /* Phase 12.2.2: Aggressively squash group top padding */
+}
+
+#f2-accessories-group {
+    border-color: #FFD700;
+    background-color: #e8f5e9;
+}
+
+#f2-erb-group {
+    border-color: #FF00FF;
+    background-color: #e8f5e9;
+}
+
+#f2-fee-group {
+    border-color: #00FF00;
+    background-color: #e8f5e9;
+}
+
+#f2-roller-summary-group {
+    border-color: #0000FF;
+    background-color: #e3f2fd;
+}
+
+#f2-selling-price-group {
+    border-color: #800080;
+    background-color: #e3f2fd;
+}
+
+/* Ensure inner grids don't obscure accordion background colors and reduce top spacing */
+.f2-accordion-content .f2-group-costs,
+.f2-accordion-content .f2-group-summary {
+    background-color: transparent !important;
+    border: none !important;
+    padding-top: 1px !important;
+    /* Phase 12.2.2: Reduce top spacing even more */
+}
+
+/* Phase 12.2.1 & 12.2.2: Ensure header sits flush and minimal padding */
+.f2-accordion-header {
+    margin-top: 0 !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+    height: 36px !important;
+    /* Phase 12.2.3: Consistent Header Heights */
+    display: flex !important;
+    /* Phase 12.2.3: Keep items aligned */
+    align-items: center !important;
+    /* Phase 12.2.3: Vertical center */
+}
+
+/* Phase 12.2.2: Squeeze text element margins to zero to eliminate hidden browser defaults */
+.f2-accordion-header span {
+    margin: 0 !important;
+    line-height: 1.2;
+}
+
+/* Phase 12.2.1: Elastic Min-Width for Header Amounts */
+.f2-accordion-header .section-header-total {
+    min-width: 65px;
+    display: flex;
+    /* Flex ensures consistent inner alignment */
+    align-items: center;
+    justify-content: flex-end;
+}
+
+/* Phase 12.2.1: Toggle Arrow Color & Spacing */
+.f2-accordion-header .toggle-icon {
+    color: #007bff;
+    margin-left: 8px;
+    display: flex;
+    align-items: center;
 }
 </file>
 
@@ -22989,6 +23182,194 @@ export class UIManager {
     background-color: #f3f4f6;
     opacity: 0.7;
     cursor: not-allowed;
+}
+
+/* F2 Selling Price Grid & UI Updates */
+.f2-accordion-group .f2-accordion-content {
+    padding: 10px 8px !important;
+}
+
+.price-grid {
+    display: grid !important;
+    grid-template-columns: auto 10px auto 1fr !important;
+    gap: 6px 6px !important;
+    align-items: center !important;
+    font-size: 12px !important;
+}
+
+.label-pill {
+    background-color: #cfd8dc !important;
+    padding: 4px 6px !important;
+    border-radius: 4px !important;
+    text-align: right !important;
+    font-weight: bold !important;
+    color: #333 !important;
+    white-space: nowrap !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    min-height: 22px !important;
+    box-sizing: border-box !important;
+    font-size: 12px !important;
+}
+
+.f2-accordion-header .label-pill {
+    font-size: 14px !important;
+    padding: 4px 8px !important;
+}
+
+.label-center {
+    justify-content: center !important;
+    text-align: center !important;
+}
+
+.val-box {
+    padding: 4px 6px !important;
+    border-radius: 2px !important;
+    text-align: right !important;
+    min-width: 0 !important;
+    border: 1px solid #ccc !important;
+    box-sizing: border-box !important;
+    width: 100% !important;
+    min-height: 22px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    font-size: 12px !important;
+    font-family: inherit !important;
+}
+
+input.val-box {
+    display: block !important;
+    height: 22px !important;
+}
+
+.val-green {
+    background-color: #e8f5e9 !important;
+    border-color: #81c784 !important;
+    color: #333 !important;
+    outline: none !important;
+}
+
+.val-pink {
+    background-color: #ffebee !important;
+    border-color: #ffcdd2 !important;
+    color: #c62828 !important;
+    font-weight: bold !important;
+    outline: none !important;
+}
+
+.val-blue {
+    background-color: #e1f5fe !important;
+    border-color: #81d4fa !important;
+    color: #333 !important;
+}
+
+.val-beige {
+    background-color: #fff3e0 !important;
+    border-color: #ffb74d !important;
+    color: #333 !important;
+    font-weight: bold !important;
+}
+
+.divider-pink {
+    grid-column: 1 / -1 !important;
+    height: 2px !important;
+    background-color: #ffcdd2 !important;
+    margin: 6px 0 !important;
+    border-radius: 1px !important;
+    width: 100% !important;
+}
+
+.strikethrough-active {
+    text-decoration: line-through !important;
+    opacity: 0.6 !important;
+}
+
+/* F4 Panel Overhaul - Accordion & Card Button Styles */
+.f4-accordion-group {
+    border: 2px solid #6f42c1 !important;
+    border-radius: 4px !important;
+    background-color: #ffffff !important;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    overflow: hidden !important;
+    margin-bottom: 8px !important;
+}
+
+.f4-accordion-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    background-color: #e3f2fd !important;
+    padding: 8px 12px !important;
+    font-weight: bold !important;
+    font-size: 14px !important;
+    color: #333 !important;
+    cursor: pointer !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1) !important;
+    user-select: none !important;
+}
+
+.f4-accordion-header:hover {
+    background-color: #d0e8f9 !important;
+}
+
+.f4-toggle-icon {
+    color: #007bff !important;
+    font-size: 12px !important;
+    transition: transform 0.2s !important;
+}
+
+.f4-accordion-group.collapsed .f4-toggle-icon {
+    transform: rotate(180deg) !important;
+}
+
+.f4-accordion-group.collapsed .f4-accordion-content {
+    display: none !important;
+}
+
+.f4-accordion-content {
+    padding: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+
+/* F4 Info Card Buttons */
+.f4-card-btn {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 10px 12px !important;
+    border: 1px solid #ced4da !important;
+    background-color: #f8f9fa !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+    transition: background-color 0.2s !important;
+    text-align: left !important;
+}
+
+.f4-card-btn:hover {
+    background-color: #e9ecef !important;
+    border-color: #adb5bd !important;
+}
+
+.f4-card-btn .main-txt {
+    font-size: 14px !important;
+    font-weight: bold !important;
+    color: #007bff !important;
+}
+
+.f4-card-btn .main-txt.text-dark {
+    color: #343a40 !important;
+}
+
+.f4-card-btn .sub-txt {
+    font-size: 11px !important;
+    color: #6c757d !important;
+    font-weight: normal !important;
 }
 </file>
 
@@ -26453,126 +26834,205 @@ document.addEventListener('DOMContentLoaded', function () {
     </div>
     <div id="f2-content" class="tab-content">
 
-        <div class="f2-summary-grid">
-
-            <div class="f2-group-costs grid-span-3">
-                <div class="section-header">Accessories</div>
-                <div class="grid-cell-value section-header-total" id="f2-b4-acce-sum">$0</div>
-
-                <div class="grid-cell-label">Winder</div>
-                <div class="grid-cell-value" id="f2-b2-winder-price">$0</div>
-                <div></div>
-
-                <div class="grid-cell-label">Dual</div>
-
-                <div class="grid-cell-value" id="f2-b3-dual-price">$0</div>
-                <div></div>
-
-                <div class="section-header">E RB</div>
-                <div class="grid-cell-value section-header-total" id="f2-b11-e-acce-sum">$0</div>
-
-                <div class="f2-subgrid-erb grid-span-3">
-                    <div class="grid-cell-label">Motor</div>
-                    <div class="grid-cell-value" id="f2-b6-motor-price">$0</div>
-                    <div class="grid-cell-label">Remote</div>
-                    <div class="grid-cell-value" id="f2-b7-remote-price">$0</div>
-
-                    <div class="grid-cell-label">Charger</div>
-                    <div class="grid-cell-value" id="f2-b8-charger-price">$0</div>
-                    <div class="grid-cell-label">Ext Cord</div>
-                    <div class="grid-cell-value" id="f2-b9-cord-price">$0</div>
-
-                    <div class="grid-cell-label">WIFI $300</div>
-                    <div class="grid-cell-value" id="f2-b10-wifi-qty">$0</div>
+        <!-- Section 1: Accessories -->
+        <div class="f2-accordion-group" id="f2-accessories-group">
+            <div class="section-header f2-accordion-header"
+                style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>Accessories</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="grid-cell-value section-header-total" id="f2-b4-acce-sum"
+                        style="margin: 0; padding-top: 2px; padding-bottom: 2px; min-height: auto;">$0</span>
+                    <span class="toggle-icon">??/span>
                 </div>
+            </div>
+            <div class="f2-accordion-content">
+                <div class="f2-summary-grid">
+                    <div class="f2-group-costs grid-span-3">
+                        <div class="grid-cell-label">Winder</div>
+                        <div class="grid-cell-value" id="f2-b2-winder-price">$0</div>
+                        <div></div>
 
-                <div class="section-header">Fee</div>
-                <div class="grid-cell-value section-header-total" id="f2-b16-surcharge-fee">$0</div>
+                        <div class="grid-cell-label">Dual</div>
 
-                <!-- [MODIFIED] Phase 8.3b: Horizontal spacing matching Roller Summary -->
-                <div class="f2-fee-subgrid grid-span-3"
-                    style="display:grid; grid-template-columns: minmax(55px,1fr) 22% 18% 25%; column-gap:8px; row-gap:2px; align-items:center; width:100%; box-sizing:border-box;">
-                    <div class="grid-cell-label" style="font-size:11px;">Delivery</div>
-                    <input type="number" class="grid-cell-input f2-unit-price" id="f2-delivery-unit" placeholder="$"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <input type="number" class="grid-cell-input" id="f2-b13-delivery-qty" placeholder="QTY"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <div class="grid-cell-value" id="f2-c13-delivery-fee" style="text-align:right; padding-right:2px;">
-                        $0</div>
-
-                    <div class="grid-cell-label" style="font-size:11px;">Install</div>
-                    <input type="number" class="grid-cell-input f2-unit-price" id="f2-install-unit" placeholder="$"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <input type="number" class="grid-cell-input" id="f2-b14-install-qty" placeholder="QTY"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <div class="grid-cell-value" id="f2-c14-install-fee" style="text-align:right; padding-right:2px;">$0
-                    </div>
-
-                    <div class="grid-cell-label" style="font-size:11px;">Removal</div>
-                    <input type="number" class="grid-cell-input f2-unit-price" id="f2-removal-unit" placeholder="$"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <input type="number" class="grid-cell-input" id="f2-b15-removal-qty" placeholder="QTY"
-                        onfocus="this.select();"
-                        style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
-                    <div class="grid-cell-value" id="f2-c15-removal-fee" style="text-align:right; padding-right:2px;">$0
+                        <div class="grid-cell-value" id="f2-b3-dual-price">$0</div>
+                        <div></div>
                     </div>
                 </div>
             </div>
-            <div class="f2-group-summary grid-span-3">
-                <div class="section-header" style="grid-column: 1 / -1;">Roller Summary</div>
+        </div>
 
-                <div class="grid-cell-value" id="f2-a17-total-sum"></div>
-                <input type="number" class="grid-cell-input" id="f2-b17-mul-times" placeholder="mul-times" step="0.01">
-                <div class="grid-cell-value" id="f2-c17-1st-rb-price"></div>
-
-                <div class="grid-cell-label">Disc. %</div>
-
-                <input type="number" class="grid-cell-input" id="f2-b18-discount" placeholder="discount" min="0"
-                    max="99">
-                <div class="grid-cell-value" id="f2-b19-dis-rb-price"></div>
-
-                <div class="grid-cell-label">S profit</div>
-                <div class="grid-cell-value" id="f2-b20-singleprofit"></div>
-                <div class="grid-cell-value" id="f2-17-pre-sum"></div>
-
-                <div class="grid-cell-label">RB Profit</div>
-                <div class="grid-cell-value" id="f2-b21-rb-profit"></div>
-
-                <div></div>
-
-                <div class="section-header">Selling Price</div>
-                <div class="grid-cell-value section-header-total" id="f2-b22-sumprice"></div>
-
-                <div class="section-header">Our Offer</div>
-                <input type="number" class="grid-cell-input" id="new-offer" value="0.00" onfocus="this.select();">
-
-                <div></div>
-
-                <div class="grid-cell-label" id="f2-label-gst" style="justify-content: flex-end; padding-right: 10px;">
-                    GST
+        <!-- Section 2: E-RB -->
+        <div class="f2-accordion-group" id="f2-erb-group">
+            <div class="section-header f2-accordion-header"
+                style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>E RB</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="grid-cell-value section-header-total" id="f2-b11-e-acce-sum"
+                        style="margin: 0; padding-top: 2px; padding-bottom: 2px; min-height: auto;">$0</span>
+                    <span class="toggle-icon">??/span>
                 </div>
-                <div class="grid-cell-value" id="f2-b24-gst"></div>
+            </div>
+            <div class="f2-accordion-content">
+                <div class="f2-summary-grid">
+                    <div class="f2-group-costs grid-span-3">
+                        <div class="f2-subgrid-erb grid-span-3">
+                            <div class="grid-cell-label">Motor</div>
+                            <div class="grid-cell-value" id="f2-b6-motor-price">$0</div>
+                            <div class="grid-cell-label">Remote</div>
+                            <div class="grid-cell-value" id="f2-b7-remote-price">$0</div>
 
-                <div class="section-header text-red">Total</div>
-                <div class="grid-cell-value section-header-total" id="grand-total">$0.00</div>
+                            <div class="grid-cell-label">Charger</div>
+                            <div class="grid-cell-value" id="f2-b8-charger-price">$0</div>
+                            <div class="grid-cell-label">Ext Cord</div>
+                            <div class="grid-cell-value" id="f2-b9-cord-price">$0</div>
 
-                <div class="grid-cell-label">NET Profit</div>
-                <div class="grid-cell-value" id="f2-b25-netprofit"></div>
+                            <div class="grid-cell-label">WIFI $300</div>
+                            <div class="grid-cell-value" id="f2-b10-wifi-qty">$0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                <div></div>
+        <!-- Section 3: Fee -->
+        <div class="f2-accordion-group" id="f2-fee-group">
+            <div class="section-header f2-accordion-header"
+                style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>Fee</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="grid-cell-value section-header-total" id="f2-b16-surcharge-fee"
+                        style="margin: 0; padding-top: 2px; padding-bottom: 2px; min-height: auto;">$0</span>
+                    <span class="toggle-icon">??/span>
+                </div>
+            </div>
+            <div class="f2-accordion-content">
+                <div class="f2-summary-grid">
+                    <div class="f2-group-costs grid-span-3">
+                        <!-- [MODIFIED] Phase 8.3b: Horizontal spacing matching Roller Summary -->
+                        <div class="f2-fee-subgrid grid-span-3"
+                            style="display:grid; grid-template-columns: minmax(55px,1fr) 22% 18% 25%; column-gap:8px; row-gap:2px; align-items:center; width:100%; box-sizing:border-box;">
+                            <div class="grid-cell-label" style="font-size:11px;">Delivery</div>
+                            <input type="number" class="grid-cell-input f2-unit-price" id="f2-delivery-unit"
+                                placeholder="$" onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <input type="number" class="grid-cell-input" id="f2-b13-delivery-qty" placeholder="QTY"
+                                onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <div class="grid-cell-value" id="f2-c13-delivery-fee"
+                                style="text-align:right; padding-right:2px;">
+                                $0</div>
 
-                <div class="grid-cell-placeholder"></div>
-                <div class="grid-cell-label text-right">Deposit</div>
-                <input type="number" class="grid-cell-input bg-light-green" id="f2-deposit" onfocus="this.select();">
+                            <div class="grid-cell-label" style="font-size:11px;">Install</div>
+                            <input type="number" class="grid-cell-input f2-unit-price" id="f2-install-unit"
+                                placeholder="$" onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <input type="number" class="grid-cell-input" id="f2-b14-install-qty" placeholder="QTY"
+                                onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <div class="grid-cell-value" id="f2-c14-install-fee"
+                                style="text-align:right; padding-right:2px;">$0
+                            </div>
 
-                <div class="grid-cell-placeholder"></div>
-                <div class="grid-cell-label text-right">Balance</div>
-                <input type="number" class="grid-cell-input bg-light-orange" id="f2-balance" readonly>
+                            <div class="grid-cell-label" style="font-size:11px;">Removal</div>
+                            <input type="number" class="grid-cell-input f2-unit-price" id="f2-removal-unit"
+                                placeholder="$" onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <input type="number" class="grid-cell-input" id="f2-b15-removal-qty" placeholder="QTY"
+                                onfocus="this.select();"
+                                style="max-width:100%; box-sizing:border-box; padding:2px 5px; font-size:12px; text-align:center;">
+                            <div class="grid-cell-value" id="f2-c15-removal-fee"
+                                style="text-align:right; padding-right:2px;">$0
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 4: Roller Summary -->
+        <div class="f2-accordion-group" id="f2-roller-summary-group">
+            <div class="section-header f2-accordion-header"
+                style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span>Roller Summary</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="grid-cell-value section-header-total" id="f2-roller-summary-header-amount"
+                        style="margin: 0; padding-top: 2px; padding-bottom: 2px; min-height: auto;">$0.00</span>
+                    <span class="toggle-icon">??/span>
+                </div>
+            </div>
+            <div class="f2-accordion-content">
+                <div class="f2-summary-grid">
+                    <div class="f2-group-summary grid-span-3">
+                        <div class="grid-cell-value" id="f2-a17-total-sum"></div>
+                        <input type="number" class="grid-cell-input" id="f2-b17-mul-times" placeholder="mul-times"
+                            step="0.01">
+                        <div class="grid-cell-value" id="f2-c17-1st-rb-price"></div>
+
+                        <div class="grid-cell-label">Disc. %</div>
+
+                        <input type="number" class="grid-cell-input" id="f2-b18-discount" placeholder="discount" min="0"
+                            max="99">
+                        <div class="grid-cell-value" id="f2-b19-dis-rb-price"></div>
+
+                        <div class="grid-cell-label">S profit</div>
+                        <div class="grid-cell-value" id="f2-b20-singleprofit"></div>
+                        <div class="grid-cell-value" id="f2-17-pre-sum"
+                            style="visibility: hidden !important; pointer-events: none !important;"></div>
+
+                        <div class="grid-cell-label">RB Profit</div>
+                        <div class="grid-cell-value" id="f2-b21-rb-profit"></div>
+
+                        <div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 5: Selling Price -->
+        <div class="f2-accordion-group" id="f2-selling-price-group">
+            <div class="section-header f2-accordion-header"
+                style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
+                <span class="label-pill">Selling Price</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="f2-selling-price-header-amount" class="val-box val-pink"
+                        style="display: inline-flex !important; width: auto !important; min-width: 65px !important; margin-right: 4px !important;">$0.00</span>
+                    <span class="toggle-icon">??/span>
+                </div>
+            </div>
+            <div class="f2-accordion-content">
+                <div class="price-grid">
+                    <div></div>
+                    <div></div>
+                    <div class="label-pill">SubTotal</div>
+                    <div id="f2-val-stotal" class="val-box val-green">$0.00</div>
+
+                    <div></div>
+                    <div></div>
+                    <div class="label-pill">Our Offer</div>
+                    <input type="text" id="new-offer" class="val-box val-pink" value="0">
+
+                    <div class="label-pill label-center">Rate</div>
+                    <div></div>
+                    <div id="f2-label-gst" class="label-pill" style="cursor: pointer;" title="Toggle GST">GST</div>
+                    <div id="f2-b24-gst" class="val-box val-blue">$0.00</div>
+
+                    <div id="f2-val-rate" class="val-box val-beige label-center">0.0%</div>
+                    <div></div>
+                    <div class="label-pill">Total</div>
+                    <div id="grand-total" class="val-box val-pink">$0.00</div>
+
+                    <div class="divider-pink"></div>
+
+                    <div class="label-pill label-center">NET Profit</div>
+                    <div></div>
+                    <div class="label-pill">Deposit</div>
+                    <input type="text" id="f2-deposit" class="val-box val-green" value="0">
+
+                    <div id="f2-b25-netprofit" class="val-box val-beige label-center">$0.00</div>
+                    <div></div>
+                    <div class="label-pill">Balance</div>
+                    <div id="f2-balance" class="val-box val-blue">$0.00</div>
+                </div>
             </div>
         </div>
     </div>
@@ -26658,55 +27118,110 @@ document.addEventListener('DOMContentLoaded', function () {
 
         <div class="f4-layout-container">
 
-            <div class="f4-group-save">
-                <button id="f1-key-save" class="f4-button btn-green">Save</button>
-                <button id="f4-key-save-as-new" class="f4-button btn-green">Save as</button>
-
-                <button id="f1-key-export" class="f4-button btn-green">Export</button>
-                <div class="f4-blank-cell"></div>
-            </div>
-
-            <div class="f4-separator"></div>
-
-            <div class="f4-group-load">
-                <button id="f1-key-load" class="f4-button btn-orange">Load</button>
-                <button id="f4-key-search-dialog" class="f4-button btn-orange">Search</button>
-            </div>
-
-            <div class="f4-separator"></div>
-
-            <div class="f4-separator"></div>
-
-            <div class="f4-group-actions">
-                <button id="f4-key-logout" class="f4-button btn-pink">Logout</button>
-                <button id="f4-key-relogin" class="f4-button btn-pink">Re-Login</button>
-
-                <div class="f4-blank-cell"></div>
-                <button id="f1-key-reset" class="f4-button btn-red">Reset</button>
-            </div>
-
-
-            <div class="f4-separator"></div>
-
-            <div class="f4-group-tools">
-                <button id="f4-key-generate-work-order" class="f4-button">Gen-Order</button>
-                <button id="f4-key-generate-xls" class="f4-button btn-green">Gen-Xls</button>
-
-                <button id="f4-btn-cancel-correct" class="f4-button btn-danger f4-span-2">Cancel / Correct</button>
-
-                <div id="f4-correction-controls" class="f4-correction-controls is-hidden">
-                    <button id="f4-btn-correction-set" class="f4-button btn-blue">SET</button>
-                    <button id="f4-btn-correction-exit" class="f4-button btn-gray">Exit</button>
+            <div class="f4-accordion-group">
+                <div class="f4-accordion-header" onclick="toggleF4Accordion(this)">
+                    <span>File</span>
+                    <span class="f4-toggle-icon">??/span>
                 </div>
-
-                <select id="f4-status-dropdown" class="f4-status-select"></select>
-                <button id="f4-status-update-btn" class="f4-button f4-status-button">&#x23CE;</button>
+                <div class="f4-accordion-content">
+                    <button id="f1-key-save" class="f4-card-btn">
+                        <span class="main-txt">?íæ Save</span>
+                        <span class="sub-txt">Overwrite current</span>
+                    </button>
+                    <button id="f4-key-save-as-new" class="f4-card-btn">
+                        <span class="main-txt">?? Save as</span>
+                        <span class="sub-txt">Create new version</span>
+                    </button>
+                    <button id="f1-key-export" class="f4-card-btn" style="border-color: #ddd;">
+                        <span class="main-txt text-dark">‚¨áÔ? Export</span>
+                        <span class="sub-txt">Download CSV</span>
+                    </button>
+                </div>
             </div>
 
-            <!-- [MODIFIED] Phase 6.4: Admin Panel Entry ??repositioned below correction controls -->
-            <div class="f4-group" style="margin-top: 15px; text-align: center;">
-                <button id="f4-btn-admin-entry" class="f4-button"
-                    style="width: 50%; max-width: 200px; margin: 0 auto; display: block; border: 2px solid #90ee90; background: #fff; color: #333; font-weight: 700; border-radius: 6px; padding: 10px 0;">Admin</button>
+            <div class="f4-accordion-group">
+                <div class="f4-accordion-header" onclick="toggleF4Accordion(this)">
+                    <span>Search</span>
+                    <span class="f4-toggle-icon">??/span>
+                </div>
+                <div class="f4-accordion-content">
+                    <button id="f1-key-load" class="f4-card-btn">
+                        <span class="main-txt text-dark">?? Load File</span>
+                        <span class="sub-txt">Open local quote</span>
+                    </button>
+                    <button id="f4-key-search-dialog" class="f4-card-btn">
+                        <span class="main-txt text-dark">?? Search</span>
+                        <span class="sub-txt">Find by ID / Name</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="f4-separator"></div>
+
+            <div class="f4-accordion-group">
+                <div class="f4-accordion-header" onclick="toggleF4Accordion(this)">
+                    <span>Order</span>
+                    <span class="f4-toggle-icon">??/span>
+                </div>
+                <div class="f4-accordion-content">
+                    <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <button id="f4-key-generate-work-order" class="btn btn-outline"
+                            style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; cursor: pointer; background: #fff;">Gen-Order</button>
+                        <button id="f4-key-generate-xls" class="btn btn-light-green"
+                            style="padding: 10px; border: 1px solid #c8e6c9; border-radius: 4px; font-weight: bold; cursor: pointer; background: #e8f5e9; color: #2e7d32;">Gen-Xls</button>
+                    </div>
+                    <button id="f4-btn-cancel-correct" class="btn btn-red-solid"
+                        style="width: 100%; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; background: #c62828; color: #fff; margin-top: 8px;">Cancel
+                        / Correct</button>
+
+                    <div id="f4-correction-controls" class="f4-correction-controls is-hidden"
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                        <button id="f4-btn-correction-set" class="btn btn-blue"
+                            style="padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; background: #007bff; color: #fff;">SET</button>
+                        <button id="f4-btn-correction-exit" class="btn btn-gray"
+                            style="padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; background: #6c757d; color: #fff;">Exit</button>
+                    </div>
+
+                    <div class="grid-status"
+                        style="display: grid; grid-template-columns: 3fr 1fr; gap: 8px; margin-top: 8px;">
+                        <select id="f4-status-dropdown" class="status-select"
+                            style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px; background: #fff;">
+                            <option value="A. Saved">A. Saved</option>
+                            <option value="B. Quoted">B. Quoted</option>
+                            <option value="C. Ordered">C. Ordered</option>
+                        </select>
+                        <button id="f4-status-update-btn" class="btn btn-outline"
+                            style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer;">??/button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="f4-accordion-group collapsed">
+                <div class="f4-accordion-header" onclick="toggleF4Accordion(this)">
+                    <span>Login</span>
+                    <span class="f4-toggle-icon">??/span>
+                </div>
+                <div class="f4-accordion-content">
+                    <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                        <button id="f4-key-logout" class="btn btn-light-red"
+                            style="padding: 10px; border: 1px solid #ffcdd2; border-radius: 4px; font-weight: bold; cursor: pointer; background: #ffebee; color: #c62828;">Logout</button>
+                        <button id="f4-key-relogin" class="btn btn-light-red"
+                            style="padding: 10px; border: 1px solid #ffcdd2; border-radius: 4px; font-weight: bold; cursor: pointer; background: #ffebee; color: #c62828;">Re-Login</button>
+                    </div>
+                    <button id="f1-key-reset" class="btn btn-red-solid"
+                        style="width: 100%; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; background: #c62828; color: #fff; margin-top: 8px;">Reset</button>
+                </div>
+            </div>
+
+            <div class="f4-accordion-group">
+                <div class="f4-accordion-header" onclick="toggleF4Accordion(this)">
+                    <span>Admin</span>
+                    <span class="f4-toggle-icon">??/span>
+                </div>
+                <div class="f4-accordion-content" style="align-items: center;">
+                    <button id="f4-btn-admin-entry" class="btn btn-outline"
+                        style="width: 120px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; cursor: pointer; background: #fff; margin: 0 auto; display: block;">Admin</button>
+                </div>
             </div>
 
         </div>
@@ -27714,7 +28229,7 @@ export class K1TabComponent {
     }
 
     render(uiState) {
-        const { activeEditMode, locationInputValue } = uiState;
+        const { activeEditMode, locationInputValue, driveAccessoryMode, dualChainMode } = uiState;
 
         // --- K1 Location Input State ---
         if (this.locationInput) {
@@ -27728,6 +28243,8 @@ export class K1TabComponent {
 
         if (this.locationButton) {
             this.locationButton.classList.toggle('active', activeEditMode === 'K1');
+            const isAnyOtherFlowActive = (activeEditMode !== null && activeEditMode !== 'K1') || driveAccessoryMode !== null || dualChainMode !== null;
+            this.locationButton.disabled = isAnyOtherFlowActive;
         }
 
         // --- K2 Fabric Button States (migrated from K2TabComponent) ---
@@ -27738,7 +28255,7 @@ export class K1TabComponent {
         const isSSetMode = activeEditMode === LOGIC_CODES.MODE_SSET;
 
         const isK2ModeActive = isLFMode || isLFDMode || isSSetMode;
-        const isOtherPanelModeActive = activeEditMode !== null && !isK2ModeActive;
+        const isOtherPanelModeActive = (activeEditMode !== null && !isK2ModeActive) || driveAccessoryMode !== null || dualChainMode !== null;
 
         // LF Button
         this.lfButton.classList.toggle('active', isLFMode);
@@ -29960,6 +30477,7 @@ export class F2SummaryView {
             b15_removalQty: query('f2-b15-removal-qty'),
             c15_removalFee: query('f2-c15-removal-fee'),
             b16_surchargeFee: query('f2-b16-surcharge-fee'),
+            rollerSummaryHeaderAmount: query('f2-roller-summary-header-amount'),
 
             // [NEW] Phase 8.1: Unit price inputs
             deliveryUnit: query('f2-delivery-unit'),
@@ -29974,14 +30492,16 @@ export class F2SummaryView {
             b20_singleprofit: query('f2-b20-singleprofit'),
             f2_17_pre_sum: query('f2-17-pre-sum'), // [MODIFIED]
             b21_rbProfit: query('f2-b21-rb-profit'),
-
             b22_sumprice: query('f2-b22-sumprice'),
             // [REMOVED] b23_sumprofit: query('f2-b23-sumprofit'),
+            val_stotal: query('f2-val-stotal'), // [NEW] phase 12.6
             new_offer: query('new-offer'), // [MODIFIED]
+            val_rate: query('f2-val-rate'), // [NEW] phase 12.6
             label_gst: query('f2-label-gst'), // [NEW] (Phase 2)
             b24_gst: query('f2-b24-gst'),
             grand_total: query('grand-total'), // [MODIFIED]
 
+            sellingPriceHeaderAmount: query('f2-selling-price-header-amount'), // [NEW] phase 12.6
             b25_netprofit: query('f2-b25-netprofit'),
 
             // [NEW] v6290 Deposit/Balance
@@ -30040,6 +30560,51 @@ export class F2SummaryView {
             // [MODIFIED] (v6298-fix-5) Use helper
             this._addListener(this.f2.label_gst, 'click', this.handleToggleGstExclusion);
         }
+
+        // [NEW] (Phase 12.6.2) Add real-time input listener for deposit
+        if (this.f2.deposit) {
+            this._addListener(this.f2.deposit, 'input', (event) => {
+                this.handleF2ValueChange({ id: event.target.id, value: event.target.value });
+            });
+        }
+    }
+
+    // --- [NEW] Phase 12.3.1: Robust Accordion Initialization ---
+    _initF2Accordions() {
+        if (this._f2AccordionsInitialized) return;
+        this._f2AccordionsInitialized = true;
+
+        const accordionHeaders = this.panelElement.querySelectorAll('.f2-accordion-header');
+        accordionHeaders.forEach(header => {
+            this._addListener(header, 'click', (e) => {
+                const content = header.nextElementSibling;
+                const icon = header.querySelector('.toggle-icon');
+                if (content && content.classList.contains('f2-accordion-content')) {
+                    const isCollapsed = content.style.display === 'none';
+                    content.style.display = isCollapsed ? 'block' : 'none';
+                    if (icon) {
+                        icon.textContent = isCollapsed ? '?? : '??;
+                    }
+                }
+            });
+        });
+
+        // Enforce default UI state ONLY ONCE upon first initialization
+        const setAccordionState = (groupId, isExpanded) => {
+            const group = this.panelElement.querySelector(`#${groupId}`);
+            if (group) {
+                const content = group.querySelector('.f2-accordion-content');
+                const icon = group.querySelector('.toggle-icon');
+                if (content) content.style.display = isExpanded ? 'block' : 'none';
+                if (icon) icon.textContent = isExpanded ? '?? : '??;
+            }
+        };
+
+        setAccordionState('f2-accessories-group', false); // Collapsed
+        setAccordionState('f2-erb-group', false);         // Collapsed
+        setAccordionState('f2-fee-group', true);          // Expanded
+        setAccordionState('f2-roller-summary-group', true);     // Expanded
+        setAccordionState('f2-selling-price-group', true);      // Expanded
     }
 
     render(state) {
@@ -30108,15 +30673,23 @@ export class F2SummaryView {
         if (this.f2.a17_totalSum) this.f2.a17_totalSum.textContent = formatValue(f2State.totalSumForRbTime);
         if (this.f2.c17_1stRbPrice) this.f2.c17_1stRbPrice.textContent = formatDecimalCurrency(f2State.firstRbPrice);
         if (this.f2.b19_disRbPrice) this.f2.b19_disRbPrice.textContent = formatDecimalCurrency(f2State.disRbPrice);
+        if (this.f2.rollerSummaryHeaderAmount) this.f2.rollerSummaryHeaderAmount.textContent = formatDecimalCurrency(f2State.disRbPrice);
         if (this.f2.b20_singleprofit) this.f2.b20_singleprofit.textContent = formatDecimalCurrency(f2State.singleprofit);
         if (this.f2.b21_rbProfit) this.f2.b21_rbProfit.textContent = formatDecimalCurrency(f2State.rbProfit);
 
         // [MODIFIED] (Phase 8) Use the correct state keys defined in initial-state.js
         if (this.f2.b22_sumprice) this.f2.b22_sumprice.textContent = formatDecimalCurrency(f2State.sumPrice);
+        if (this.f2.val_stotal) this.f2.val_stotal.textContent = formatDecimalCurrency(f2State.sumPrice);
         if (this.f2.f2_17_pre_sum) this.f2.f2_17_pre_sum.textContent = formatDecimalCurrency(f2State.f2_17_pre_sum);
         if (this.f2.b24_gst) this.f2.b24_gst.textContent = formatDecimalCurrency(f2State.gst);
         if (this.f2.grand_total) this.f2.grand_total.textContent = formatDecimalCurrency(f2State.grandTotal);
+        if (this.f2.sellingPriceHeaderAmount) this.f2.sellingPriceHeaderAmount.textContent = formatDecimalCurrency(f2State.grandTotal);
         if (this.f2.b25_netprofit) this.f2.b25_netprofit.textContent = formatDecimalCurrency(f2State.netProfit);
+
+        const newOfferValue = (f2State.newOffer !== null && f2State.newOffer !== undefined) ? f2State.newOffer : f2State.sumPrice;
+
+        const rate = f2State.sumPrice > 0 ? (newOfferValue / f2State.sumPrice) * 100 : 0;
+        if (this.f2.val_rate) this.f2.val_rate.textContent = rate.toFixed(1) + '%';
 
         // --- Render Inputs ---
         // [REMOVED] (v6295) Wifi input is no longer rendered
@@ -30144,17 +30717,21 @@ export class F2SummaryView {
             this.f2.deposit.value = formatValue(f2State.deposit);
         }
         // Balance is read-only, so no need to check activeElement
-        // [MODIFIED] Tweak 1: ‰ΩøÁî® toFixed(2) Á¢∫√?È°ØÁ§∫?√§?Â∞èÊï∏
-        if (this.f2.balance) this.f2.balance.value = (f2State.balance !== null && f2State.balance !== undefined) ? f2State.balance.toFixed(2) : '';
+        // [MODIFIED] (Phase 12.6.2) Balance rendering to textContent with $
+        if (this.f2.balance) this.f2.balance.textContent = (f2State.balance !== null && f2State.balance !== undefined) ? '$' + f2State.balance.toFixed(2) : '$0.00';
 
 
         if (this.f2.c13_deliveryFee) this.f2.c13_deliveryFee.classList.toggle('is-excluded', f2State.deliveryFeeExcluded);
         if (this.f2.c14_installFee) this.f2.c14_installFee.classList.toggle('is-excluded', f2State.installFeeExcluded);
         if (this.f2.c15_removalFee) this.f2.c15_removalFee.classList.toggle('is-excluded', f2State.removalFeeExcluded);
 
-        // [NEW] (Phase 2) Toggle GST exclusion styles
-        if (this.f2.label_gst) this.f2.label_gst.classList.toggle('is-excluded', f2State.gstExcluded);
-        if (this.f2.b24_gst) this.f2.b24_gst.classList.toggle('is-excluded', f2State.gstExcluded);
+        // [NEW] (Phase 2 & 12.6.1) Toggle GST strikethrough styles
+        if (this.f2.label_gst) this.f2.label_gst.classList.toggle('strikethrough-active', f2State.gstExcluded);
+        if (this.f2.b24_gst) this.f2.b24_gst.classList.toggle('strikethrough-active', f2State.gstExcluded);
+
+        // --- [NEW] Phase 12.3.1: Mount Accordions Safely ---
+        this._initF2Accordions();
+
     }
 
     activate() {
@@ -30228,7 +30805,16 @@ export class F2SummaryView {
         const currentIndex = this.f2InputSequence.indexOf(currentId);
         if (currentIndex > -1 && currentIndex < this.f2InputSequence.length - 1) {
             const nextElementId = this.f2InputSequence[currentIndex + 1];
-            this.eventAggregator.publish(EVENTS.FOCUS_ELEMENT, { elementId: nextElementId });
+            const nextElement = document.getElementById(nextElementId);
+            if (nextElement) {
+                nextElement.focus();
+                if (typeof nextElement.select === 'function') {
+                    nextElement.select();
+                }
+            }
+            if (this.eventAggregator && this.eventAggregator.publish) {
+                this.eventAggregator.publish(EVENTS.FOCUS_ELEMENT, { elementId: nextElementId });
+            }
         } else {
             const currentElement = document.getElementById(currentId);
             currentElement?.blur();
@@ -30285,14 +30871,16 @@ export class F2SummaryView {
         // [NEW] v6290 Calculate and dispatch Deposit and Balance
         const currentGrandTotal = summaryValues.grandTotal || 0;
         const previousGrandTotalInState = ui.f2.grandTotal;
-        const grandTotalChanged = currentGrandTotal !== previousGrandTotalInState;
+        // [FIX] (Phase 11.3) Also trigger recalc on first load (prev=0, current>0)
+        const grandTotalChanged = currentGrandTotal !== previousGrandTotalInState
+            || (previousGrandTotalInState === 0 && currentGrandTotal > 0);
 
-        const autoDeposit = Math.ceil(Math.ceil(currentGrandTotal / 2) / 10) * 10;
+        const autoDeposit = Math.ceil((currentGrandTotal / 2) / 10) * 10;
         const currentDepositInState = ui.f2.deposit;
 
         let finalDeposit;
         if (grandTotalChanged) {
-            // Rule 3C: grandTotal changed, force recalculation
+            // Rule 3C: grandTotal changed (or first real calculation), force recalculation
             finalDeposit = autoDeposit;
         } else {
             // grandTotal did not change. Keep user's value if it exists, otherwise use auto-calc.
@@ -31076,6 +31664,12 @@ export class F4ActionsView {
         });
     }
 }
+
+window.toggleF4Accordion = function (headerElement) {
+    if (headerElement && headerElement.parentElement) {
+        headerElement.parentElement.classList.toggle('collapsed');
+    }
+};
 
 </file>
 

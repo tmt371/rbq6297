@@ -192,8 +192,10 @@ export class AppController {
                     !!newState.ui.driveAccessoryMode;
                 if (isFlowActive) {
                     document.body.classList.add('flow-locked');
+                    document.body.classList.add('workflow-active-lockdown'); // [NEW] (Phase 14.3) 絕對鎖定
                 } else {
                     document.body.classList.remove('flow-locked');
+                    document.body.classList.remove('workflow-active-lockdown');
                 }
 
                 this.eventAggregator.publish(EVENTS.STATE_CHANGED, newState);
