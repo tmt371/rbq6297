@@ -75,8 +75,8 @@ export const initialState = {
             discountPercentage: 0,
             remote_1ch_qty: 0,
             remote_16ch_qty: 0,
-            dual_combo_qty: 0,
-            dual_slim_qty: 0,
+            dual_combo_qty: null,
+            dual_slim_qty: null,
             // [NEW] (F1 Motor Split) W-Motor (Wired) Quantity
             w_motor_qty: 0,
 
@@ -97,7 +97,7 @@ export const initialState = {
         f2: {
             // [MODIFIED] (Phase 10.4) Calibrated defaults for golden workflow
             wifiQty: 0, deliveryQty: 1, installQty: null, removalQty: 0,
-            mulTimes: 1.5, discount: 10, wifiSum: 0, deliveryFee: 0,
+            mulTimes: 1.5, discount: 10, wifiSum: 0, deliveryFee: 100,
             installFee: 0, removalFee: 0, deliveryFeeExcluded: false,
             installFeeExcluded: false, removalFeeExcluded: false, acceSum: 0,
             eAcceSum: 0, surchargeFee: 0, totalSumForRbTime: 0,
@@ -107,6 +107,7 @@ export const initialState = {
             // [v6290] Add Deposit and Balance
             deposit: 0,
             balance: 0,
+            isDepositManuallyEdited: false,
 
             newOffer: null,
 
@@ -130,7 +131,10 @@ export const initialState = {
             // [NEW] Phase 8.1: Dynamic fee unit prices (null = use ConfigManager defaults)
             deliveryUnitPrice: null,
             installUnitPrice: null,
-            removalUnitPrice: null
+            removalUnitPrice: null,
+            
+            // [NEW] (Phase G) Subtotal Anchor for Smart Quote Linking
+            lastSyncedSubtotal: null
         },
 
         // --- Global UI State ---
@@ -189,9 +193,12 @@ export const initialState = {
         quoteId: null,
         issueDate: null,
         dueDate: null,
+        generalNotes: "",
+        // [DIRECTIVE-v3.37] Updated to 4-point Australian commercial standard terms.
+        termsConditions: "1. To confirm your custom order, a 50% non-refundable deposit is required. The balance is payable on or before the installation date.\\n2. As all products are tailor-made for your space, we are unable to accept cancellations or offer refunds for a change of mind.\\n3. Ownership of the goods will transfer to you upon full payment of the invoice.\\n4. For any overdue payments, detailed terms regarding debt recovery procedures and associated costs can be found at: https://about:blank",
         ownerUid: null, // [NEW] (v6297) Add field to store the owner's UID
         // [MODIFIED] (F4 Status Phase 1) Use constant for default status
-        status: QUOTE_STATUS.A_ARCHIVED,
+        status: QUOTE_STATUS.A_SAVED,
         costDiscountPercentage: 0,
         customer: {
             name: "",

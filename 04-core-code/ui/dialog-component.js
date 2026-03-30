@@ -122,9 +122,17 @@ export class DialogComponent {
                     }
 
                     button.addEventListener('click', () => {
+                        // [NEW] (Phase 15.3) Gather all input values in the dialog to pass to the callback
+                        const inputValues = {};
+                        this.contentGridContainer.querySelectorAll('input').forEach(input => {
+                            if (input.id) {
+                                inputValues[input.id] = input.value;
+                            }
+                        });
+
                         let shouldHide = true;
                         if (cellConfig.callback && typeof cellConfig.callback === 'function') {
-                            const callbackResult = cellConfig.callback();
+                            const callbackResult = cellConfig.callback(inputValues);
                             if (callbackResult === false) {
                                 shouldHide = false;
                             }
@@ -164,6 +172,12 @@ export class DialogComponent {
                             }
                         });
                     }
+
+                    // [NEW] (Phase 15.3) Handle autofocus purely in the UI component
+                    if (cellConfig.autofocus) {
+                        setTimeout(() => input.focus(), 50);
+                    }
+
                     cell.appendChild(input);
 
                 } else if (cellConfig.type === 'text') {

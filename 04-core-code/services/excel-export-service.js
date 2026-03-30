@@ -78,7 +78,22 @@ export class ExcelExportService {
             header: 0.3, footer: 0.3
         };
 
-        // --- 1. Define Columns (A~P) ---
+        // --- 1. Prepend Header Rows ---
+        const titleRow = sheet.addRow(['Work Order']);
+        titleRow.font = { size: 16, bold: true };
+        sheet.mergeCells('A1:P1');
+        titleRow.getCell(1).alignment = { horizontal: 'center' };
+
+        const quoteRow = sheet.addRow(['Quote No: ' + (quoteData.quoteId || '')]);
+        quoteRow.font = { bold: true };
+        sheet.mergeCells('A2:P2');
+
+        const customerName = quoteData.customerFullName || (quoteData.customer && quoteData.customer.name) || '';
+        const customerRow = sheet.addRow(['Customer: ' + customerName]);
+        customerRow.font = { bold: true };
+        sheet.mergeCells('A3:P3');
+
+        // --- 2. Define Columns (A~P) ---
         const columns = [
             'NO', '#', 'TYPE', 'F-Name', 'F-Color', 'Width', 'Height',
             'Over', 'O/I', 'L/R', 'Dual', 'Chain', 'Winder', 'Motor',
@@ -164,7 +179,7 @@ export class ExcelExportService {
             });
         });
 
-        // --- 4. Side Panel Generation (Columns Q, R, S) ---
+        // --- 4. Side Panel Generation (Columns Q, R, S, T) ---
         const qtys = f1Costs.qtys || {};
 
         // Acce Sum
@@ -181,7 +196,7 @@ export class ExcelExportService {
             (f1Costs.wifiCost || 0);
 
         // RB Price Logic
-        const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
+        const retailTotal = quoteData.products?.rollerBlind?.summary?.totalSum || 0;
         const discount = (ui && ui.f1) ? (ui.f1.discountPercentage || 0) : 0;
         const rbPriceDiscounted = retailTotal * (1 - (discount / 100));
 
@@ -189,103 +204,107 @@ export class ExcelExportService {
         const gst = subTotal * 0.1;
         const total = subTotal + gst;
 
-        // Define Side Panel Data Rows
+        // Group accessories
+        const accessoriesList = [
+            { label: 'B-motor', spec: '', qty: qtys.b_motor || 0, value: f1Costs.bMotorCost || 0 },
+            { label: 'W-motor', spec: '', qty: qtys.w_motor || 0, value: f1Costs.wMotorCost || 0 },
+            { label: 'Remote (1CH)', spec: '', qty: qtys.remote1ch || 0, value: f1Costs.remote1chCost || 0 },
+            { label: 'Remote (16CH)', spec: '', qty: qtys.remote16ch || 0, value: f1Costs.remote16chCost || 0 },
+            { label: 'Charger', spec: '', qty: qtys.charger || 0, value: f1Costs.chargerCost || 0 },
+            { label: '3M Cord', spec: '', qty: qtys.cord || 0, value: f1Costs.cordCost || 0 },
+            { label: 'WiFi Hub', spec: '', qty: qtys.wifi || 0, value: f1Costs.wifiCost || 0 },
+            { label: 'HD Winder', spec: '', qty: qtys.winder || 0, value: f1Costs.winderCost || 0 },
+            { label: 'Dual combo', spec: '', qty: qtys.combo || 0, value: f1Costs.dualComboCost || 0 },
+            { label: 'Dual slim', spec: '', qty: qtys.slim || 0, value: f1Costs.slimCost || 0 },
+            { label: 'Bracket', spec: '', qty: qtys.bracket || 0, value: f1Costs.bracketCost || 0 }
+        ];
+
         const sidePanelRows = [
-            // Block A: Mechanical
-            { label: 'HD Winder', qty: qtys.winder || 0, value: f1Costs.winderCost || 0 },
-            { label: 'Dual Combo', qty: qtys.combo || 0, value: f1Costs.dualComboCost || 0 },
-            { label: 'Dual Slim', qty: qtys.slim || 0, value: f1Costs.slimCost || 0 },
-            { label: 'Acce Sum', qty: '', value: acceSum, isBold: true, bg: 'FFEFEFEF' },
+            ...accessoriesList,
+            { label: '', spec: '', qty: '', value: '' }, // Spacer
 
-            { label: '', qty: '', value: '' }, // Spacer
-
-            // Block B: Motorization
-            { label: 'B-Motor', qty: qtys.b_motor || 0, value: f1Costs.bMotorCost || 0 },
-            { label: 'W-Motor', qty: qtys.w_motor || 0, value: f1Costs.wMotorCost || 0 },
-            { label: 'Remote 1Ch', qty: qtys.remote1ch || 0, value: f1Costs.remote1chCost || 0 },
-            { label: 'Remote 16Ch', qty: qtys.remote16ch || 0, value: f1Costs.remote16chCost || 0 },
-            { label: 'Charger', qty: qtys.charger || 0, value: f1Costs.chargerCost || 0 },
-            { label: '3M Cord', qty: qtys.cord || 0, value: f1Costs.cordCost || 0 },
-            { label: 'Wifi Hub', qty: qtys.wifi || 0, value: f1Costs.wifiCost || 0 },
-            { label: 'E-Acce Sum', qty: '', value: eAcceSum, isBold: true, bg: 'FFEFEFEF' },
-
-            { label: '', qty: '', value: '' }, // Spacer
-
-            // Block C: Roller Blind
-            { label: 'RB Retail', qty: '', value: retailTotal },
-            { label: 'Discount %', qty: `${discount}%`, value: '' },
-            { label: 'RB Price', qty: '', value: rbPriceDiscounted, isBold: true, bg: 'FFEFEFEF' },
-
-            { label: '', qty: '', value: '' }, // Spacer
-
-            // Block D: Final Summary
-            { label: 'SubTotal', qty: '', value: subTotal },
-            { label: 'GST', qty: '10%', value: gst },
-            { label: 'TOTAL', qty: '', value: total, isBold: true, bg: 'FFFFE0E0', color: 'FFDC143C' }
+            // Financial Summary
+            { label: 'RB', spec: '', qty: '', value: rbPriceDiscounted },
+            { label: 'Acce.', spec: '', qty: '', value: acceSum },
+            { label: 'E-item', spec: '', qty: '', value: eAcceSum },
+            { label: 'Total', spec: '', qty: '', value: total, isBold: true, bg: 'FFFFE0E0', color: 'FFDC143C' }
         ];
 
         // Render Side Panel
-        const startRow = 2;
-        const labelCol = 17; // Q
-        const colQ = 18; // R
-        const colR = 19; // S
+        const startRow = 5; // Start below the 3 new header rows and table header
+        const colQ = 17; // Item
+        const colR = 18; // Brand / Spec
+        const colS = 19; // Qty
+        const colT = 20; // Price / Amount
 
-        sheet.getColumn(labelCol).width = 18;
-        sheet.getColumn(colQ).width = 10;
-        sheet.getColumn(colR).width = 15;
+        sheet.getColumn(colQ).width = 15;
+        sheet.getColumn(colR).width = 18;
+        sheet.getColumn(colS).width = 8;
+        sheet.getColumn(colT).width = 12;
 
-        const headerP = sheet.getCell(1, labelCol);
-        headerP.value = 'Item';
-        headerP.font = { bold: true };
-        headerP.border = { bottom: { style: 'thin' } };
-
-        const headerQ = sheet.getCell(1, colQ);
-        headerQ.value = 'Qty';
+        const headerQ = sheet.getCell(4, colQ);
+        headerQ.value = 'Item';
         headerQ.font = { bold: true };
-        headerQ.alignment = { horizontal: 'center' };
         headerQ.border = { bottom: { style: 'thin' } };
 
-        const headerR = sheet.getCell(1, colR);
-        headerR.value = 'Amount';
+        const headerR = sheet.getCell(4, colR);
+        headerR.value = 'Brand / Spec';
         headerR.font = { bold: true };
-        headerR.alignment = { horizontal: 'right' };
         headerR.border = { bottom: { style: 'thin' } };
+
+        const headerS = sheet.getCell(4, colS);
+        headerS.value = 'Qty';
+        headerS.font = { bold: true };
+        headerS.alignment = { horizontal: 'center' };
+        headerS.border = { bottom: { style: 'thin' } };
+
+        const headerT = sheet.getCell(4, colT);
+        headerT.value = 'Price';
+        headerT.font = { bold: true };
+        headerT.alignment = { horizontal: 'right' };
+        headerT.border = { bottom: { style: 'thin' } };
 
         sidePanelRows.forEach((data, index) => {
             const currentRow = startRow + index;
             const row = sheet.getRow(currentRow);
 
-            // Cell P: Label
-            const cellP = row.getCell(labelCol);
-            cellP.value = data.label;
-            cellP.border = { left: { style: 'thin' } };
-            if (data.isBold) cellP.font = { bold: true };
-
-            // Cell Q: Quantity
+            // Cell Q: Item
             const cellQ = row.getCell(colQ);
-            cellQ.value = data.qty;
-            cellQ.alignment = { horizontal: 'center' };
+            cellQ.value = data.label;
+            cellQ.border = { left: { style: 'thin' } };
             if (data.isBold) cellQ.font = { bold: true };
 
-            // Cell R: Amount
+            // Cell R: Brand / Spec
             const cellR = row.getCell(colR);
-            cellR.value = (data.value !== '' && data.value !== null) ? data.value : '';
+            cellR.value = data.spec;
+
+            // Cell S: Qty
+            const cellS = row.getCell(colS);
+            cellS.value = data.qty;
+            cellS.alignment = { horizontal: 'center' };
+            if (data.isBold) cellS.font = { bold: true };
+
+            // Cell T: Amount
+            const cellT = row.getCell(colT);
+            cellT.value = (data.value !== '' && data.value !== null) ? data.value : '';
             if (typeof data.value === 'number') {
-                cellR.numFmt = '$#,##0.00';
+                cellT.numFmt = '$#,##0.00';
             }
-            cellR.border = { right: { style: 'thin' } };
-            if (data.isBold) cellR.font = { bold: true };
-            if (data.color) cellR.font = { bold: true, color: { argb: data.color } };
+            cellT.border = { right: { style: 'thin' } };
+            if (data.isBold) cellT.font = { bold: true };
+            if (data.color) cellT.font = { bold: true, color: { argb: data.color } };
 
             if (data.bg) {
                 const fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: data.bg } };
-                cellP.fill = fill;
                 cellQ.fill = fill;
                 cellR.fill = fill;
+                cellS.fill = fill;
+                cellT.fill = fill;
                 const borderStyle = { style: 'thin' };
-                cellP.border = { top: borderStyle, bottom: borderStyle, left: { style: 'thin' } };
-                cellQ.border = { top: borderStyle, bottom: borderStyle };
-                cellR.border = { top: borderStyle, bottom: borderStyle, right: { style: 'thin' } };
+                cellQ.border = { top: borderStyle, bottom: borderStyle, left: { style: 'thin' } };
+                cellR.border = { top: borderStyle, bottom: borderStyle };
+                cellS.border = { top: borderStyle, bottom: borderStyle };
+                cellT.border = { top: borderStyle, bottom: borderStyle, right: { style: 'thin' } };
             }
         });
     }

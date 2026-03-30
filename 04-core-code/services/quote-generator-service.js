@@ -1,9 +1,4 @@
 /* FILE: 04-core-code/services/quote-generator-service.js */
-// [MODIFIED] (???╨╛??4) Refactored: GTH logic moved to GthQuoteStrategy.
-// [FIX] (v6299 Phase 5 Fix) Update generateWorkOrderHtml to pass raw quoteData to strategy.
-// [FIX] (v6299 Phase 7 Fix) Reverted CSS injection; CSS is now embedded in the HTML template.
-// [MODIFIED] (Stage 9 Final Fix) Pass isWorkOrder flag to getQuoteTemplateData to distinguish Cost vs Sales price.
-
 import { paths } from '../config/paths.js';
 import { populateTemplate, formatCustomerInfo } from '../utils/template-utils.js';
 
@@ -125,7 +120,7 @@ export class QuoteGeneratorService {
         const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data, false);
 
         let gstRowHtml = '';
-        if (!templateData.uiState.f2.gstExcluded) {
+        if (templateData.isGstActive) {
             gstRowHtml = `
                  <tr>
                      <td class="summary-label"
@@ -133,7 +128,7 @@ export class QuoteGeneratorService {
                          GST</td>
                      <td class="summary-value"
                          style="padding: 8px 0; border: 1px solid #dddddd; font-size: 13.3px; text-align: right; font-weight: 500; padding-right: 10px;">
-                         ${templateData.gst}</td>
+                         $${Number(templateData.uiGst).toFixed(2)}</td>
                  </tr>
             `;
         }
@@ -162,7 +157,7 @@ export class QuoteGeneratorService {
         return finalHtml;
     }
 
-    async generateQuoteHtml(quoteData, ui, f3Data) {
+    async generateQuoteHtml(quoteData, ui, f3Data, documentType = 'Quotation', receiptData = null, liveLedger = null) {
         await this._loadTemplates();
 
         if (!this.quoteTemplate || !this.detailsTemplate || !this.quoteClientScript || !this.originalQuoteStrategy) {
@@ -170,15 +165,16 @@ export class QuoteGeneratorService {
             return null;
         }
 
-        // [MODIFIED] Pass 'false' (default) for isWorkOrder to use Sales Prices
-        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data, false);
+        // [PHASE I.1] Implementation: All financial data is now sourced from templateData.uiState.f2
+        // which represents the UI "Source of Truth".
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, f3Data, false, documentType, receiptData, liveLedger);
 
         let gstRowHtml = '';
-        if (!templateData.uiState.f2.gstExcluded) {
+        if (templateData.isGstActive) {
             gstRowHtml = `
                  <tr> 
                     <td class="summary-label">GST (10%)</td> 
-                    <td class="summary-value">${templateData.gst}</td>
+                    <td class="summary-value">$${Number(templateData.uiGst).toFixed(2)}</td>
                  </tr>
             `;
         }
@@ -192,7 +188,8 @@ export class QuoteGeneratorService {
             ),
             rollerBlindsTableRows: this.originalQuoteStrategy.generateDetailsPageHtml(
                 templateData,
-                this.detailedItemListRow
+                this.detailedItemListRow,
+                documentType
             ),
             gstRowHtml: gstRowHtml
         };
@@ -221,6 +218,113 @@ export class QuoteGeneratorService {
             '</body>',
             `<script>${this.quoteClientScript}</script></body>`
         );
+
+        // --- [NEW] Agent 1 & 2 Blueprint: Strict DOM Mutation ---
+        try {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(finalHtml, 'text/html');
+
+            const h2Title = doc.querySelector('.quotation-meta h2');
+            if (h2Title) {
+                // [DIRECTIVE-v3.47] Strict Header Enforcement: No "Smart" overrides
+                if (documentType === 'Tax Invoice' || documentType === 'Invoice') {
+                    h2Title.innerText = 'INVOICE';
+                } else if (documentType === 'Receipt') {
+                    h2Title.innerText = 'RECEIPT';
+                } else if (documentType === 'Overdue Invoice' || documentType === 'Statement') {
+                    h2Title.innerText = 'STATEMENT';
+                } else {
+                    h2Title.innerText = (documentType || 'QUOTATION').toUpperCase();
+                }
+            }
+
+            // --- [v3.39] Due Date Calculation (D+3 for Statements) ---
+            if (documentType === 'Overdue Invoice' || documentType === 'Overdue' || documentType === 'Statement') {
+                const dueDateEl = doc.querySelector('.due-date-value') || doc.querySelector('[data-field="dueDate"]');
+                const issueDateStr = f3Data?.issueDate || new Date().toISOString().split('T')[0];
+                if (issueDateStr) {
+                    const parts = issueDateStr.split('-');
+                    const issueDateObj = (parts.length === 3) 
+                        ? new Date(Number(parts[0]), Number(parts[1])-1, Number(parts[2]), 12, 0, 0)
+                        : new Date(issueDateStr);
+                    
+                    issueDateObj.setDate(issueDateObj.getDate() + 3);
+                    const dd = String(issueDateObj.getDate()).padStart(2, '0');
+                    const mm = String(issueDateObj.getMonth() + 1).padStart(2, '0');
+                    const yyyy = issueDateObj.getFullYear();
+                    const dueDateFormatted = `Due Date: ${dd}/${mm}/${yyyy}`;
+                    if (dueDateEl) dueDateEl.textContent = dueDateFormatted;
+                }
+            }
+
+            // --- [PHASE I.6] Summary Table Architecture: Pure Sourced Rendering ---
+            const summaryTable = doc.querySelector('.summary-details');
+            if (summaryTable) {
+                const trs = Array.from(summaryTable.querySelectorAll('tr'));
+                
+                // Helper to setup row styling
+                const applyRowStyle = (tr) => {
+                    const label = tr.querySelector('.summary-label');
+                    const value = tr.querySelector('.summary-value');
+                    if (label) label.style.fontSize = '14px';
+                    if (value) value.style.fontSize = '14px';
+                    
+                    if (documentType.includes('Overdue') || documentType.includes('Statement')) {
+                        const text = label?.innerText || '';
+                        if (text.includes('Balance')) {
+                            tr.style.color = '#d32f2f';
+                            if (label) { label.style.color = '#d32f2f'; label.style.fontWeight = 'bold'; }
+                            if (value) { value.style.color = '#d32f2f'; value.style.fontWeight = 'bold'; }
+                        }
+                    }
+                };
+
+                trs.forEach(tr => {
+                    const labelCell = tr.querySelector('.summary-label');
+                    const valueCell = tr.querySelector('.summary-value');
+                    if (!labelCell || !valueCell) return;
+
+                    const labelText = labelCell.innerText.trim();
+
+                    // NO MATH IN GENERATOR - Strict string mapping from CalculationService
+                    if (labelText.includes('Subtotal')) {
+                        valueCell.innerText = `$${Number(templateData.uiSubtotal).toFixed(2)}`;
+                    } else if (labelText.includes('Our Offer')) {
+                        valueCell.innerText = `$${Number(templateData.uiOurOffer).toFixed(2)}`;
+                    } else if (labelText.includes('GST')) {
+                        if (templateData.isGstActive) {
+                            valueCell.innerText = `$${Number(templateData.uiGst).toFixed(2)}`;
+                        } else {
+                            tr.remove(); // Remove active row if GST inactive
+                        }
+                    } else if (labelText.includes('Total')) {
+                        valueCell.innerText = `$${Number(templateData.uiTotal).toFixed(2)}`;
+                    } else if (labelText.includes('Deposit')) {
+                        if (templateData.hasPayments) {
+                            labelCell.innerText = 'Deposit paid';
+                            valueCell.innerText = `$${templateData.uiTotalPaid}`;
+                        } else {
+                            labelCell.innerText = 'Deposit';
+                            valueCell.innerText = `$${Number(templateData.uiInitialDeposit).toFixed(2)}`;
+                        }
+                    } else if (labelText.includes('Balance')) {
+                        if (templateData.hasPayments) {
+                            labelCell.innerText = 'Balance Due';
+                            valueCell.innerText = `$${templateData.uiDynamicBalance}`;
+                        } else {
+                            labelCell.innerText = 'Balance';
+                            valueCell.innerText = `$${templateData.uiBalance}`;
+                        }
+                    }
+
+                    applyRowStyle(tr);
+                });
+            }
+
+            finalHtml = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+        } catch (err) {
+            console.error('Error during PDF DOM mutation:', err);
+        }
 
         return finalHtml;
     }

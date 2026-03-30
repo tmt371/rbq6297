@@ -31,6 +31,24 @@ export class DetailConfigView {
         console.log("DetailConfigView Refactored as a Manager View.");
     }
 
+    /**
+     * [NEW] Phase 15.2: Safely destroy all managed sub-views to prevent memory leaks.
+     */
+    destroy() {
+        if (this.k1View && typeof this.k1View.destroy === 'function') {
+            this.k1View.destroy();
+        }
+        if (this.fabricView && typeof this.fabricView.destroy === 'function') {
+            this.fabricView.destroy();
+        }
+        if (this.k2View && typeof this.k2View.destroy === 'function') {
+            this.k2View.destroy();
+        }
+        if (this.driveAccessoriesView && typeof this.driveAccessoriesView.destroy === 'function') {
+            this.driveAccessoriesView.destroy();
+        }
+    }
+
     activateTab(tabId) {
         this.stateService.dispatch({ type: 'ui/setActiveTab', payload: { tabId } });
 

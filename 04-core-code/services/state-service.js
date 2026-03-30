@@ -15,32 +15,58 @@ export class StateService {
     constructor({ initialState, eventAggregator, productFactory, configManager }) {
         this._state = initialState;
         this.eventAggregator = eventAggregator;
-        // [MODIFIED] Pass dependencies to the createRootReducer function.
         this.reducer = createRootReducer({ productFactory, configManager });
-        console.log("StateService Finalized and refactored for Reducer pattern.");
+        
+        // [NEW] (Phase E) Optimization members
+        this._lastState = null;
+        this._cachedClone = null;
+        this._renderDebounceTimer = null;
+
+        console.log("StateService (Performance Refactored) Initialized.");
     }
 
     /**
      * Returns a deep clone of the current state.
-     * [MODIFIED] (Phase 11.2a) Returns structuredClone to prevent direct mutation of the SSOT.
-     * All state changes MUST go through dispatch().
+     * [MODIFIED] (Phase E) Uses state-clone caching to reduce structuredClone overhead.
      * @returns {object} A deep clone of the current application state.
      */
     getState() {
-        return structuredClone(this._state);
+        // [NEW] Caching optimization: return same clone if state reference hasn't changed
+        if (this._state === this._lastState && this._cachedClone) {
+            return this._cachedClone;
+        }
+
+        this._lastState = this._state;
+        this._cachedClone = structuredClone(this._state);
+        return this._cachedClone;
     }
 
     /**
      * Dispatches an action to the reducer to update the state.
+     * [MODIFIED] (Phase E) Implements debounced publication (16ms frame-batching).
      * @param {object} action The action object describing the state change.
      */
     async dispatch(action) {
         const newState = this.reducer(this._state, action);
 
-        // Only update and publish if the state has actually changed.
+        // Only update if the state reference has actually changed (Reducer Pattern)
         if (newState !== this._state) {
             this._state = newState;
-            await this.eventAggregator.publish(EVENTS.INTERNAL_STATE_UPDATED, this._state);
+            this._schedulePublish();
         }
     }
-}
+
+    /**
+     * [NEW] Phase E: Micro-task batching for re-renders.
+     * Prevents INTERNAL_STATE_UPDATED from firing 10 times in one frame during rapid entry.
+     */
+    _schedulePublish() {
+        if (this._renderDebounceTimer) return;
+
+        // requestAnimationFrame naturally batches updates to the monitor's refresh rate (~16.6ms)
+        this._renderDebounceTimer = requestAnimationFrame(async () => {
+            this._renderDebounceTimer = null;
+            await this.eventAggregator.publish(EVENTS.INTERNAL_STATE_UPDATED, this._state);
+        });
+    }
+}

@@ -1,24 +1,29 @@
 /* FILE: 04-core-code/ui/views/f3-quote-prep-view.js */
-// [MODIFIED] (Accounting V2 Phase 1) Refactored to support split FirstName/LastName with auto-sync to Name.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 import * as quoteActions from '../../actions/quote-actions.js';
+import { formatDateYMD } from '../../utils/format-utils.js';
 
 /**
  * @fileoverview A dedicated sub-view for handling all logic related to the F3 (Quote Prep) tab.
  */
 export class F3QuotePrepView {
-    constructor({ panelElement, eventAggregator, stateService }) {
+    // [DIRECTIVE-v3.27] Added `workflowService` injection for Service-Layer Tollbooth.
+    // [MODIFIED] Added `calculationService` to match current architectural needs.
+    constructor({ panelElement, eventAggregator, stateService, quotePersistenceService, workflowService, calculationService, authService }) {
         this.panelElement = panelElement;
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
+        this.quotePersistenceService = quotePersistenceService;
+        this.workflowService = workflowService;
+        this.calculationService = calculationService; // [NEW] Injected Service
+        this.authService = authService; // [NEW] (v3.45)
         this.userOverrodeDueDate = false;
 
-        // [NEW] (v6298-fix-5) Store bound handlers
         this.boundHandlers = [];
+        this.subscriptions = []; // [NEW] EventAggregator registry
         this.focusOrder = [
             'quoteId', 'issueDate', 'dueDate',
-            // [MODIFIED] (Accounting V2 Phase 1) Split Name field
             'customerFirstName', 'customerLastName',
             'customerAddress', 'customerPhone', 'customerEmail',
             'customerPostcode',
@@ -26,13 +31,32 @@ export class F3QuotePrepView {
         ];
 
         this._cacheF3Elements();
-        this._initializeF3Listeners();
-        console.log('F3QuotePrepView Initialized.');
+        // [MOVED] Initialization of listeners is now dynamically managed in activate()
+        this._initF3DefaultValues(); // [NEW] (DIRECTIVE-v3.39)
+        console.log('F3QuotePrepView Initialized (v3.35 Clean Logic - Header Fix).');
     }
 
     /**
-     * [NEW] (v6298-fix-5) Helper to add and store listeners
+     * [MODIFIED] Handles specific input changes and syncs to calculation service
      */
+    handleInputChange(event) {
+        const { value } = event.target;
+        // Check if stateService and calculationService exist before calling
+        if (this.stateService) {
+            const currentState = this.stateService.getState();
+            this.stateService.dispatch({ ...currentState, inputValue: value });
+        }
+        
+        if (this.calculationService && typeof this.calculationService.updateGrandTotal === 'function') {
+            this.calculationService.updateGrandTotal(value);
+        }
+
+        // Also update the global display helper
+        if (typeof setTotalSum === 'function') {
+            setTotalSum(value);
+        }
+    }
+
     _addListener(element, event, handler) {
         if (!element) return;
         const boundHandler = handler.bind(this);
@@ -40,43 +64,37 @@ export class F3QuotePrepView {
         element.addEventListener(event, boundHandler);
     }
 
-    /**
-     * [NEW] (v6298-fix-5) Destroys all event listeners
-     */
-    destroy() {
+    deactivate() {
+        console.log(`[Lifecycle] Cleaning up listeners for ${this.constructor.name}...`);
         this.boundHandlers.forEach(({ element, event, handler }) => {
             if (element) {
                 element.removeEventListener(event, handler);
             }
         });
         this.boundHandlers = [];
-        console.log("F3QuotePrepView destroyed.");
-    }
 
-
-    // [NEW] Robust helper to format a Date object to "YYYY-MM-DD" in LOCAL time.
-    _formatDateToYMD(date) {
-        if (!date) return '';
-        try {
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            return `${year}-${month}-${day}`;
-        } catch (e) {
-            return '';
+        // [NEW] Unsubscribe global events
+        if (this.subscriptions && this.subscriptions.length > 0) {
+            this.subscriptions.forEach(sub => {
+                if (sub && typeof sub.dispose === 'function') sub.dispose();
+            });
+            this.subscriptions = [];
         }
     }
 
-    // [NEW] Robust helper to parse a "YYYY-MM-DD" string into a Date object at local noon.
+    destroy() {
+        this.deactivate();
+        console.log("F3QuotePrepView destroyed.");
+    }
+
     _parseDateFromYMD(dateString) {
         if (!dateString) return null;
         try {
             const parts = dateString.split('-');
             if (parts.length === 3) {
-                // Create date at 12:00 (noon) local time to prevent TZ shifts from rolling it back.
                 return new Date(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
             }
-            return new Date(dateString); // Fallback
+            return new Date(dateString);
         } catch (e) {
             return null;
         }
@@ -89,11 +107,8 @@ export class F3QuotePrepView {
                 quoteId: query('#f3-quote-id'),
                 issueDate: query('#f3-issue-date'),
                 dueDate: query('#f3-due-date'),
-                // [MODIFIED] (Accounting V2 Phase 1) Split selectors
                 customerFirstName: query('#f3-customer-firstname'),
                 customerLastName: query('#f3-customer-lastname'),
-                // customerName: query('#f3-customer-name'), // REMOVED
-
                 customerAddress: query('#f3-customer-address'),
                 customerPhone: query('#f3-customer-phone'),
                 customerEmail: query('#f3-customer-email'),
@@ -104,6 +119,9 @@ export class F3QuotePrepView {
             buttons: {
                 addQuote: query(`#${DOM_IDS.BTN_ADD_QUOTE}`),
                 btnGth: query(`#${DOM_IDS.BTN_GTH}`),
+                addInvoice: query(`#${DOM_IDS.BTN_ADD_INVOICE}`),
+                addReceipt: query(`#${DOM_IDS.BTN_ADD_RECEIPT}`),
+                addOverdue: query(`#${DOM_IDS.BTN_ADD_OVERDUE}`),
             },
         };
     }
@@ -111,10 +129,8 @@ export class F3QuotePrepView {
     _initializeF3Listeners() {
         if (!this.f3.inputs.issueDate) return;
 
-        // [NEW] Helper to dispatch state updates on 'change' event
         const addStateUpdateListener = (inputElement, actionCreator) => {
             if (inputElement) {
-                // [MODIFIED] (v6298-fix-5) Use helper
                 this._addListener(inputElement, 'change', (event) => {
                     this.stateService.dispatch(
                         actionCreator(event.target.value)
@@ -122,10 +138,9 @@ export class F3QuotePrepView {
                 });
             }
         };
-        // [NEW] Helper for customer properties
+
         const addCustomerUpdateListener = (inputElement, key) => {
             if (inputElement) {
-                // [MODIFIED] (v6298-fix-5) Use helper
                 this._addListener(inputElement, 'change', (event) => {
                     this.stateService.dispatch(
                         quoteActions.updateCustomerProperty(
@@ -137,7 +152,6 @@ export class F3QuotePrepView {
             }
         };
 
-        // [NEW] Bind all F3 inputs to update state.
         addStateUpdateListener(this.f3.inputs.quoteId, (value) =>
             quoteActions.updateQuoteProperty('quoteId', value)
         );
@@ -148,21 +162,13 @@ export class F3QuotePrepView {
             quoteActions.updateQuoteProperty('termsConditions', value)
         );
 
-        // [MODIFIED] (Accounting V2 Phase 1) Name Sync Logic
-        // We need to listen to changes on First/Last name, update their specific fields,
-        // AND update the legacy 'name' field for backward compatibility.
-
         const handleNameChange = () => {
             const firstName = this.f3.inputs.customerFirstName.value.trim();
             const lastName = this.f3.inputs.customerLastName.value.trim();
             const fullName = `${firstName} ${lastName}`.trim();
-
-            // Dispatch updates for individual fields (already handled by addCustomerUpdateListener below, 
-            // but we need to ensure 'name' is updated whenever these change)
             this.stateService.dispatch(quoteActions.updateCustomerProperty('name', fullName));
         };
 
-        // Bind First Name
         if (this.f3.inputs.customerFirstName) {
             this._addListener(this.f3.inputs.customerFirstName, 'change', (event) => {
                 this.stateService.dispatch(quoteActions.updateCustomerProperty('firstName', event.target.value));
@@ -170,7 +176,6 @@ export class F3QuotePrepView {
             });
         }
 
-        // Bind Last Name
         if (this.f3.inputs.customerLastName) {
             this._addListener(this.f3.inputs.customerLastName, 'change', (event) => {
                 this.stateService.dispatch(quoteActions.updateCustomerProperty('lastName', event.target.value));
@@ -178,107 +183,96 @@ export class F3QuotePrepView {
             });
         }
 
-        // [REMOVED] Old customerName listener
         addCustomerUpdateListener(this.f3.inputs.customerAddress, 'address');
         addCustomerUpdateListener(this.f3.inputs.customerPhone, 'phone');
         addCustomerUpdateListener(this.f3.inputs.customerEmail, 'email');
         addCustomerUpdateListener(this.f3.inputs.customerPostcode, 'postcode');
 
-        // --- [NEW] Mechanism 3: Listen for manual override on Due Date ---
         if (this.f3.inputs.dueDate) {
-            // [MODIFIED] (v6298-fix-5) Use helper
             this._addListener(this.f3.inputs.dueDate, 'input', () => {
                 this.userOverrodeDueDate = true;
             });
-            // Also dispatch its value change to state
             addStateUpdateListener(this.f3.inputs.dueDate, (value) =>
                 quoteActions.updateQuoteProperty('dueDate', value)
             );
         }
 
-        // --- Date Chaining Logic (MODIFIED for Mechanism 3 & Timezone Fix) ---
-        // [MODIFIED] (v6298-fix-5) Use helper
         this._addListener(this.f3.inputs.issueDate, 'input', (event) => {
             const issueDateValue = event.target.value;
-            // [NEW] Dispatch issueDate change to state
             this.stateService.dispatch(
                 quoteActions.updateQuoteProperty('issueDate', issueDateValue)
             );
-
-            // [MODIFIED] (v6298-F3-Fix-2) Force reset of override flag when issueDate is changed.
-            // This re-enables the chaining logic.
             this.userOverrodeDueDate = false;
-
-            // [MODIFIED] Only proceed if we have a valid issue date.
             if (issueDateValue) {
-                // [FIX] Use new robust parser
                 const issueDate = this._parseDateFromYMD(issueDateValue);
-                if (!issueDate) return; // Invalid date input
-
+                if (!issueDate) return;
                 const dueDateObj = new Date(issueDate);
                 dueDateObj.setDate(dueDateObj.getDate() + 14);
-
-                // [NEW] Mechanism 3: Skip weekends
-                const dayOfWeek = dueDateObj.getDay(); // 0 = Sun, 6 = Sat
+                const dayOfWeek = dueDateObj.getDay();
                 if (dayOfWeek === 6) {
-                    // Saturday
                     dueDateObj.setDate(dueDateObj.getDate() + 2);
                 } else if (dayOfWeek === 0) {
-                    // Sunday
                     dueDateObj.setDate(dueDateObj.getDate() + 1);
                 }
-                // [END NEW]
-
-                // [FIX] Use new robust formatter
-                const dueDateString = this._formatDateToYMD(dueDateObj);
+                const dueDateString = formatDateYMD(dueDateObj);
                 this.f3.inputs.dueDate.value = dueDateString;
-                // [NEW] Also dispatch the auto-calculated due date to state
                 this.stateService.dispatch(
                     quoteActions.updateQuoteProperty('dueDate', dueDateString)
                 );
             }
         });
 
-        // --- Add Quote Button Listener ---
+        // --- DIRECT MAPPING FOR PDF TRIGGERS (Phase I.3) ---
+        // This bypasses the old 'Smart Route' logic to ensure the header matches the button clicked.
+
         if (this.f3.buttons.addQuote) {
-            // [MODIFIED] (v6298-fix-5) Use helper
             this._addListener(this.f3.buttons.addQuote, 'click', () => {
-                this.eventAggregator.publish(
-                    EVENTS.USER_REQUESTED_PRINTABLE_QUOTE
-                );
+                const { quoteData } = this.stateService.getState();
+                if (!this.workflowService.validateQuoteStateForAction(quoteData)) return;
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_PRINTABLE_QUOTE);
             });
         }
 
-        // --- [NEW] GTH Button Listener ---
         if (this.f3.buttons.btnGth) {
-            // [MODIFIED] (v6298-fix-5) Use helper
             this._addListener(this.f3.buttons.btnGth, 'click', () => {
-                this.eventAggregator.publish(
-                    EVENTS.USER_REQUESTED_GMAIL_QUOTE
-                );
+                const { quoteData } = this.stateService.getState();
+                if (!this.workflowService.validateQuoteStateForAction(quoteData)) return;
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_GMAIL_QUOTE);
+            });
+        }
+        
+        if (this.f3.buttons.addInvoice) {
+            this._addListener(this.f3.buttons.addInvoice, 'click', () => {
+                const { quoteData } = this.stateService.getState();
+                if (!this.workflowService.validateQuoteStateForAction(quoteData)) return;
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_PRINTABLE_INVOICE);
             });
         }
 
-        // --- Focus Jumping Logic ---
+        if (this.f3.buttons.addOverdue) {
+            this._addListener(this.f3.buttons.addOverdue, 'click', () => {
+                const { quoteData } = this.stateService.getState();
+                if (!this.workflowService.validateQuoteStateForAction(quoteData)) return;
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_PRINTABLE_OVERDUE);
+            });
+        }
+
+        if (this.f3.buttons.addReceipt) {
+            this._addListener(this.f3.buttons.addReceipt, 'click', () => {
+                const { quoteData } = this.stateService.getState();
+                if (!this.workflowService.validateQuoteStateForAction(quoteData)) return;
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_PRINTABLE_RECEIPT);
+            });
+        }
+
         this.focusOrder.forEach((key, index) => {
             const currentElement = this.f3.inputs[key];
             if (currentElement) {
-                // [MODIFIED] (v6298-fix-5) Use helper
                 this._addListener(currentElement, 'keydown', (event) => {
-                    if (
-                        event.key === 'Enter' ||
-                        (event.key === 'Tab' && !event.shiftKey)
-                    ) {
-                        // Allow default Tab behavior in textareas
-                        if (
-                            event.key === 'Tab' &&
-                            currentElement.tagName === 'TEXTAREA'
-                        ) {
-                            return;
-                        }
-
+                    if (event.key === 'Enter' || (event.key === 'Tab' && !event.shiftKey)) {
+                        if (event.key === 'Tab' && currentElement.tagName === 'TEXTAREA') return;
                         event.preventDefault();
-                        event.stopPropagation(); // Stop the event from bubbling up
+                        event.stopPropagation();
                         const nextIndex = index + 1;
                         if (nextIndex < this.focusOrder.length) {
                             const nextKey = this.focusOrder[nextIndex];
@@ -292,136 +286,143 @@ export class F3QuotePrepView {
         });
     }
 
-    // [MODIFIED v6285 Phase 5] Render now fully syncs from state.
-    // [MODIFIED v6292] Complete rewrite to fix all timezone bugs.
     render(state) {
         if (!this.f3.inputs.quoteId || !state) return;
 
         const { quoteData } = state;
         const { customer } = quoteData;
 
-        // [REMOVED] Old buggy formatDate helper is gone.
-
-        // Helper to update value only if it differs AND element is not focused
         const updateInput = (input, newValue) => {
             const value = newValue || '';
-            if (
-                input &&
-                input.value !== value &&
-                document.activeElement !== input
-            ) {
+            if (input && input.value !== value && document.activeElement !== input) {
                 input.value = value;
             }
         };
 
-        // --- 1. Populate Defaults (if state is empty) ---
         let quoteId = quoteData.quoteId;
         let issueDateStr = quoteData.issueDate;
         let dueDateStr = quoteData.dueDate;
-        let issueDateObj; // To store the date object for due date calculation
+        let issueDateObj;
 
-        let needsStateUpdate = false; // Flag to see if we generated new data
-
-        // [MODIFIED] Mechanism 1: Restore Quote ID generation
-        // [MODIFIED] (v6296 Bug Fix 2) Add length check to fix auto-save loop
-        // A valid ID (RB + YYYYMMDDHHMM) is 14 chars. A faulty one is 12.
         if (!quoteId || quoteId.length < 14) {
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
             const hours = String(now.getHours()).padStart(2, '0');
-            // [MODIFIED] (v6296 Bug Fix 1) Add minutes to the quoteId
             const minutes = String(now.getMinutes()).padStart(2, '0');
             quoteId = `RB${year}${month}${day}${hours}${minutes}`;
-            // [NEW] Dispatch this new value back to state
-            this.stateService.dispatch(
-                quoteActions.updateQuoteProperty('quoteId', quoteId)
-            );
-            needsStateUpdate = true;
+            this.stateService.dispatch(quoteActions.updateQuoteProperty('quoteId', quoteId));
         }
 
-        // [MODIFIED] Mechanism 2: Restore Issue Date generation (TIMEZONE-SAFE)
         if (!issueDateStr) {
-            issueDateObj = new Date(); // Local "today"
-            issueDateStr = this._formatDateToYMD(issueDateObj);
-            // [NEW] Dispatch this new value back to state
-            this.stateService.dispatch(
-                quoteActions.updateQuoteProperty('issueDate', issueDateStr)
-            );
-            needsStateUpdate = true;
+            issueDateObj = new Date();
+            issueDateStr = formatDateYMD(issueDateObj);
+            this.stateService.dispatch(quoteActions.updateQuoteProperty('issueDate', issueDateStr));
         } else {
-            // It's a string, format it just in case, then parse it for logic
-            issueDateStr = this._formatDateToYMD(
-                this._parseDateFromYMD(issueDateStr)
-            );
             issueDateObj = this._parseDateFromYMD(issueDateStr);
         }
 
-        // [MODIFIED] Mechanism 3: Restore Due Date generation (TIMEZONE-SAFE)
-        // [MODIFIED] (v6298-F3-Fix-2) Check userOverrodeDueDate flag
         if (!dueDateStr || !this.userOverrodeDueDate) {
-            // Use the (potentially new) issueDate object
-            // [FIX] Remove timezone offset bug
-            const dueDateObj = new Date(issueDateObj); // Start from the clean issueDate
+            const dueDateObj = new Date(issueDateObj);
             dueDateObj.setDate(dueDateObj.getDate() + 14);
-
-            // [NEW] Mechanism 3: Skip weekends
-            const dayOfWeek = dueDateObj.getDay(); // 0 = Sun, 6 = Sat
+            const dayOfWeek = dueDateObj.getDay();
             if (dayOfWeek === 6) {
-                // Saturday
                 dueDateObj.setDate(dueDateObj.getDate() + 2);
             } else if (dayOfWeek === 0) {
-                // Sunday
                 dueDateObj.setDate(dueDateObj.getDate() + 1);
             }
-
-            const dueDateString = this._formatDateToYMD(dueDateObj);
-
-            // [MODIFIED] (v6298-F3-Fix-2) Only auto-update if not overridden
+            const dueDateString = formatDateYMD(dueDateObj);
             if (!this.userOverrodeDueDate) {
-                // [NEW] Dispatch this new value back to state
-                this.stateService.dispatch(
-                    quoteActions.updateQuoteProperty('dueDate', dueDateString)
-                );
-                needsStateUpdate = true;
+                this.stateService.dispatch(quoteActions.updateQuoteProperty('dueDate', dueDateString));
             }
-            // [NEW] (v6298-F3-Fix-1) We just defined dueDateString, so set dueDateStr to it
             dueDateStr = dueDateString;
-        } else {
-            // A due date was loaded from the state, format it and assume it was an override
-            dueDateStr = this._formatDateToYMD(
-                this._parseDateFromYMD(dueDateStr)
-            );
         }
 
-        // --- 2. Sync all inputs with state (NO MORE DOUBLE FORMATTING) ---
         updateInput(this.f3.inputs.quoteId, quoteId);
         updateInput(this.f3.inputs.issueDate, issueDateStr);
         updateInput(this.f3.inputs.dueDate, dueDateStr);
-
-        // [MODIFIED] (Accounting V2 Phase 1) Sync FirstName and LastName
         updateInput(this.f3.inputs.customerFirstName, customer.firstName);
         updateInput(this.f3.inputs.customerLastName, customer.lastName);
-
         updateInput(this.f3.inputs.customerAddress, customer.address);
         updateInput(this.f3.inputs.customerPhone, customer.phone);
         updateInput(this.f3.inputs.customerEmail, customer.email);
         updateInput(this.f3.inputs.customerPostcode, customer.postcode);
-
-        // [NEW] Sync textareas from state
         updateInput(this.f3.inputs.generalNotes, quoteData.generalNotes);
-        updateInput(
-            this.f3.inputs.termsConditions,
-            quoteData.termsConditions
-        );
+        updateInput(this.f3.inputs.termsConditions, quoteData.termsConditions);
+
+        this._updateButtonStates(quoteData.status);
     }
 
     activate() {
-        // [MODIFIED v6285 Phase 5]
-        // This method is called when the tab becomes active.
-        // We now fetch the latest state and call render to populate/restore data.
+        // [NEW] (Deactivate Pattern) Dynamically re-bind all listeners upon activation
+        this._initializeF3Listeners();
+
         const state = this.stateService.getState();
         this.render(state);
+    }
+
+    _initF3DefaultValues() {
+        const defaultValue = 
+`1. To confirm your custom order, a 50% non-refundable deposit is required. The balance is payable on or before the installation date.
+2. As all products are tailor-made for your space, we are unable to accept cancellations or offer refunds for a change of mind.
+3. Ownership of the goods will transfer to you upon full payment of the invoice.
+4. For any overdue payments, detailed terms regarding debt recovery procedures and associated costs can be found at: https://about:blank`;
+
+        const currentState = this.stateService.getState();
+        this.eventAggregator.publish(EVENTS.STATE_CHANGED, currentState);
+        
+        // Ensure textarea cached during _cacheF3Elements is updated if it exists
+        if (this.f3.inputs.termsConditions) {
+            this.f3.inputs.termsConditions.value = defaultValue;
+        }
+    }
+
+    _updateButtonStates(status) {
+        // [FIX] (v3.45) Safety block for potential TypeError if authService context is lost
+        const isAdmin = (this.authService && typeof this.authService.isAdmin === 'function') 
+            ? this.authService.isAdmin() 
+            : false;
+            
+        let canQuote = false, canGth = false, canInvoice = false, canReceipt = false, canOverdue = false;
+
+        // [MODIFIED] (v3.43 God Mode) If Admin, bypass status gating entirely.
+        if (isAdmin) {
+            canQuote = true;
+            canGth = true;
+            canInvoice = true;
+            canReceipt = true;
+            canOverdue = true;
+        } else if (status) {
+            // [FAIL-SAFE] Strict status-based gating (v3.40 logic)
+            if (status.includes('A. Saved')) { canQuote = true; canGth = true; }
+            else if (status.includes('B. Quoted')) { canQuote = true; canGth = true; canInvoice = true; }
+            else if (status.includes('K. Overdue')) { canOverdue = true; canReceipt = true; }
+            else if (status.includes('L. Closed')) { canReceipt = true; }
+            else if (status.includes('Y. On Hold') || status.includes('X. Cancelled')) { /* All false */ }
+            else { canInvoice = true; canReceipt = true; }
+        }
+        
+        this._applyButtonStates(canQuote, canGth, canInvoice, canReceipt, canOverdue);
+    }
+
+    _applyButtonStates(quote, gth, invoice, receipt, overdue) {
+        const b = this.f3.buttons;
+        if (b.addQuote)  b.addQuote.disabled  = !quote;
+        if (b.btnGth)    b.btnGth.disabled     = !gth;
+        if (b.addInvoice) b.addInvoice.disabled = !invoice;
+        if (b.addReceipt) b.addReceipt.disabled = !receipt;
+        if (b.addOverdue) b.addOverdue.disabled = !overdue;
+    }
+}
+
+/**
+ * [NEW] v3.35 Alignment - UI Update Helper
+ * Standard definition to prevent "undefined" errors.
+ */
+function setTotalSum(value) {
+    const totalSumElement = document.getElementById('total-sum-value');
+    if (totalSumElement) {
+        totalSumElement.textContent = value || '';
     }
 }

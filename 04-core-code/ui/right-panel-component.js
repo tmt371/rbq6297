@@ -10,7 +10,7 @@ import { paths } from '../config/paths.js'; // [NEW] Import paths for dynamic lo
  * [MODIFIED] This component now dynamically loads (lazy loads) views on demand.
  */
 export class RightPanelComponent {
-    constructor({ panelElement, eventAggregator, stateService, calculationService, authService }) { // [MODIFIED]
+    constructor({ panelElement, eventAggregator, stateService, calculationService, authService, quotePersistenceService, workflowService }) { // [DIRECTIVE-v3.27] Added workflowService
         if (!panelElement || !eventAggregator || !stateService || !calculationService || !authService) {
             throw new Error("Panel element, event aggregator, stateService, calculationService, and authService are required for RightPanelComponent.");
         }
@@ -19,6 +19,8 @@ export class RightPanelComponent {
         this.stateService = stateService; // [NEW] Store injected service
         this.calculationService = calculationService; // [NEW] Store injected service
         this.authService = authService; // [NEW] (v6298) Store injected service
+        this.quotePersistenceService = quotePersistenceService || null; // [Scheme B] For F3 live ledger
+        this.workflowService = workflowService || null; // [DIRECTIVE-v3.27] For Service-Layer Tollbooth
         this.state = null;
 
         // [MODIFIED] Views are no longer pre-injected. They will be loaded on demand.
@@ -123,11 +125,28 @@ export class RightPanelComponent {
                         this.views[tabId] = new F3QuotePrepView({
                             panelElement: this.panelElement,
                             eventAggregator: this.eventAggregator,
-                            stateService: this.stateService
+                            stateService: this.stateService,
+                            quotePersistenceService: this.quotePersistenceService, // [Scheme B]
+                            workflowService: this.workflowService // [DIRECTIVE-v3.27]
                         });
                         break;
                     }
                     case 'f4-tab': {
+                        // [NEW] Dynamically load F4 HTML first
+                        const f4Container = this.panelElement.querySelector('#f4-content');
+                        if (f4Container && !f4Container.innerHTML.trim()) {
+                            try {
+                                const response = await fetch('./04-core-code/ui/partials/f4-panel.html');
+                                if (response.ok) {
+                                    f4Container.innerHTML = await response.text();
+                                } else {
+                                    console.error("Failed to lazy-load f4-panel.html:", response.statusText);
+                                }
+                            } catch (err) {
+                                console.error("Error fetching f4-panel.html:", err);
+                            }
+                        }
+
                         const { F4ActionsView } = await import('./views/f4-actions-view.js');
                         this.views[tabId] = new F4ActionsView({
                             panelElement: this.panelElement,
@@ -143,6 +162,12 @@ export class RightPanelComponent {
             }
         }
         // --- End of Lazy Load Logic ---
+
+        // [NEW] (Lifecycle Management) Deactivate the outgoing view before switching
+        if (this.activeView && typeof this.activeView.deactivate === 'function') {
+            console.log(`[Lifecycle] Deactivating previous view: ${this.activeView.constructor.name}`);
+            this.activeView.deactivate();
+        }
 
         this.activeView = this.views[tabId];
 

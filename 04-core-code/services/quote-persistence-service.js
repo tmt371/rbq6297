@@ -1,43 +1,16 @@
 /* FILE: 04-core-code/services/quote-persistence-service.js */
-// [NEW] (v6297) ?цо?1я╝Ъх╗║члЛцЦ░цкФ├?ф╗ехпж?├ж?ф╣Е├?
-// [MODIFIED] (┬м?1 цмбч╖и┬┐? ??▓х??╣ц?ф╕???authService.verifyAuthentication() щйЧ├?
-// [MODIFIED] (┬м?11 цмбч╖и┬┐? ?├е? 'blocked' ?шкдя?├й?ч┤ЪчВ║шнж├?ф╕жч╣╝ч║МхЯ╖шбМцЬм??▓х???
-// [MODIFIED] (F4 Status Phase 3) Added handleUpdateStatus logic.
-// [MODIFIED] (Correction Flow Phase 3) Implemented Locking Logic and Atomic Correction Save.
-// [FIX] (Correction Flow Phase 3 Fix) Corrected 'db' import path.
-// [MODIFIED] (Correction Flow Phase 4) Added handleCancelOrder.
-// [MODIFIED] (F1 Motor Split) Added w_motor_qty to snapshot capture.
-// [MODIFIED] (v6299 Phase 4) Added handleGenerateExcel and injected excelExportService.
-
-// [MODIFIED] ┬╛?workflow-service.js чз╗хЕецнд├?
-import {
-    saveQuoteToCloud
-} from './online-storage-service.js';
-// [FIX] Import db from the correct config file
+// [MODIFIED] (Scheme B - Correction Bugfix) Strip payment clone on correction, use Base Ledger ID.
+import { saveQuoteToCloud } from './online-storage-service.js';
 import { db } from '../config/firebase-config.js';
-
-// [NEW] Import Firestore batch functions
-import { writeBatch, doc, collection } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js';
+import { writeBatch, doc, getDoc, updateDoc, setDoc, arrayUnion } from 'https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js';
 import { EVENTS } from '../config/constants.js';
-import * as quoteActions from '../actions/quote-actions.js'; // [NEW] шдЗшг╜ф╛Эш│┤
-import { QUOTE_STATUS } from '../config/status-config.js'; // [NEW] Import status for locking check
+import * as quoteActions from '../actions/quote-actions.js';
+import { QUOTE_STATUS } from '../config/status-config.js';
 
-/**
- * @fileoverview A new service dedicated to data persistence.
- * This service handles saving, loading, snapshotting, and exporting data.
- * It will be the future home for accounting integration logic.
- */
 export class QuotePersistenceService {
     constructor({
-        eventAggregator,
-        stateService,
-        fileService,
-        authService,
-        // [NEW] шдЗшг╜ _getQuoteDataWithSnapshots ?????├д?┬│?
-        calculationService,
-        configManager,
-        productFactory,
-        excelExportService // [NEW] (v6299 Phase 4) Injected
+        eventAggregator, stateService, fileService, authService,
+        calculationService, configManager, productFactory, excelExportService
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
@@ -46,464 +19,396 @@ export class QuotePersistenceService {
         this.calculationService = calculationService;
         this.configManager = configManager;
         this.productFactory = productFactory;
-        this.excelExportService = excelExportService; // [NEW] Store reference
-
+        this.excelExportService = excelExportService;
         console.log('QuotePersistenceService Initialized.');
     }
 
+    /**
+     * [Scheme B] Extracts the Base Quote ID (Master Ledger key) from any versioned quoteId.
+     * Rule: split by '-', use first two segments as the base.
+     * e.g., 'Q-2410-001-A' -> 'Q-2410-001'
+     *       'Q-001'         -> 'Q-001'
+     * @param {string} quoteId
+     * @returns {string}
+     */
+    _getBaseLedgerId(quoteId) {
+        if (!quoteId) return quoteId;
+        // A versioned ID ends with a uppercase letter segment, e.g. -A, -v2, -B
+        // Strategy: remove trailing '-' + non-numeric/noncore suffix produced by correction flow
+        // Correction renames Q-001 -> Q-001-A (or -B, -C), so strip the last dash-segment if it is a version marker
+        const parts = quoteId.split('-');
+        // The base is everything except the last segment IF the last segment is a single uppercase letter (A-Z) or vN pattern
+        if (parts.length > 1) {
+            const last = parts[parts.length - 1];
+            if (/^[A-Z]$/.test(last) || /^v\d+$/.test(last)) {
+                return parts.slice(0, parts.length - 1).join('-');
+            }
+        }
+        return quoteId;
+    }
 
-    // [MOVED] ┬╛?workflow-service.js чз╗хЕе
     _getQuoteDataWithSnapshots() {
         const { quoteData, ui } = this.stateService.getState();
-        // Create a deep copy to avoid mutating the original state
         let dataWithSnapshot = JSON.parse(JSON.stringify(quoteData));
 
-        // --- [NEW] (v6297) 0. Capture Owner UID ---
-        // [FIX] Check for authService AND authService.currentUser
         if (this.authService && this.authService.currentUser) {
             dataWithSnapshot.ownerUid = this.authService.currentUser.uid;
-        } else {
-            console.error("WorkflowService: Cannot save. AuthService is missing or user is not logged in.");
-            // We still proceed, but the ownerUid will be null.
-            // Our Firestore rules (which we will update later) will block this.
         }
 
-        // --- [NEW] (v6298-F4-Search) 1. Calculate and Capture Metadata ---
         const items = quoteData.products[quoteData.currentProduct].items;
         const hasMotor = items.some(item => !!item.motor);
 
-        // Ensure metadata object exists (it was just added to initialState)
-        if (!dataWithSnapshot.metadata) {
-            dataWithSnapshot.metadata = {};
-        }
+        if (!dataWithSnapshot.metadata) dataWithSnapshot.metadata = {};
         dataWithSnapshot.metadata.hasMotor = hasMotor;
 
-
-        // --- 2. Capture F1 Snapshot (from Phase 4) ---
         if (dataWithSnapshot.f1Snapshot) {
-            // const items =
-            //     quoteData.products[quoteData.currentProduct].items;
-
-            dataWithSnapshot.f1Snapshot.winder_qty = items.filter(
-                (item) => item.winder === 'HD'
-            ).length;
-            dataWithSnapshot.f1Snapshot.motor_qty = items.filter(
-                (item) => !!item.motor
-            ).length;
-            dataWithSnapshot.f1Snapshot.charger_qty =
-                ui.driveChargerCount || 0;
+            dataWithSnapshot.f1Snapshot.winder_qty = items.filter((item) => item.winder === 'HD').length;
+            dataWithSnapshot.f1Snapshot.motor_qty = items.filter((item) => !!item.motor).length;
+            dataWithSnapshot.f1Snapshot.charger_qty = ui.driveChargerCount || 0;
             dataWithSnapshot.f1Snapshot.cord_qty = ui.driveCordCount || 0;
 
             const totalRemoteQty = ui.driveRemoteCount || 0;
             const remote1chQty = ui.f1.remote_1ch_qty;
-            const remote16chQty =
-                ui.f1.remote_1ch_qty === null
-                    ? totalRemoteQty - remote1chQty
-                    : ui.f1.remote_16ch_qty;
+            const remote16chQty = ui.f1.remote_1ch_qty === null ? totalRemoteQty - remote1chQty : ui.f1.remote_16ch_qty;
 
-            const totalDualPairs = Math.floor(
-                items.filter((item) => item.dual === 'D').length / 2
-            );
-            const comboQty =
-                ui.f1.dual_combo_qty === null
-                    ? totalDualPairs
-                    : ui.f1.dual_combo_qty;
-            const slimQty =
-                ui.f1.dual_slim_qty === null ? 0 : ui.f1.dual_slim_qty;
+            const totalDualPairs = Math.floor(items.filter((item) => item.dual === 'D').length / 2);
+            const comboQty = ui.f1.dual_combo_qty === null ? totalDualPairs : ui.f1.dual_combo_qty;
+            const slimQty = ui.f1.dual_slim_qty === null ? 0 : ui.f1.dual_slim_qty;
             dataWithSnapshot.f1Snapshot.remote_1ch_qty = remote1chQty;
             dataWithSnapshot.f1Snapshot.remote_16ch_qty = remote16chQty;
             dataWithSnapshot.f1Snapshot.dual_combo_qty = comboQty;
             dataWithSnapshot.f1Snapshot.dual_slim_qty = slimQty;
-            dataWithSnapshot.f1Snapshot.discountPercentage =
-                ui.f1.discountPercentage;
-
-            // [NEW] (v6295) Fix omission: Save F1 Wifi Qty
+            dataWithSnapshot.f1Snapshot.discountPercentage = ui.f1.discountPercentage;
             dataWithSnapshot.f1Snapshot.wifi_qty = ui.f1.wifi_qty || 0;
-
-            // [NEW] (F1 Motor Split) Save W-Motor Qty
             dataWithSnapshot.f1Snapshot.w_motor_qty = ui.f1.w_motor_qty || 0;
-
-        } else {
-            console.error(
-                'f1Snapshot object is missing from quoteData. Cannot save F1 state.'
-            );
         }
 
-        // --- 3. Capture F3 Snapshot (NEW Phase 5) ---
-        // [REMOVED] No longer need to read from DOM. All data (quoteId, issueDate, customer, notes)
-        // is already present in the `dataWithSnapshot` object because F3 view updates state live.
-
-        // --- 4. [NEW] (v6295) Capture F2 Snapshot ---
-        // Save the entire F2 state object
         dataWithSnapshot.f2Snapshot = JSON.parse(JSON.stringify(ui.f2));
-
-        // --- 5. [NEW] (HOTFIX Tweak 3) Add/Update creationDate ---
-        // This ensures every save action (overwrite or new version) updates the timestamp.
         dataWithSnapshot.creationDate = new Date().toISOString();
-
         return dataWithSnapshot;
     }
 
-    // [MOVED] ┬╛?workflow-service.js чз╗хЕе
-    // [MODIFIED] (┬м?1 цмбч╖и┬┐? ???authService.verifyAuthentication()
-    // [MODIFIED] (┬м?11 цмбч╖и┬┐? ?├е? 'blocked' ?шк??╣ц?├и??├п?ф╕Нф╕н????▓┬?
-    // [MODIFIED] (Correction Flow Phase 3) Added LOCKING logic and redirection to handleCorrectionSave.
     async handleSaveToFile() {
         const authResult = await this.authService.verifyAuthentication();
         let skipCloudSave = false;
 
         if (!authResult.success) {
             if (authResult.reason === 'blocked') {
-                // [NEW] хжВ├??шв?├ж? (Config/Network Error)я╝Мщбпчд║шнж?├д?ч╣╝├??├и????├е?
-                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                    message: authResult.message, // e.g., "Cloud connection failed..."
-                    type: 'error', // or warning
-                });
-                console.warn("Cloud save skipped due to network/config block. Proceeding to local save.");
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: authResult.message, type: 'error' });
                 skipCloudSave = true;
             } else {
-                // [NEW] хжВ├???╢ф?├е???(ф╛Л├? token ?├ж?)я╝М├??├и??├ж????├и?ф╕нцЦ╖?ш╝?
-                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                    message: authResult.message,
-                    type: 'error',
-                });
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: authResult.message, type: 'error' });
                 await this.authService.logout();
                 return;
             }
         }
 
-        // --- [NEW] (Correction Flow Phase 3) LOCKING LOGIC ---
         const currentState = this.stateService.getState();
         const { isCorrectionMode } = currentState.ui;
         const currentStatus = currentState.quoteData.status;
 
-        // 1. Check if we are in Correction Mode
-        if (isCorrectionMode) {
-            // Redirect to the atomic correction flow
-            return this.handleCorrectionSave();
-        }
+        if (isCorrectionMode) return this.handleCorrectionSave();
 
-        // 2. Check for Lock Status
-        // "Established Order" (шиВхЦох╖▓ц?чл? implies any status other than A (Saved) or Configuring.
-        // If status exists and is NOT A_ARCHIVED, we block standard saving.
-        const isLocked = currentStatus && currentStatus !== QUOTE_STATUS.A_ARCHIVED && currentStatus !== "Configuring";
-
+        const isLocked = currentStatus && currentStatus !== QUOTE_STATUS.A_SAVED && currentStatus !== "Configuring";
         if (isLocked) {
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: 'Order is established and LOCKED. Please use "Cancel / Correct" to make changes.',
-                type: 'error'
+                message: 'Order is established and LOCKED. Please use "Cancel / Correct" to make changes.', type: 'error'
             });
-            // Prevent saving (both cloud and local)
             return;
         }
-        // --- [END NEW] ---
 
         const dataToSave = this._getQuoteDataWithSnapshots();
 
-        // --- [NEW] (v6298-fix-6) Robust Firebase Save ---
-        // [MODIFIED] (┬м?11 цмбч╖и┬┐? хжВ├?швл├?шиШчВ║ skipCloudSaveя╝М├?ш╖│├??чл?├е?
-        if (!skipCloudSave) {
-            try {
-                await saveQuoteToCloud(dataToSave);
-            } catch (error) {
-                console.error("WorkflowService: Cloud save failed, but proceeding to local save.", error);
+        try {
+            if (!skipCloudSave) {
+                const result = await saveQuoteToCloud(dataToSave);
+                if (result.success) {
+                    this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                        message: `Quote ${dataToSave.quoteId || 'Draft'} successfully saved and overwritten in Cloud.`, type: 'info',
+                    });
+                } else {
+                    this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                        message: `Save Failed: ${result.message || 'Cloud rejected the request.'}`, type: 'error',
+                    });
+                }
             }
+        } catch (error) {
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: `Cloud save error: ${error.message || 'Check network connection.'}`, type: 'error',
+            });
+            throw error;
         }
-        // --- [END NEW] ---
-
-        // [MODIFIED] Phase 13.3: Remove local JSON download. Only save to cloud.
-        // const result = this.fileService.saveToJson(dataToSave);
-        this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-            message: `Quote ${dataToSave.quoteId || 'Draft'} successfully saved and overwritten in Cloud.`,
-            type: 'info',
-        });
     }
 
-    /**
-     * [NEW] (Correction Flow Phase 3) Handles the atomic "Correct & Replace" workflow.
-     * This function performs a batch write:
-     * 1. Creates new quote (v2) with status 'A. Saved'.
-     * 2. Updates old quote (v1) to 'X. Cancelled'.
-     */
     async handleCorrectionSave() {
         try {
-            // 1. Prepare New Data (v2)
-            // Get current data (which has the user's edits)
             const newData = this._getQuoteDataWithSnapshots();
-
-            // Generate v2 ID
             const currentId = newData.quoteId;
-            const versionRegex = /-v(\d+)$/;
+            const versionRegex = /-([A-Z])$/;
             const match = currentId.match(versionRegex);
-            let newQuoteId;
-            if (match) {
-                const currentVersion = parseInt(match[1], 10);
-                const newVersion = currentVersion + 1;
-                newQuoteId = currentId.replace(versionRegex, `-v${newVersion}`);
-            } else {
-                newQuoteId = `${currentId}-v2`;
-            }
+            const nextLetter = match
+                ? String.fromCharCode(match[1].charCodeAt(0) + 1)
+                : 'A';
+            const baseId = this._getBaseLedgerId(currentId);
+            let newQuoteId = match
+                ? currentId.replace(versionRegex, `-${nextLetter}`)
+                : `${currentId}-A`;
 
             newData.quoteId = newQuoteId;
-            newData.status = QUOTE_STATUS.A_ARCHIVED; // Reset status for new order
+            newData.status = QUOTE_STATUS.A_SAVED;
 
-            // 2. Prepare Old Data Reference (v1)
-            const oldQuoteId = currentId; // The ID currently loaded
+            // [Scheme B] STRIP payments from the new quote's metadata.
+            // Payments live exclusively in accounting_ledgers keyed by the Base ID.
+            // The corrected quote document must NOT carry a payments clone.
+            if (newData.metadata) {
+                delete newData.metadata.payments;
+            }
 
-            // 3. Execute Batch Write
+            const oldQuoteId = currentId;
             const batch = writeBatch(db);
 
-            // Operation A: Write new doc
-            const newDocRef = doc(db, 'quotes', newQuoteId);
-            batch.set(newDocRef, newData);
-
-            // Operation B: Update old doc to Cancelled
+            // 1. Mark old quote as cancelled
             const oldDocRef = doc(db, 'quotes', oldQuoteId);
-            batch.update(oldDocRef, {
-                status: QUOTE_STATUS.X_CANCELLED,
-                // We can add a note field later if schema permits, for now status is enough trigger
-                // cancelReason: `Replaced by ${newQuoteId}` 
-            });
+            batch.update(oldDocRef, { status: QUOTE_STATUS.X_CANCELLED });
+
+            // 2. [Scheme B] Update the MASTER LEDGER (keyed by baseId) with the new total and
+            //    link it to the new corrected quoteId. DO NOT copy or insert new payment records.
+            const grandTotal = parseFloat(newData.f2Snapshot?.grandTotal || 0);
+            const masterLedgerRef = doc(db, 'accounting_ledgers', baseId);
+            batch.set(masterLedgerRef, {
+                latestQuoteId: newQuoteId,
+                totalAmount: grandTotal,
+                status: QUOTE_STATUS.A_SAVED,
+                lastUpdated: new Date().toISOString()
+            }, { merge: true });
 
             // Commit Batch
             await batch.commit();
 
-            console.log(`Correction successful: ${oldQuoteId} cancelled, ${newQuoteId} created.`);
-
-            // 4. Post-Save Cleanup
-            // Update local state to match the new v2 order
             this.stateService.dispatch(quoteActions.setQuoteData(newData));
-            // Exit correction mode
-            // (Import UI action here or dispatch plain object if circular dependency issues arise)
-            // Using loose dispatch for simplicity within this service context if import unavailable, 
-            // but ideally we should import uiActions. Ideally app-controller handles this, but for atomic logic it's here.
-            // Let's update the local state to reflect we are now on the new order.
-
-            // NOTE: We need to disable correction mode in UI. 
-            // Since we are in the service, we dispatch to state service.
-            // Assuming 'ui/setCorrectionMode' type string matches action-types.
             this.stateService.dispatch({ type: 'ui/setCorrectionMode', payload: { isCorrectionMode: false } });
-
-            // 5. Trigger Local Download (Optional but good for backup)
             this.fileService.saveToJson(newData);
 
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: `Correction saved! New Order: ${newQuoteId}. Old Order: ${oldQuoteId} Cancelled.`,
-                type: 'info'
+                message: `Correction saved! New Order: ${newQuoteId}. Old Order: ${oldQuoteId} Cancelled.`, type: 'info'
             });
-
         } catch (error) {
-            console.error("Correction Save Failed:", error);
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: `Correction failed: ${error.message}`,
-                type: 'error'
-            });
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: `Correction failed: ${error.message}`, type: 'error' });
         }
     }
 
-    // [MOVED] ┬╛?workflow-service.js чз╗хЕе
-    // [MODIFIED] (┬м?1 цмбч╖и┬┐? ???authService.verifyAuthentication()
-    // [MODIFIED] (┬м?11 цмбч╖и┬┐? ?├е? 'blocked' ?шк??╣ц?├и??├п?ф╕Нф╕н????▓┬?
     async handleSaveAsNewVersion() {
         const authResult = await this.authService.verifyAuthentication();
         let skipCloudSave = false;
 
         if (!authResult.success) {
             if (authResult.reason === 'blocked') {
-                // [NEW] ?├е? Blockedя╝Мщбпчд║шнж?├д?ч╣╝├?
-                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                    message: authResult.message,
-                    type: 'error',
-                });
-                console.warn("Cloud save skipped due to network/config block. Proceeding to local save.");
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: authResult.message, type: 'error' });
                 skipCloudSave = true;
             } else {
-                // ?├е? Expiredя╝МчЩ╗?ф╕?цн?
-                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                    message: authResult.message,
-                    type: 'error',
-                });
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: authResult.message, type: 'error' });
                 await this.authService.logout();
                 return;
             }
         }
 
-        // 1. Get the current data, with all snapshots and a NEW creationDate
         const dataToSave = this._getQuoteDataWithSnapshots();
-
-        // 2. Generate the new versioned quoteId
         const currentId = dataToSave.quoteId || `RB${new Date().toISOString().replace(/[-:.]/g, '').substring(0, 14)}`;
-        // Regex to find a version suffix like "-v2"
         const versionRegex = /-v(\d+)$/;
         const match = currentId.match(versionRegex);
+        let newQuoteId = match ? currentId.replace(versionRegex, `-v${parseInt(match[1], 10) + 1}`) : `${currentId}-v2`;
 
-        let newQuoteId;
-        if (match) {
-            // If it has a version (e.g., "-v2"), increment it
-            const currentVersion = parseInt(match[1], 10);
-            const newVersion = currentVersion + 1;
-            // Replace the old suffix with the new one
-            newQuoteId = currentId.replace(versionRegex, `-v${newVersion}`);
-        } else {
-            // If it has no version, add "-v2" (Start with v2, as v1 is the original)
-            newQuoteId = `${currentId}-v2`;
-        }
-
-        // 3. Update the data object with the new ID
         dataToSave.quoteId = newQuoteId;
-        // [MODIFIED] (Correction Flow Phase 3) Save As New Version should explicitly set status to A. Saved
-        // Because a new version is effectively a new draft.
-        dataToSave.status = QUOTE_STATUS.A_ARCHIVED;
+        dataToSave.status = QUOTE_STATUS.A_SAVED;
 
-
-        // 4. Save to both cloud (new document) and local (new file)
         let cloudSaveSuccess = false;
-        // [MODIFIED] (┬м?11 цмбч╖и┬┐? цквцЯе skipCloudSave
+        let errorMessage = '';
         if (!skipCloudSave) {
             try {
-                await saveQuoteToCloud(dataToSave);
-                cloudSaveSuccess = true;
+                const result = await saveQuoteToCloud(dataToSave);
+                if (result.success) {
+                    cloudSaveSuccess = true;
+                } else {
+                    errorMessage = result.message;
+                }
             } catch (error) {
-                console.error("WorkflowService: Cloud save (new version) failed, but proceeding to local save.", error);
+                errorMessage = error.message;
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: `Cloud save error: ${errorMessage}. Proceeding to local save only.`, type: 'error',
+                });
             }
         }
 
-        // [MODIFIED] Phase 13.3: Remove local JSON download
-        // const localSaveResult = this.fileService.saveToJson(dataToSave);
-
-        // 5. Dispatch to update the app's state to this new version
-        this.stateService.dispatch(quoteActions.setQuoteData(dataToSave));
-
-        // 6. Notify user
-        let message;
-        if (skipCloudSave) {
-            message = `Cloud Offline. Cannot save new version ${newQuoteId}.`;
+        if (cloudSaveSuccess) {
+            this.stateService.dispatch(quoteActions.setQuoteData(dataToSave));
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { 
+                message: `Saved as new version: ${newQuoteId}`, type: 'info' 
+            });
         } else {
-            message = cloudSaveSuccess
-                ? `Saved as new version: ${newQuoteId}`
-                : `Cloud save failed for new version: ${newQuoteId}.`;
+            const finalMsg = skipCloudSave ? 'Cloud Offline. Versioning aborted.' : `Save Failed: ${errorMessage || 'Cloud rejected the request.'}`;
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: finalMsg, type: 'error' });
         }
-
-        this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-            message: message,
-            type: cloudSaveSuccess && !skipCloudSave ? 'info' : 'error',
-        });
     }
 
-    // [MOVED] ┬╛?workflow-service.js чз╗хЕе
     handleExportCSV() {
-        const dataToExport = this._getQuoteDataWithSnapshots();
-        const result = this.fileService.exportToCsv(dataToExport);
-        const notificationType = result.success ? 'info' : 'error';
-        this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-            message: result.message,
-            type: notificationType,
-        });
+        const result = this.fileService.exportToCsv(this._getQuoteDataWithSnapshots());
+        this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: result.message, type: result.success ? 'info' : 'error' });
     }
 
-    // [NEW] (v6299 Phase 4) Centralized handler for Excel generation
     async handleGenerateExcel() {
         try {
             const { quoteData, ui } = this.stateService.getState();
-            // Delegate to the injected service
             await this.excelExportService.generateExcel(quoteData, ui);
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Excel file generated and downloaded.', type: 'info' });
+        } catch (error) {
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Failed to generate Excel file. See console for details.', type: 'error' });
+        }
+    }
+
+    // [DIRECTIVE-v3.11] Scheme B Pipeline Rebuild
+    // Single Source of Truth: Writes ONLY to accounting_ledgers, and initializes the ledger
+    // with the baseline financial data (totalAmount) to prevent $0 totals on receipt generation.
+    async handleRegisterPayment(quoteId, paymentPayload) {
+        try {
+            const userEmail = (this.authService && this.authService.currentUser) ? this.authService.currentUser.email : 'Unknown';
+            const paymentRecord = {
+                id: 'pay_' + Date.now(),
+                amount: paymentPayload.amount,
+                date: paymentPayload.date,
+                method: paymentPayload.method,
+                createdBy: userEmail,
+                timestamp: new Date().toISOString()
+            };
+
+            const currentState = this.stateService.getState();
+            const { quoteData } = currentState;
+            // [DIRECTIVE-v3.13 & v3.14] Secure Ledger Initialization Math (Add GST)
+            const currentGrandTotal = quoteData.f2Snapshot?.grandTotal || currentState.ui?.f2?.grandTotal || (currentState.ui?.f2?.newOffer ? currentState.ui.f2.newOffer * 1.1 : 0);
+
+            // [Scheme B] Always write to the BASE ledger ID (Master Ledger).
+            const baseLedgerId = this._getBaseLedgerId(quoteId);
+            const ledgerRef = doc(db, "accounting_ledgers", baseLedgerId);
+            
+            // 🎯 INITIALIZE BASE PRICE & APPEND HISTORY
+            const ledgerPayload = {
+                latestQuoteId: quoteData.quoteId, 
+                totalAmount: currentGrandTotal,   
+                status: quoteData.status,
+                lastUpdated: new Date().toISOString(),
+                payments: arrayUnion(paymentRecord) 
+            };
+
+            await setDoc(ledgerRef, ledgerPayload, { merge: true });
+
+            // [REMOVED] Deprecated dual-write to 'quotes' collection is fully severed.
+
+            // 3. Update local state immediately for UI reactivity
+            const currentMetadata = currentState.quoteData.metadata || {};
+            const updatedPayments = [...(currentMetadata.payments || []), paymentRecord];
+            const updatedMetadata = { ...currentMetadata, payments: updatedPayments };
+
+            this.stateService.dispatch(quoteActions.updateQuoteProperty('metadata', updatedMetadata));
 
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: 'Excel file generated and downloaded.',
                 type: 'info',
+                message: `✅ Payment of $${paymentPayload.amount} registered successfully.`
             });
         } catch (error) {
-            console.error('Error generating Excel:', error);
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: 'Failed to generate Excel file. See console for details.',
-                type: 'error',
-            });
+            // [DIRECTIVE-v3.10] F4 Payment Error Diagnostic Probe
+            console.error("🚨 [FIRESTORE WRITE FAILURE] Exact Error:", error.code, error.message, error);
+
+            if (error.code === 'permission-denied') {
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { 
+                    type: 'warning', 
+                    message: `Failed to save: permission-denied (Ledger strictly locked).` 
+                });
+            } else {
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { 
+                    type: 'error', 
+                    message: `Failed to save: ${error.code || 'unknown-error'}` 
+                });
+            }
         }
     }
 
     /**
-     * [NEW] (F4 Status Phase 3) Updates only the status of the quote and saves to cloud.
-     * @param {object} payload
-     * @param {string} payload.newStatus The new status string.
+     * [Scheme B] Live-fetches the Master Ledger from Firestore for a given quoteId.
+     * Resolves versioned IDs to the Base Ledger ID automatically.
+     * Returns { totalAmount, payments, totalPaid, balanceDue, exists }.
+     * @param {string} quoteId
      */
-    async handleUpdateStatus({ newStatus }) {
-        // [NEW] (Correction Flow Phase 3) Add Lock Check for Update Status
-        // We prevent moving status IF we are in a locked state, unless the user is moving to X (Cancel)
-        // But handleUpdateStatus is triggered by the dropdown Update button.
-        // We should allow status updates generally (e.g. B -> C -> D), but we must respect the logical flow.
-        // However, the requirement is "Once locked... forbidden to edit/save".
-        // Changing status IS an edit.
-        // BUT, the "Update Status" button is the specific mechanism TO change status.
-        // So we allow this method to run, as long as it's not modifying "content".
-        // This method ONLY updates `status` and `creationDate`.
-
-        // 1. члЛхН│?┤цЦ░?мхЬ░ stateя╝Мф╜┐ UI ф┐Эц??Мцне
-        this.stateService.dispatch(quoteActions.updateQuoteProperty('status', newStatus));
-
-        // 2. ?▓х??ЕхРл??status ?МцЦ░ creationDate ?Дх┐л??
-        // Note: _getQuoteDataWithSnapshots() automatically updates 'creationDate' to now.
-        const dataToSave = this._getQuoteDataWithSnapshots();
-
+    async getLiveLedger(quoteId) {
+        const baseLedgerId = this._getBaseLedgerId(quoteId);
+        const ledgerRef = doc(db, 'accounting_ledgers', baseLedgerId);
         try {
-            // 3. ?▓х??░чБлх║?
-            // We explicitly want to save to the cloud here to share the status update.
-            // We do NOT save to local file to avoid annoying download prompts for just a status change.
-            const result = await saveQuoteToCloud(dataToSave);
+            const snap = await getDoc(ledgerRef);
+            if (!snap.exists()) {
+                return { exists: false, totalAmount: 0, payments: [], totalPaid: 0, balanceDue: 0 };
+            }
+            const data = snap.data();
+            const payments = Array.isArray(data.payments) ? data.payments : [];
+            const totalAmount = parseFloat(data.totalAmount || 0);
+            const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+            const balanceDue = Math.max(0, totalAmount - totalPaid);
+            return { exists: true, totalAmount, payments, totalPaid, balanceDue };
+        } catch (err) {
+            console.warn('[getLiveLedger] Firestore read failed, returning zeroed ledger.', err);
+            return { exists: false, totalAmount: 0, payments: [], totalPaid: 0, balanceDue: 0 };
+        }
+    }
 
+    async updateQuoteStatusOnly(quoteId, newStatus) {
+        try {
+            const docRef = doc(db, "quotes", quoteId);
+            await updateDoc(docRef, { status: newStatus });
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { type: 'info', message: `Status partially updated to: ${newStatus}` });
+            return true;
+        } catch (error) {
+            if (error.code === 'not-found') {
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { type: 'warning', message: 'Please Save (💾) this order at least once before updating its status.' });
+            } else if (error.code === 'permission-denied') {
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { type: 'warning', message: 'No administrative clearance to modify this state. Attempt suppressed.' });
+            } else {
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { type: 'error', message: 'Failed to update status. Please check connection.' });
+                throw error;
+            }
+            return false;
+        }
+    }
+
+    async handleUpdateStatus({ newStatus }) {
+        this.stateService.dispatch(quoteActions.updateQuoteProperty('status', newStatus));
+        const dataToSave = this._getQuoteDataWithSnapshots();
+        try {
+            const result = await saveQuoteToCloud(dataToSave);
             if (result.success) {
-                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                    message: `Status updated to: ${newStatus}`,
-                    type: 'info'
-                });
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: `Status updated to: ${newStatus}`, type: 'info' });
             } else {
                 throw new Error(result.message);
             }
         } catch (error) {
-            console.error("WorkflowService: Status update save failed.", error);
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: `Status update failed: ${error.message}`,
-                type: 'error'
-            });
-            // Optional: Revert local state if needed, but current flow keeps UI optimistic.
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: `Status update failed: ${error.message || 'Network Error'}`, type: 'error' });
+            throw error;
         }
     }
 
-    /**
-     * [NEW] (Correction Flow Phase 4) Handles the immediate cancellation of an order.
-     * @param {object} payload
-     * @param {string} payload.cancelReason
-     */
     async handleCancelOrder({ cancelReason }) {
-        // 1. Update status in local state
         this.stateService.dispatch(quoteActions.updateQuoteProperty('status', QUOTE_STATUS.X_CANCELLED));
-
-        // 2. Update metadata with reason
         const currentMetadata = this.stateService.getState().quoteData.metadata || {};
-        const newMetadata = { ...currentMetadata, cancelReason: cancelReason };
+        const newMetadata = { ...currentMetadata, cancelReason: cancelReason, cancelDate: new Date().toISOString() };
         this.stateService.dispatch(quoteActions.updateQuoteProperty('metadata', newMetadata));
 
-        // 3. Get snapshot for cloud save
         const dataToSave = this._getQuoteDataWithSnapshots();
-
         try {
-            // 4. Save to cloud
-            // Direct cloud save for status changes, no local file download needed
             const result = await saveQuoteToCloud(dataToSave);
-
             if (result.success) {
-                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                    message: 'Order has been CANCELLED.',
-                    type: 'info'
-                });
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Order has been CANCELLED.', type: 'info' });
             } else {
                 throw new Error(result.message);
             }
         } catch (error) {
-            console.error("WorkflowService: Cancel order save failed.", error);
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: `Cancellation failed: ${error.message}`,
-                type: 'error'
-            });
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: `Cancellation failed: ${error.message || 'Network Error'}`, type: 'error' });
+            throw error;
         }
     }
 }

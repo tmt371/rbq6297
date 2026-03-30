@@ -3,3 +3,5 @@ node_modules/
 
 
 /04-core-code/config/firebase-config.js
+.aider*
+.env

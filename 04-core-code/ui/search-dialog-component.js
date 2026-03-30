@@ -259,40 +259,51 @@ export class SearchDialogComponent {
         //     type: 'info'
         // });
 
-        const result = await searchQuotesAdvanced(uid, filters);
+        try {
+            const result = await searchQuotesAdvanced(uid, filters);
 
-        // [REMOVED] Tweak 1: 移除 statusBar 更新
+            // 3. 處理結果
+            if (result.success) {
+                // [MODIFIED] Tweak 4: 根據是否有資料顯示不同訊息
+                const message = result.data.length > 0 ? `Found ${result.data.length} quotes.` : 'Not found.';
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: message,
+                    type: 'info'
+                });
 
-        // 3. 處理結果
-        if (result.success) {
-            // [MODIFIED] Tweak 4: 根據是否有資料顯示不同訊息
-            const message = result.data.length > 0 ? `Found ${result.data.length} quotes.` : 'Not found.';
+                // [MODIFIED] 階段 3：
+                // A. 將結果數據發布給 S2View
+                this.eventAggregator.publish(EVENTS.SEARCH_RESULTS_SUCCESSFUL, result.data);
+
+                // B. 自動切換到 S2 頁籤
+                this._switchTab('search-tab-s2');
+
+            } else if (result.needsIndex) {
+                // 索引錯誤
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: 'Index required. Link logged to console.',
+                    type: 'error'
+                });
+            } else {
+                // 其他錯誤 (GraphQL layer failure etc.)
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: `Error: ${result.message}`,
+                    type: 'error'
+                });
+            }
+        } catch (error) {
+            // --- [NEW] (Phase 15.4) Strict try-catch for Search Operations ---
+            console.error("Cloud Search Failed:", error);
+
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: message,
-                type: 'info'
-            });
-
-            // [MODIFIED] 階段 3：
-            // A. 將結果數據發布給 S2View
-            this.eventAggregator.publish(EVENTS.SEARCH_RESULTS_SUCCESSFUL, result.data);
-
-            // B. 自動切換到 S2 頁籤
-            this._switchTab('search-tab-s2');
-
-        } else if (result.needsIndex) {
-            // 索引錯誤
-            // [MODIFIED] Tweak 1: 改為土司
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: 'Index required. Link logged to console.',
+                message: `Search failed: ${error.message || 'Network Timeout'}. Please check your connection.`,
                 type: 'error'
             });
-        } else {
-            // 其他錯誤
-            // [MODIFIED] Tweak 1: 改為土司
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: `Error: ${result.message}`,
-                type: 'error'
-            });
+            // Result array is empty on failure, ensure UI resets or allows retry
+        } finally {
+            // S1View has already re-enabled its search button internally 
+            // the moment it fired the EVENT, assuming this callback executes asynchronously
+            // and the UI unlocked.
         }
     }
 

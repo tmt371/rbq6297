@@ -2,6 +2,7 @@
 // [NEW] (階段 3) 建立原表 (Original Quote / AQ) 產生策略
 
 import { populateTemplate } from '../../utils/template-utils.js';
+import { formatCurrency } from '../../utils/format-utils.js';
 
 export class OriginalQuoteStrategy {
     constructor() {
@@ -16,7 +17,10 @@ export class OriginalQuoteStrategy {
      * @param {string} detailedItemListRowTemplate 
      * @returns {string}
      */
-    generateDetailsPageHtml(templateData, detailedItemListRowTemplate) {
+    generateDetailsPageHtml(templateData, detailedItemListRowTemplate, documentType = 'Quotation') {
+        if (documentType === 'Receipt' || documentType === 'Overdue Invoice') {
+            return '';
+        }
         const { items, mulTimes } = templateData;
 
         const rows = items
@@ -47,7 +51,7 @@ export class OriginalQuoteStrategy {
                     winder: winderText,
                     dual: dualText,
                     motor: motorText,
-                    price: `$${finalPrice.toFixed(2)}`,
+                    price: formatCurrency(finalPrice),
                     isEmptyClassHD: winderText ? '' : 'is-empty-cell',
                     isEmptyClassDual: dualText ? '' : 'is-empty-cell',
                     isEmptyClassMotor: motorText ? '' : 'is-empty-cell',
@@ -96,13 +100,13 @@ export class OriginalQuoteStrategy {
             }
             // (1.3) ?…æ? (isExcluded = false ä¸?isDiscounted = false) å·²åœ¨? è¨­ä¸­è???(?©è€…ç??ºé???
 
-            // [MODIFIED] Return data object instead of string
+            // [MODIFIED] Return data object using central formatCurrency helper
             return {
                 number,
                 description,
                 qty,
-                price: price.toFixed(2),
-                discountedPrice: discountedPriceValue.toFixed(2),
+                price: formatCurrency(price),
+                discountedPrice: formatCurrency(discountedPriceValue),
                 priceStyle,
                 discountedPriceStyle
             };
@@ -148,39 +152,34 @@ export class OriginalQuoteStrategy {
         }
 
         // Row 4: Delivery
-        // [è¨»] æ­¥é? 6: æ­¤è?? è¼¯å·²æ­£ç¢ºï?isExcluded ?ƒç¹¼??deliveryExcluded
-        const deliveryExcluded = uiState.f2.deliveryFeeExcluded;
+        // [FIX v3.47] Use proper Unit Price and Fee from templateData and display as 0 if excluded
         rows.push(createRowData(
             itemNumber++,
             'Delivery',
-            uiState.f2.deliveryQty || 1,
-            summaryData.deliveryFee || 0,
-            summaryData.deliveryFee || 0,
-            deliveryExcluded
+            templateData.deliveryQty || 1,
+            templateData.deliveryUnitPrice || 0,
+            templateData.deliveryFee || 0,
+            templateData.isDeliveryWaived === true
         ));
 
         // Row 5: Installation
-        // [è¨»] æ­¥é? 7: æ­¤è?? è¼¯å·²æ­£ç¢ºï?isExcluded ?ƒç¹¼??installExcluded
-        const installExcluded = uiState.f2.installFeeExcluded;
         rows.push(createRowData(
             itemNumber++,
             'Installation',
-            uiState.f2.installQty || 0, // Use installQty from F2 state
-            summaryData.installFee || 0,
-            summaryData.installFee || 0,
-            installExcluded
+            templateData.installQty || 0, 
+            templateData.installUnitPrice || 0,
+            templateData.installFee || 0,
+            templateData.isInstallWaived === true
         ));
 
         // Row 6: Removal
-        // [è¨»] æ­¥é? 8: æ­¤è?? è¼¯å·²æ­£ç¢ºï?isExcluded ?ƒç¹¼??removalExcluded
-        const removalExcluded = uiState.f2.removalFeeExcluded;
         rows.push(createRowData(
             itemNumber++,
             'Removal',
-            uiState.f2.removalQty || 0,
-            summaryData.removalFee || 0,
-            summaryData.removalFee || 0,
-            removalExcluded
+            templateData.removalQty || 0,
+            templateData.removalUnitPrice || 0,
+            templateData.removalFee || 0,
+            templateData.isRemovalWaived === true
         ));
 
         // [MODIFIED] Map data objects to HTML strings using the template

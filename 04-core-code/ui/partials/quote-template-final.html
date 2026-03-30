@@ -741,7 +741,7 @@
 
             <header class="header">
                 <div class="quotation-meta">
-                    <h2>QUOTATION</h2>
+                    <h2>{{documentType}}</h2>
                     <p><strong>Quote No:</strong> {{quoteId}}</p>
                     <p><strong>Issue Date:</strong> {{issueDate}}</p>
                     <p><strong>Due Date:</strong> {{dueDate}}</p>
@@ -863,6 +863,7 @@
                                                 {{grandTotal}}
                                             </td>
                                         </tr>
+                                        {{{receiptRowHtml}}}
                                         <tr>
                                             <td class="summary-label"
                                                 style="background-color: #FFFFE0 !important; font-size: 18px; font-weight: normal; color: #333;">

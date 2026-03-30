@@ -18,12 +18,23 @@ export class EventAggregator {
         // [NEW] (Phase 3.3f) Block undefined/null subscriptions to prevent cross-talk
         if (!eventName) {
             console.error('[EventAggregator] ERROR: Blocked attempt to subscribe to undefined/null event!', callback);
-            return;
+            return { dispose: () => {} }; // [MODIFIED] Return disposable object
         }
         if (!this.events[eventName]) {
             this.events[eventName] = [];
         }
+
+        // --- [NEW] (Event Safeguard) Prevent Duplicate Subscriptions ---
+        const exists = this.events[eventName].find(cb => cb === callback);
+        if (exists) {
+            console.warn(`[EventAggregator] Prevented duplicate subscription to event: ${eventName}`);
+            return { dispose: () => this.unsubscribe(eventName, callback) };
+        }
+
         this.events[eventName].push(callback);
+
+        // [NEW] (Phase 15.2) Return a disposable object for easy array-based teardown
+        return { dispose: () => this.unsubscribe(eventName, callback) };
     }
 
     /**

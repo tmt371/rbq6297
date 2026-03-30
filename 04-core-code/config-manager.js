@@ -81,14 +81,16 @@ export class ConfigManager {
         this.fabricTypeSequence = data.fabricTypeSequence || [];
         this.businessRules = data.businessRules || {};
         // [NEW] Phase 8.1: Store fees with local defaults
-        this.fees = data.fees || { delivery: 100, install: 20, removal: 20 };
+        // [DIRECTIVE-v3.35] Zeroed delivery default to prevent $110 ghost on blank orders
+        this.fees = data.fees || { delivery: 0, install: 0, removal: 0 };
         this.isInitialized = true;
         console.log(`ConfigManager initialized successfully from ${source} (V2).`);
     }
 
     // [NEW] Phase 8.1: Get fee unit prices (from Firestore or local defaults)
+    // [DIRECTIVE-v3.35] Zero-safe defaults
     getFees() {
-        return this.fees || { delivery: 100, install: 20, removal: 20 };
+        return this.fees || { delivery: 0, install: 0, removal: 0 };
     }
 
     getPriceMatrix(fabricType) {

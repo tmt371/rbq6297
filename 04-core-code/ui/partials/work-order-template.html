@@ -1,491 +1,226 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Work Order</title>
+    <title>Work Order - {{quoteId}}</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 
     <style>
-        /* [MODIFIED] (v6299 Phase 7 Fix 2) Styles embedded back into HTML to support Blob URL rendering */
-        /* [MODIFIED] (v6299 Phase 10 Tweak) Adjusted font sizes and column widths */
-        /* [MODIFIED] (v6299 Phase 11 Fix) Fixed font size calculation (pixels instead of %) */
-        /* [MODIFIED] (v6299 Phase 12 Fix) Reduced print zoom to 75% to fit A4 Landscape */
-        /* [MODIFIED] (v6299 Phase 13 Optimization) Reset zoom to 98% for readability, adjusted font/cols */
-        /* [MODIFIED] (v6299 Phase 14 Final Fix) Zoom 87%, Font 13px, Widened Header Cols */
-
-        /* --- 1. Base Variables & Settings --- */
-        :root {
-            --primary-color: #1a237e;
-            --border-dark-grey: #555555;
-            --border-light-grey: #dddddd;
-            --header-bg-color: #E6E6E6;
-        }
-
         body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            background-color: #f4f4f4;
+            font-family: Arial, sans-serif;
             color: #333;
+            line-height: 1.2;
             margin: 0;
             padding: 20px;
+            font-size: 11px;
         }
 
-        .page-container {
-            /* [MODIFIED] Increased width by ~10% (900px -> 1000px) */
-            max-width: 1000px;
-            margin: auto;
-            padding: 10px;
+        .document-container {
+            max-width: 1050px;
+            margin: 0 auto;
         }
 
-        .content-wrapper {
-            background-color: #fff;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-            border: 2px solid #a0d3e8;
+        /* 頂部資訊區 */
+        h1 {
+            margin: 0 0 5px 0;
+            font-size: 20px;
+            font-weight: normal;
+            color: #000;
         }
 
-        /* --- 2. Headers --- */
-        .main-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 40px;
+        .quote-no {
+            font-size: 13px;
+            margin-bottom: 15px;
+            color: #000;
         }
 
-        .main-header h1 {
-            border-bottom: none;
-            padding-bottom: 0;
-            margin: 0;
-            color: #444;
-        }
-
-        .quote-number {
-            font-size: 16px;
-            color: #555;
-        }
-
-        h2 {
-            border-top: 2px solid #eee;
-            padding-top: 20px;
-            padding-bottom: 0;
-            margin-top: 40px;
-            margin-bottom: 0;
-            color: #444;
-        }
-
-        /* --- 3. Tables --- */
+        /* 表格通用設定 */
         table {
             width: 100%;
+            /* 主表維持滿版 */
             border-collapse: collapse;
-            margin-top: 20px;
-            border: 2px solid var(--border-dark-grey);
-            table-layout: fixed;
+            margin-bottom: 5px;
+            /* 為了配合分隔線稍微縮小底部 margin */
         }
 
         th,
         td {
-            border: 1px solid var(--border-light-grey);
-            padding: 6px 8px;
-            font-size: 13px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        thead th {
-            font-weight: 600;
-            font-size: 12px;
-        }
-
-        /* [FIX] Specific font reduction for content cells */
-        .detailed-list-table td:nth-child(4),
-        .detailed-list-table td:nth-child(5),
-        .detailed-list-table td:nth-child(9),
-        .detailed-list-table td:nth-child(15) {
-            font-size: 11px;
-        }
-
-        tfoot {
-            font-weight: bold;
-        }
-
-        tfoot td {
-            border-top: 2px solid #ccc;
-        }
-
-        .table-title {
-            background-color: var(--header-bg-color);
-            color: #333;
-            font-weight: bold;
-            font-size: 16px;
-            border-bottom: 2px solid var(--border-light-grey);
-        }
-
-        .total-row {
-            background-color: var(--header-bg-color);
-            font-weight: bold;
-        }
-
-        /* --- 4. Utility Classes --- */
-        .text-center {
+            border: 1px solid #666;
+            padding: 4px 2px;
             text-align: center;
+            vertical-align: middle;
+        }
+
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            font-size: 10px;
+        }
+
+        .text-left {
+            text-align: left;
+            padding-left: 5px;
         }
 
         .text-right {
             text-align: right;
+            padding-right: 5px;
         }
 
-        .table-scroll-wrapper {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+        .text-red {
+            color: #cc0000;
+            font-weight: bold;
         }
 
-        .appendix-flex-container {
+        .bg-gray {
+            background-color: #f0f0f0;
+        }
+
+        .bg-cyan {
+            background-color: #e0f7fa;
+        }
+
+        /* ========================================== */
+        /* 新增：粉綠色分隔橫線 */
+        /* ========================================== */
+        .section-divider {
+            border: 0;
+            border-top: 3px solid #a8e6cf;
+            /* 粉綠色 (Pastel Green) */
+            margin: 15px 0 20px 0;
+            /* 上下留白，讓視覺有呼吸空間 */
+        }
+
+        /* ========================================== */
+        /* 底部 Side-by-Side 與防切割列印設定 */
+        /* ========================================== */
+        .bottom-section {
             display: flex;
-            gap: 20px;
-            margin-top: 40px;
+            justify-content: space-between;
             align-items: flex-start;
+            gap: 30px;
+            /* 關鍵程式設定：確保此區塊列印時不被切斷，會整塊移至下一頁 */
+            page-break-inside: avoid;
+            break-inside: avoid;
         }
 
-        .appendix-flex-container>.table-scroll-wrapper {
-            flex: 0 0 auto;
-            max-width: 400px;
-            min-width: 272px;
+        /* 配件表專屬樣式 */
+        .accessories-wrapper {
+            flex-grow: 0;
         }
 
-        .appendix-flex-container>.legend {
-            flex: 1;
-            min-width: 250px;
+        .accessories-wrapper table {
+            width: auto;
+            /* 表格總寬度由內容與直欄設定撐開，不強制滿版 */
         }
 
-        /* --- 5. Legend & Summary Keys --- */
-        .legend {
-            margin-top: 40px;
-            padding: 15px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 13px;
+        .table-title {
+            font-weight: normal;
+            color: #000;
         }
 
-        .color-swatch {
-            display: inline-block;
-            width: 14px;
-            height: 14px;
-            border: 1px solid #999;
-            margin-right: 8px;
-            vertical-align: middle;
+        /* 根據指示微調的最新欄寬 */
+        .col-item {
+            width: 110px;
+            text-align: left;
+            padding-left: 5px;
+            white-space: nowrap;
+            /* 終極防呆：絕對不允許文字斷行 */
         }
 
-        .summary-key-table {
-            width: 100%;
-            border: none;
-            table-layout: auto;
-            margin-top: 0;
+        .col-spec {
+            width: 112px;
+            text-align: left;
+            padding-left: 5px;
         }
 
-        .summary-key-table>tbody>tr>td {
-            border: none;
-            padding: 0;
-            vertical-align: top;
+        .col-qty {
+            width: 28px;
         }
 
-        .summary-key-table .key-column {
-            width: 40%;
-            padding-right: 10px;
+        .col-price {
+            width: 96px;
+            text-align: right;
+            padding-right: 5px;
         }
 
-        .summary-key-table .summary-column {
-            width: 60%;
+        .no-border-left {
+            border-left: none;
+            border-bottom: none;
+            border-right: none;
         }
 
-        .summary-key-table h3 {
-            margin-top: 0;
+        .bg-electronics {
+            background-color: #fffde7;
+        }
+
+        .financial-wrapper {
+            width: 35%;
+        }
+
+        /* 縮寫與圖例說明區 */
+        .abbreviations {
+            margin-top: 20px;
+            border: 1px solid #add8e6;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 11px;
+            background-color: #fff;
+        }
+
+        .abbreviations strong {
+            font-size: 12px;
+            display: block;
             margin-bottom: 8px;
         }
 
-        .summary-key-table p {
-            margin: 5px 0;
-            display: flex;
-            align-items: center;
+        .legend-box {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 1px solid #999;
+            margin-right: 5px;
+            vertical-align: middle;
         }
 
-        /* --- 6. Cost Summary Table --- */
-        .cost-summary-table {
-            width: 100%;
-            border: 1px solid var(--border-dark-grey);
-            table-layout: fixed;
-            margin-top: 0;
+        .legend-bo {
+            background-color: #f0f0f0;
         }
 
-        .cost-summary-table th,
-        .cost-summary-table td {
-            border: 1px solid var(--border-light-grey);
-            font-size: 12px;
-            padding: 5px 6px;
+        .legend-sn {
+            background-color: #e0f7fa;
         }
 
-        .cost-summary-table th {
-            background-color: var(--header-bg-color);
+        .legend-lf {
+            background-color: #ffebee;
         }
 
-        .cost-summary-table tfoot td {
-            font-weight: bold;
-            background-color: var(--header-bg-color);
-            border-top: 2px solid var(--border-dark-grey);
-            color: #c0392b;
+        .legend-row {
+            margin-bottom: 5px;
+            line-height: 14px;
         }
 
-        /* --- 7. Background Colors --- */
-        .detailed-list-table .bg-blockout {
-            background-color: #f0f0f0 !important;
-        }
-
-        .detailed-list-table .bg-screen {
-            background-color: #e0f7fa !important;
-        }
-
-        .detailed-list-table .bg-light-filter {
-            background-color: #ffe4e1 !important;
-        }
-
-        /* --- 8. Summary Row Classes --- */
-        .wo-summary-row {
-            font-weight: bold;
-            background-color: #f0f2f5;
-            border-top: 2px solid #555;
-        }
-
-        .wo-summary-label {
-            text-align: right;
-            padding-right: 10px;
-        }
-
-        .wo-text-red {
-            color: #c0392b;
-        }
-
-        .wo-text-small {
-            font-size: 0.8em;
-        }
-
-        /* --- [NEW] PDF Download Button --- */
+        /* [NEW] Download PDF button styling */
         #btn-download-pdf {
             position: fixed;
             top: 20px;
             right: 20px;
-            padding: 10px 20px;
-            background-color: #2e7d32;
+            background-color: #007bff;
             color: white;
-            font-weight: bold;
             border: none;
+            padding: 10px 20px;
             border-radius: 5px;
             cursor: pointer;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
             z-index: 1000;
-            font-size: 14px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
 
-        #btn-download-pdf:hover {
-            background-color: #1b5e20;
-        }
-
-        /* --- 9. Responsive --- */
-        @media (max-width: 850px) {
-            .appendix-flex-container {
-                flex-direction: column;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .page-container {
-                padding: 10px;
-            }
-
-            .content-wrapper {
-                padding: 15px;
-            }
-
-            .main-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 5px;
-            }
-
-            .table-scroll-wrapper {
-                overflow-x: hidden;
-            }
-
-            .detailed-list-table {
-                border: none;
-                display: block;
-                table-layout: auto;
-            }
-
-            .detailed-list-table thead {
-                border: none;
-                clip: rect(0 0 0 0);
-                height: 1px;
-                margin: -1px;
-                overflow: hidden;
-                padding: 0;
-                position: absolute;
-                width: 1px;
-            }
-
-            .detailed-list-table tr {
-                display: block;
-                margin-bottom: 15px;
-                border: 1px solid var(--border-light-grey);
-                border-radius: 5px;
-                padding: 0;
-                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-            }
-
-            .detailed-list-table td {
-                display: flex;
-                justify-content: space-between;
-                padding: 10px 15px;
-                border: none;
-                border-bottom: 1px solid var(--border-light-grey);
-                text-align: right;
-            }
-
-            .detailed-list-table tr td:last-child {
-                border-bottom: none;
-            }
-
-            .detailed-list-table td:before {
-                content: attr(data-label);
-                font-weight: 600;
-                text-align: left;
-                padding-right: 15px;
-            }
-
-            .detailed-list-table td:first-of-type {
-                background-color: var(--header-bg-color);
-                color: #333;
-                font-weight: bold;
-                border-radius: 4px 4px 0 0;
-            }
-
-            .detailed-list-table td:first-of-type::before {
-                color: #333;
-            }
-
-            .motorised-accessories-table {
-                table-layout: auto;
-                border: 1px solid var(--border-dark-grey);
-            }
-
-            .summary-key-table>tbody>tr {
-                display: flex;
-                flex-direction: column;
-                gap: 15px;
-            }
-        }
-
-        /* --- 10. Print Optimization --- */
+        /* [NEW] Hide button when printing */
         @media print {
             #btn-download-pdf {
-                display: none;
-            }
-
-            @page {
-                size: landscape;
-                margin: 5mm;
-            }
-
-            * {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-
-            body {
-                background-color: #ffffff;
-                width: 100%;
-                zoom: 87%;
-            }
-
-            .page-container {
-                max-width: 100% !important;
-                width: 100% !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                page-break-before: always;
-                box-shadow: none !important;
-            }
-
-            .content-wrapper {
-                border: none !important;
-                box-shadow: none !important;
-                padding: 0 !important;
-            }
-
-            .detailed-list-table tr,
-            .motorised-accessories-table,
-            .legend,
-            .appendix-flex-container {
-                page-break-inside: avoid;
-            }
-
-            .detailed-list-table .bg-blockout,
-            .detailed-list-table .bg-screen,
-            .detailed-list-table .bg-light-filter,
-            .wo-summary-row {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-
-            .detailed-list-table {
-                display: table !important;
-                table-layout: fixed !important;
-                width: 100% !important;
-            }
-
-            .detailed-list-table thead {
-                display: table-header-group !important;
-                position: static !important;
-                height: auto !important;
-                margin: 0 !important;
-                padding: 0 !important;
-                width: auto !important;
-                border: none !important;
-                clip: rect(auto, auto, auto, auto) !important;
-            }
-
-            .detailed-list-table tr {
-                display: table-row !important;
-                margin-bottom: 0 !important;
-                border: 1px solid var(--border-light-grey) !important;
-                box-shadow: none !important;
-            }
-
-            .detailed-list-table td {
-                display: table-cell !important;
-                justify-content: flex-start !important;
-                padding: 8px 4px !important;
-                border-bottom: 1px solid var(--border-light-grey) !important;
-                font-size: 13px !important;
-            }
-
-            .detailed-list-table th {
-                padding: 6px 4px !important;
-            }
-
-            .detailed-list-table td:nth-child(4),
-            .detailed-list-table td:nth-child(5),
-            .detailed-list-table td:nth-child(9),
-            .detailed-list-table td:nth-child(15) {
-                font-size: 11px !important;
-            }
-
-            .detailed-list-table td:before {
-                content: none !important;
                 display: none !important;
             }
         }
@@ -495,185 +230,270 @@
 <body>
     <button id="btn-download-pdf">Download PDF</button>
 
-    <div class="page-container">
-        <div class="content-wrapper">
+    <div class="document-container">
 
+        <h1>Work Order</h1>
+        <div class="quote-no">Quote No: {{quoteId}}</div>
 
-            <div class="main-header">
-                <h1>Customer: {{customerFullName}}</h1>
-                <div class="quote-number">
-                    <strong>Order NO:</strong> {{quoteId}}
-                </div>
-            </div>
+        <table id="wo-main-table">
+            <thead>
+                <tr>
+                    <th colspan="16" class="bg-gray" style="font-size: 11px; padding: 5px;">Roller Blinds - Work Order
+                    </th>
+                </tr>
+                <tr>
+                    <th width="3%">NO</th>
+                    <th width="3%">#</th>
+                    <th width="5%">TYPE</th>
+                    <th width="12%">F-Name</th>
+                    <th width="8%">F-Color</th>
+                    <th width="6%">W</th>
+                    <th width="6%">H</th>
+                    <th width="4%">Over</th>
+                    <th width="4%">O/I</th>
+                    <th width="4%">L/R</th>
+                    <th width="4%">Dual</th>
+                    <th width="5%">Chain</th>
+                    <th width="4%">HD</th>
+                    <th width="5%">Motor</th>
+                    <th width="17%">Location</th>
+                    <th width="10%">PRICE</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{{workOrderTableRows}}}
+            </tbody>
+            <tfoot>
+                <!-- The summary row is now generated dynamically in work-order-strategy.js -->
+            </tfoot>
+        </table>
 
+        <hr class="section-divider">
 
-            <div class="table-scroll-wrapper">
-                <table id="wo-main-table" class="detailed-list-table">
-                    <colgroup>
-                        <col style="width: 4.5%;">
-                        <col style="width: 4.5%;">
-                        <col style="width: 7%;">
-                        <col style="width: 8%;">
-                        <col style="width: 8%;">
-                        <col style="width: 5%;">
-                        <col style="width: 5%;">
-                        <col style="width: 5%;">
-                        <col style="width: 4.5%;">
-                        <col style="width: 4.5%;">
-                        <col style="width: 5%;">
-                        <col style="width: 6%;">
-                        <col style="width: 4.5%;">
-                        <col style="width: 6.5%;">
-                        <col style="width: 12%;">
-                        <col style="width: 9.5%;">
-                    </colgroup>
+        <div class="bottom-section">
+
+            <div class="accessories-wrapper">
+                <table id="wo-acce-table">
                     <thead>
-                        <tr class="table-title">
-                            <th colspan="16">Roller Blinds - Work Order</th>
+                        <tr>
+                            <th colspan="4" class="bg-gray table-title"
+                                style="font-size: 11px; padding: 5px; text-align: left; padding-left: 5px; font-weight: normal; color: #000;">
+                                Motorised & Hardware Package Summary</th>
                         </tr>
                         <tr>
-                            <th>NO</th>
-                            <th>#</th>
-                            <th>TYPE</th>
-                            <th>F-Name</th>
-                            <th>F-Color</th>
-                            <th>W</th>
-                            <th>H</th>
-                            <th>Over</th>
-                            <th>O/I</th>
-                            <th>L/R</th>
-                            <th>Dual</th>
-                            <th>Chain</th>
-                            <th>HD</th>
-                            <th>Motor</th>
-                            <th>Location</th>
-                            <th>PRICE</th>
+                            <th class="col-item">Item</th>
+                            <th class="col-spec">Brand / Spec</th>
+                            <th class="col-qty">QTY</th>
+                            <th class="col-price">Price</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {{{workOrderTableRows}}}
+                        <tr class="bg-electronics">
+                            <td class="col-item" style="background-color: #fffde7;">B-motor</td>
+                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-qty" style="background-color: #fffde7;">{{bmotorQty}}</td>
+                            <td class="col-price" style="background-color: #fffde7;">{{bmotorPrice}}</td>
+                        </tr>
+                        <tr class="bg-electronics">
+                            <td class="col-item" style="background-color: #fffde7;">W-motor</td>
+                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-qty" style="background-color: #fffde7;">{{wmotorQty}}</td>
+                            <td class="col-price" style="background-color: #fffde7;">{{wmotorPrice}}</td>
+                        </tr>
+                        <tr class="bg-electronics">
+                            <td class="col-item" style="background-color: #fffde7;">Remote (1CH)</td>
+                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-qty" style="background-color: #fffde7;">{{remote1chQty}}</td>
+                            <td class="col-price" style="background-color: #fffde7;">{{remote1chPrice}}</td>
+                        </tr>
+                        <tr class="bg-electronics">
+                            <td class="col-item" style="background-color: #fffde7;">Remote (16CH)</td>
+                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-qty" style="background-color: #fffde7;">{{remote16chQty}}</td>
+                            <td class="col-price" style="background-color: #fffde7;">{{remote16chPrice}}</td>
+                        </tr>
+                        <tr class="bg-electronics">
+                            <td class="col-item" style="background-color: #fffde7;">Charger</td>
+                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-qty" style="background-color: #fffde7;">{{chargerQty}}</td>
+                            <td class="col-price" style="background-color: #fffde7;">{{chargerPrice}}</td>
+                        </tr>
+                        <tr class="bg-electronics">
+                            <td class="col-item" style="background-color: #fffde7;">3M Cord</td>
+                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-qty" style="background-color: #fffde7;">{{cord3mQty}}</td>
+                            <td class="col-price" style="background-color: #fffde7;">{{cord3mPrice}}</td>
+                        </tr>
+                        <tr class="bg-electronics">
+                            <td class="col-item" style="background-color: #fffde7;">WiFi Hub</td>
+                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-qty" style="background-color: #fffde7;">{{wifiHubQty}}</td>
+                            <td class="col-price" style="background-color: #fffde7;">{{wifiHubPrice}}</td>
+                        </tr>
+                        <tr>
+                            <td class="col-item">HD Winder</td>
+                            <td class="col-spec"></td>
+                            <td class="col-qty">{{hdWinderQty}}</td>
+                            <td class="col-price">{{hdWinderPrice}}</td>
+                        </tr>
+                        <tr>
+                            <td class="col-item">Dual combo</td>
+                            <td class="col-spec"></td>
+                            <td class="col-qty">{{dualComboQty}}</td>
+                            <td class="col-price">{{dualComboPrice}}</td>
+                        </tr>
+                        <tr>
+                            <td class="col-item">Dual slim</td>
+                            <td class="col-spec"></td>
+                            <td class="col-qty">{{dualSlimQty}}</td>
+                            <td class="col-price">{{dualSlimPrice}}</td>
+                        </tr>
+                        <tr>
+                            <td class="col-item">Bracket</td>
+                            <td class="col-spec"></td>
+                            <td class="col-qty">{{bracketQty}}</td>
+                            <td class="col-price">{{bracketPrice}}</td>
+                        </tr>
+                        <tr class="bg-gray">
+                            <td colspan="2" class="no-border-left"></td>
+                            <td class="col-qty" style="font-weight: bold;">Total</td>
+                            <td class="col-price" style="font-weight: bold;">{{eAcceSum}}</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
 
-            <div class="appendix-flex-container">
+            <div class="financial-wrapper">
 
-                <div class="table-scroll-wrapper">
+                <table id="wo-cost-table">
+                    <thead>
+                        <tr>
+                            <th colspan="2" class="bg-gray table-title"
+                                style="font-size: 11px; padding: 5px; text-align: left; font-weight: normal; color: #000;">
+                                Financial Summary</th>
+                        </tr>
+                        <tr>
+                            <th class="text-left">ITEM</th>
+                            <th class="text-right" style="width: 100px;">Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="text-left">RB</td>
+                            <td class="text-right">{{wo_rb_price}}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-left">Acce.</td>
+                            <td class="text-right">{{wo_acce_price}}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-left">E-item</td>
+                            <td class="text-right">{{eAcceSum}}</td>
+                        </tr>
+                        <tr class="bg-gray" style="color: #FF0000; font-weight: bold;">
+                            <td class="text-left text-red" style="color: #FF0000; font-weight: bold;">Total</td>
+                            <td class="text-right text-red" style="color: #FF0000; font-weight: bold;">{{wo_total_price}}</td>
+                        </tr>
+                    </tbody>
+                </table>
 
-                    <table id="wo-acce-table" class="motorised-accessories-table">
-                        <colgroup>
-                            <col style="width: auto;">
-                            <col style="width: 25%;">
-                            <col style="width: 35%;">
-                        </colgroup>
-
-                        <thead>
-                            <tr class="table-title">
-                                <th colspan="3">Motorised Package Summary</th>
-                            </tr>
-                            <tr>
-                                <th>Item</th>
-                                <th class="text-center">QTY</th>
-                                <th class="text-right">Total Price</th>
-                            </tr>
-                        </thead>
-
-                        <tbody>
-                            <tr>
-                                <td data-label="Item">Motor</td>
-                                <td data-label="QTY" class="text-center">{{motorQty}}</td>
-                                <td data-label="Total Price" class="text-right">{{{motorPrice}}}</td>
-                            </tr>
-                            <tr>
-                                <td data-label="Item">Remote (1CH)</td>
-                                <td data-label="QTY" class="text-center">{{remote1chQty}}</td>
-                                <td data-label="Total Price" class="text-right">{{{remote1chPrice}}}</td>
-                            </tr>
-                            <tr>
-                                <td data-label="Item">Remote (16CH)</td>
-                                <td data-label="QTY" class="text-center">{{remote16chQty}}</td>
-                                <td data-label="Total Price" class="text-right">{{{remote16chPrice}}}</td>
-                            </tr>
-                            <tr>
-                                <td data-label="Item">Charger</td>
-                                <td data-label="QTY" class="text-center">{{chargerQty}}</td>
-                                <td data-label="Total Price" class="text-right">{{{chargerPrice}}}</td>
-                            </tr>
-                            <tr>
-                                <td data-label="Item">3M Cord</td>
-                                <td data-label="QTY" class="text-center">{{cord3mQty}}</td>
-                                <td data-label="Total Price" class="text-right">{{{cord3mPrice}}}</td>
-                            </tr>
-                            <tr>
-                                <td data-label="Item">WiFi Hub</td>
-                                <td data-label="QTY" class="text-center">{{{wifiHubQty}}}</td>
-                                <td data-label="Total Price" class="text-right">{{{wifiHubPrice}}}</td>
-                            </tr>
-                        </tbody>
-                        <tfoot>
-                            <tr class="total-row">
-                                <td colspan="2" class="text-right" data-label="QTY">Total</td>
-                                <td class="text-right" data-label="Total Price">{{eAcceSum}}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
+                <div id="wo-abbreviations" class="abbreviations">
+                    <strong>Abbreviations Key</strong>
+                    <div class="legend-row">
+                        <span class="legend-box legend-bo"></span> Blockout (BO)
+                    </div>
+                    <div class="legend-row">
+                        <span class="legend-box legend-sn"></span> Screen (SN)
+                    </div>
+                    <div class="legend-row">
+                        <span class="legend-box legend-lf"></span> Light Filter (LF)
+                    </div>
+                    <div style="margin-top: 10px; line-height: 1.5;">
+                        HD: Heavy-Duty Winder<br>
+                        Dual: Double Bracket
+                    </div>
                 </div>
 
-                <div class="legend">
-                    <table class="summary-key-table">
-                        <tbody>
-                            <tr>
-                                <td class="key-column">
-                                    <h3>Abbreviations Key</h3>
-                                    <p><span class="color-swatch" style="background-color: #f0f0f0;"></span>Blockout
-                                        (BO)</p>
-                                    <p><span class="color-swatch" style="background-color: #e0f7fa;"></span>Screen (SN)
-                                    </p>
-                                    <p><span class="color-swatch" style="background-color: #ffe4e1;"></span>Light Filter
-                                        (LF)</p>
-                                    <p><strong>HD:</strong> Heavy-Duty Winder</p>
-                                    <p><strong>Dual:</strong> Double Bracket</p>
-                                </td>
-                                <td class="summary-column">
-                                    <table id="wo-cost-table" class="cost-summary-table">
-                                        <thead>
-                                            <tr>
-                                                <th>ITEM</th>
-                                                <th>Price</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <tr>
-                                                <td>RB</td>
-                                                <td class="text-right">{{{wo_rb_price}}}</td>
-                                            </tr>
-                                            <tr>
-                                                <td>Acce.</td>
-                                                <td class="text-right">{{{wo_acce_price}}}</td>
-                                            </tr>
-                                            <tr>
-                                                <td>E-item</td>
-                                                <td class="text-right">{{{eAcceSum}}}</td>
-                                            </tr>
-                                        </tbody>
-                                        <tfoot>
-                                            <tr>
-                                                <td>Total</td>
-                                                <td class="text-right">{{{wo_total_price}}}</td>
-                                            </tr>
-                                        </tfoot>
-                                    </table>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
             </div>
+
         </div>
 
     </div>
 
     <script>
+        // --- NEW: Universal PDF Style Bridge ---
+        function applyHtmlStylesToPdf(data) {
+            if (data.section === 'body' || data.section === 'foot') {
+                const cell = data.cell.raw;
+                const row = data.row ? data.row.raw : null;
+
+                if (!cell || cell.nodeType !== 1) return;
+
+                const cellStyle = window.getComputedStyle(cell);
+                const rowStyle = row && row.nodeType === 1 ? window.getComputedStyle(row) : null;
+
+                // --- NEW: VISUAL TELEMETRY HUD FOR ACCESSORY TABLE ---
+                if (data.table && data.table.id === 'wo-acce-table' && data.section === 'body') {
+                    const rowText = row ? (row.innerText || row.textContent || '').trim().substring(0, 15) : 'Unknown Row';
+                    const cBg = cellStyle.backgroundColor;
+                    const rBg = rowStyle ? rowStyle.backgroundColor : 'N/A';
+                    
+                    if (rowText.includes('motor') || rowText.includes('Remote') || rowText.includes('Charger') || rowText.includes('Cord') || rowText.includes('WiFi')) {
+                        const logStr = `Row: ${rowText} | TD BG: ${cBg} | TR BG: ${rBg}`;
+                        
+                        // Inject into a visual HUD on the screen
+                        let hud = document.getElementById('pdf-debug-hud');
+                        if (!hud) {
+                            hud = document.createElement('div');
+                            hud.id = 'pdf-debug-hud';
+                            hud.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; background: rgba(0,0,0,0.8); color: #00FF00; z-index: 99999; padding: 10px; font-family: monospace; font-size: 14px; pointer-events: none;';
+                            document.body.appendChild(hud);
+                        }
+                        const logLine = document.createElement('div');
+                        logLine.innerText = logStr;
+                        hud.appendChild(logLine);
+                    }
+                }
+                // -----------------------------------------------------
+
+                // --- NEW: Helper to safely convert rgb/rgba strings to [R, G, B] arrays for jsPDF ---
+                const parseColorToArray = (colorStr) => {
+                    if (!colorStr || colorStr === 'transparent' || colorStr === 'rgba(0, 0, 0, 0)') return null;
+                    const match = colorStr.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+                    if (match) {
+                        return [parseInt(match[1]), parseInt(match[2]), parseInt(match[3])];
+                    }
+                    return colorStr; // Fallback to original string if it's already Hex
+                };
+                // -------------------------------------------------------------------------------------
+
+                // 1. Extract Background Color (Check cell, fallback to row)
+                let bgColor = parseColorToArray(cellStyle.backgroundColor);
+                if (!bgColor && rowStyle) {
+                    bgColor = parseColorToArray(rowStyle.backgroundColor);
+                }
+                if (bgColor) {
+                    data.cell.styles.fillColor = bgColor;
+                }
+
+                // 2. Extract Text Color
+                let textColor = parseColorToArray(cellStyle.color);
+                if (!textColor && rowStyle) {
+                    textColor = parseColorToArray(rowStyle.color);
+                }
+                if (textColor) {
+                    data.cell.styles.textColor = textColor;
+                }
+
+                // 3. Extract Font Weight
+                let fw = cellStyle.fontWeight || (rowStyle ? rowStyle.fontWeight : null);
+                if (fw === 'bold' || fw === '700' || parseInt(fw) >= 600) {
+                    data.cell.styles.fontStyle = 'bold';
+                }
+            }
+        }
+        // ---------------------------------------
+
         document.getElementById('btn-download-pdf').addEventListener('click', function () {
             const { jsPDF } = window.jspdf;
 
@@ -684,184 +504,274 @@
                 format: 'a4'
             });
 
-            // [NEW] (v6299 Phase 26) Absolute coordinate system for A4 Landscape
-            const PAGE_WIDTH = 297;
+            // [NEW] (Work Order Upgrade) A4 橫向的絕對座標系統
+            const PAGE_WIDTH = doc.internal.pageSize.getWidth(); // 297mm
             const LEFT_MARGIN = 10;
-            const RIGHT_MARGIN = 10; // Though we use calculation, keep margin consistent
-            const TABLE_WIDTH = 277; // 297 - 10 - 10 (Exact width of main table)
-            const TABLE_RIGHT_X = LEFT_MARGIN + TABLE_WIDTH; // 287
+            const RIGHT_MARGIN = 10;
+            const TABLE_RIGHT_X = PAGE_WIDTH - RIGHT_MARGIN; // 287mm
+            const MAIN_TABLE_WIDTH = TABLE_RIGHT_X - LEFT_MARGIN; // 277mm
 
-            const quoteId = document.querySelector('.quote-number').innerText.split(':')[1].trim();
-            const customerName = document.querySelector('.main-header h1').innerText.replace('Customer: ', '');
+            // 直接使用模板變數作為 PDF 標頭
+            const customerNameForPdf = '{{customerFullName}}'; // 由模板填充
+            const quoteIdForPdf = '{{quoteId}}'; // 由模板填充
+            const pdfFileName = '{{pdfFileName}}'; // 由模板填充
+
             doc.setFontSize(18);
-            doc.text(`Customer: ${customerName}`, LEFT_MARGIN, 15);
+            doc.text(`Work Order`, LEFT_MARGIN, 15);
             doc.setFontSize(12);
-            doc.text(`Order NO: ${quoteId}`, LEFT_MARGIN, 22);
+            doc.text(`Quote No: ${quoteIdForPdf}`, LEFT_MARGIN, 22);
+            doc.text(`Customer: ${customerNameForPdf}`, LEFT_MARGIN, 29);
 
-            // --- Main Table ---
+            // --- 主表格 (Main Table) ---
             doc.autoTable({
                 html: '#wo-main-table',
-                startY: 30,
-                // [MODIFIED] Use calculated margins to force exact width
+                startY: 40, // 增加 startY 以容納新增的標頭行
                 margin: { left: LEFT_MARGIN, right: RIGHT_MARGIN },
+                tableWidth: MAIN_TABLE_WIDTH, // 使用計算出的寬度
+                showHead: 'everyPage', // [FIX] Ensure headers repeat on new pages
                 theme: 'grid',
                 styles: {
                     fontSize: 8,
                     cellPadding: 1,
                     valign: 'middle',
                     halign: 'center',
-                    lineColor: [85, 85, 85],
+                    lineColor: [102, 102, 102], // #666
                     lineWidth: 0.1
                 },
                 bodyStyles: {
                     fillColor: [255, 255, 255]
                 },
                 headStyles: {
-                    fillColor: [230, 230, 230],
-                    textColor: [51, 51, 51],
-                    fontStyle: 'bold'
+                    fillColor: [240, 240, 240], // #f0f0f0
+                    textColor: [0, 0, 0], // #000
+                    fontStyle: 'bold',
+                    fontSize: 9 // 根據新模板樣式調整字體大小
                 },
-                // [MODIFIED] Recalculated column widths in MM to sum to exactly 277mm
-                // Previous sum 274. Added 3mm to F-Name, F-Color, Location.
+                // 根據 new-wo-layout-draft.html 的列寬度設定
                 columnStyles: {
-                    0: { cellWidth: 12 }, // NO (4.5%) -> ~12mm
-                    1: { cellWidth: 12 }, // # (4.5%) -> ~12mm
-                    2: { cellWidth: 19 }, // TYPE (7%) -> ~19mm
-                    3: { cellWidth: 23, halign: 'left' }, // F-Name (8% + 1mm) -> ~23mm
-                    4: { cellWidth: 23, halign: 'left' }, // F-Color (8% + 1mm) -> ~23mm
-                    5: { cellWidth: 14 }, // W (5%) -> ~14mm
-                    6: { cellWidth: 14 }, // H (5%) -> ~14mm
-                    7: { cellWidth: 14 }, // Over (5%) -> ~14mm
-                    8: { cellWidth: 12 }, // O/I (4.5%) -> ~12mm
-                    9: { cellWidth: 12 }, // L/R (4.5%) -> ~12mm
-                    10: { cellWidth: 14 }, // Dual (5%) -> ~14mm
-                    11: { cellWidth: 17 }, // Chain (6%) -> ~17mm
-                    12: { cellWidth: 12 }, // HD (4.5%) -> ~12mm
-                    13: { cellWidth: 18 }, // Motor (6.5%) -> ~18mm
-                    14: { cellWidth: 34, halign: 'left' }, // Location (12% + 1mm) -> ~34mm
-                    15: { cellWidth: 27, halign: 'right' }  // Price (9.5%) -> ~27mm
-                    // Sum = 12+12+19+23+23+14+14+14+12+12+14+17+12+18+34+27 = 277mm
+                    0: { cellWidth: 8.3 }, // NO (3%)
+                    1: { cellWidth: 8.3 }, // # (3%)
+                    2: { cellWidth: 13.8 }, // TYPE (5%)
+                    3: { cellWidth: 33.2, halign: 'left' }, // F-Name (12%)
+                    4: { cellWidth: 22.1, halign: 'left' }, // F-Color (8%)
+                    5: { cellWidth: 16.6 }, // W (6%)
+                    6: { cellWidth: 16.6 }, // H (6%)
+                    7: { cellWidth: 11.1 }, // Over (4%)
+                    8: { cellWidth: 11.1 }, // O/I (4%)
+                    9: { cellWidth: 11.1 }, // L/R (4%)
+                    10: { cellWidth: 11.1 }, // Dual (4%)
+                    11: { cellWidth: 13.8 }, // Chain (5%)
+                    12: { cellWidth: 11.1 }, // HD (4%)
+                    13: { cellWidth: 13.8 }, // Motor (5%)
+                    14: { cellWidth: 47.0, halign: 'left' }, // Location (17%)
+                    15: { cellWidth: 27.7, halign: 'right' }  // PRICE (10%)
                 },
                 didParseCell: function (data) {
                     if (data.section === 'body') {
                         const rowElement = data.row.raw;
                         if (rowElement) {
-                            const domTable = document.getElementById('wo-main-table');
-                            const domRows = domTable.querySelectorAll('tbody tr');
-                            const currentRow = domRows[data.row.index];
-
-                            if (currentRow) {
-                                const fabricClassCell = currentRow.querySelector('td:nth-child(4)');
-                                if (fabricClassCell) {
-                                    // [FIX] Only apply background color to columns 1 (#) to 4 (F-Color)
-                                    // Note: data.column.index is 0-based. So indices 1, 2, 3, 4.
-                                    if ([1, 2, 3, 4].includes(data.column.index)) {
-                                        if (fabricClassCell.classList.contains('bg-light-filter')) {
-                                            data.cell.styles.fillColor = [255, 230, 230];
-                                        } else if (fabricClassCell.classList.contains('bg-blockout')) {
-                                            data.cell.styles.fillColor = [240, 240, 240];
-                                        } else if (fabricClassCell.classList.contains('bg-screen')) {
-                                            data.cell.styles.fillColor = [224, 247, 250];
-                                        }
+                            // 使用 rowElement (data.row.raw) 直接進行所有行級別的檢查
+                            // rowElement 已在外部 if (rowElement) 中進行 null 檢查
+                            // [NEW] 針對 rowElement.querySelector() 進行嚴格防呆檢查
+                            if (typeof rowElement.querySelector === 'function') {
+                                const typeCell = rowElement.querySelector('td:nth-child(3)');
+                                if (typeCell) {
+                                    const typeCode = typeCell.innerText.trim();
+                                    if (typeCode === 'SN') { // Screen
+                                        data.cell.styles.fillColor = [224, 247, 250]; // #e0f7fa
+                                    } else if (typeCode === 'BO') { // Blockout
+                                        data.cell.styles.fillColor = [240, 240, 240]; // #f0f0f0
+                                    } else if (typeCode === 'LF') { // Light Filter
+                                        data.cell.styles.fillColor = [255, 235, 235]; // #ffebee
                                     }
                                 }
-                                if (currentRow.classList.contains('wo-summary-row')) {
-                                    data.cell.styles.fontStyle = 'bold';
-                                    data.cell.styles.fillColor = [240, 242, 245];
-                                    if (data.column.index === 13 || data.column.index === 15) {
-                                        data.cell.styles.textColor = [192, 57, 43];
-                                    }
+                            }
+                            // [FIX] 針對 rowElement 的 classList.contains() 進行嚴格防呆檢查
+                            if (rowElement.classList && typeof rowElement.classList.contains === 'function' && rowElement.classList.contains('wo-summary-row')) {
+                                data.cell.styles.fontStyle = 'bold';
+                                data.cell.styles.fillColor = [240, 240, 240];
+                                if (data.column.index === 13 || data.column.index === 15) {
+                                    data.cell.styles.textColor = [204, 0, 0];
                                 }
                             }
                         }
                     }
+                    applyHtmlStylesToPdf(data);
                 }
             });
 
-            const finalY = doc.lastAutoTable.finalY || 40;
-            const sectionStartY = finalY + 15;
+            let finalY = doc.lastAutoTable.finalY || 40;
 
-            // --- Left Side: Accessories Table ---
-            doc.text("Motorised Package Summary", LEFT_MARGIN, finalY + 10);
+            // --- 粉綠色分隔線 (Pastel Green Divider) ---
+            doc.setDrawColor(168, 230, 207); // #a8e6cf (粉綠色)
+            doc.setLineWidth(1); // 計劃中為 1，HTML 為 3px。PDF 中使用 1mm。
 
+            // [FIX] Check for remaining height before drawing bottom section
+            const remainingHeight = doc.internal.pageSize.getHeight() - finalY;
+            if (remainingHeight < 130) {
+                doc.addPage();
+                finalY = 10; // Reset Y for new page
+            }
+
+            finalY += 10; // 分隔線前留白
+            doc.line(LEFT_MARGIN, finalY, TABLE_RIGHT_X, finalY);
+            finalY += 5; // 分隔線後留白
+
+            // [NEW] 左右並排部分的起始 Y 座標
+            // 確保配件表格和財務表格從相同的 Y 座標開始，實現並排效果。
+            let sideBySideY = finalY + 10;
+
+            // --- 左側：配件表格 (Accessories Table) ---
+            const acceTableWidth = 118; // 調整後的表格寬度，以便左右並排，再次減少 1mm 以更積極避免溢出
             doc.autoTable({
                 html: '#wo-acce-table',
-                startY: sectionStartY,
+                startY: sideBySideY, // 強制與右側表格在相同的 Y 座標開始
                 margin: { left: LEFT_MARGIN },
-                tableWidth: 80,
+                tableWidth: acceTableWidth,
                 theme: 'grid',
-                // [FIX] Ensure white body for Accessories table too
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 1,
+                    valign: 'middle',
+                    halign: 'left',
+                    lineColor: [102, 102, 102],
+                    lineWidth: 0.1
+                },
                 bodyStyles: { fillColor: [255, 255, 255] },
-                styles: { fontSize: 8, cellPadding: 1 },
-                headStyles: { fillColor: [230, 230, 230], textColor: [51, 51, 51] },
-                // [FIX v6299 Phase 29] Set Footer Styles
+                headStyles: {
+                    fillColor: [240, 240, 240],
+                    textColor: [0, 0, 0],
+                    fontStyle: 'bold',
+                    fontSize: 9
+                },
                 footStyles: {
-                    fillColor: [230, 230, 230],
-                    textColor: [51, 51, 51],
+                    fillColor: [240, 240, 240],
+                    textColor: [0, 0, 0],
                     fontStyle: 'bold',
                     halign: 'right'
                 },
                 columnStyles: {
-                    2: { halign: 'right' }
-                }
+                    0: { cellWidth: 40, halign: 'left' }, // Item
+                    1: { cellWidth: 40, halign: 'left' }, // Brand / Spec
+                    2: { cellWidth: 15, halign: 'center' }, // QTY
+                    3: { cellWidth: 23, halign: 'right' }   // Price (調整為 23 以配合總寬度 118)
+                },
+                didParseCell: function (data) {
+                    if (data.section === 'head' && data.row.index === 0) { // 處理第一行的標題
+                        data.cell.styles.halign = 'left';
+                        data.cell.styles.fontStyle = 'normal'; // 標題應為 normal 權重
+                        data.cell.styles.fontSize = 11; // 匹配 HTML 標題的字體大小
+                        data.cell.styles.cellPadding = 2;
+                        data.cell.styles.fillColor = [240, 240, 240]; // bg-gray
+                        data.cell.styles.textColor = [0, 0, 0];
+                    }
+                    applyHtmlStylesToPdf(data);
+                },
+                pageBreak: 'avoid'
             });
 
-            // --- Right Side: Cost Table & Legend (Container) ---
-            const BOX_WIDTH = 115; // [MODIFIED] Narrower box for tighter look
-            const BOX_X = TABLE_RIGHT_X - BOX_WIDTH; // Align Right Edge with Table
-            const COST_TABLE_WIDTH = 60;
-
-            // Draw the Grey Container Box
-            doc.setDrawColor(160, 211, 232);
-            doc.setFillColor(255, 255, 255);
-            doc.roundedRect(BOX_X, sectionStartY - 5, BOX_WIDTH, 50, 2, 2, 'FD');
-
-            // Render Cost Table (Right Aligned inside Box)
-            const costTableX = TABLE_RIGHT_X - COST_TABLE_WIDTH - 2;
+            // --- 右側：費用表格與圖例 (Financial Summary & Legend) ---
+            const financialWrapperWidth = 68; // 調整後的寬度，再次減少 1mm 以更積極避免溢出
+            const financialTableX = TABLE_RIGHT_X - financialWrapperWidth; // 與頁面右側對齊
 
             doc.autoTable({
                 html: '#wo-cost-table',
-                startY: sectionStartY,
-                margin: { left: costTableX },
-                tableWidth: COST_TABLE_WIDTH,
+                startY: sideBySideY, // 強制與配件表格在相同的 Y 座標開始
+                margin: { left: financialTableX }, // 推到右側
+                tableWidth: financialWrapperWidth,
                 theme: 'grid',
-                bodyStyles: { fillColor: [255, 255, 255] },
-                styles: { fontSize: 8, cellPadding: 1 },
-                headStyles: { fillColor: [230, 230, 230], textColor: [51, 51, 51] },
-                columnStyles: {
-                    1: { halign: 'right' }
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 1,
+                    valign: 'middle',
+                    halign: 'left',
+                    lineColor: [102, 102, 102],
+                    lineWidth: 0.1
                 },
-                footStyles: { fillColor: [230, 230, 230], textColor: [192, 57, 43], fontStyle: 'bold', halign: 'right' }
+                bodyStyles: { fillColor: [255, 255, 255] },
+                headStyles: {
+                    fillColor: [240, 240, 240],
+                    textColor: [0, 0, 0],
+                    fontStyle: 'bold',
+                    fontSize: 9
+                },
+                footStyles: {
+                    fillColor: [240, 240, 240],
+                    textColor: [204, 0, 0], // #cc0000
+                    fontStyle: 'bold',
+                    halign: 'right'
+                },
+                columnStyles: {
+                    0: { cellWidth: financialWrapperWidth * 0.5, halign: 'left' }, // ITEM (50%)
+                    1: { cellWidth: financialWrapperWidth * 0.5, halign: 'right' } // Price (50%)
+                },
+                didParseCell: function (data) {
+                    applyHtmlStylesToPdf(data);
+                },
+                pageBreak: 'avoid'
             });
 
-            // Render Legend (Left Aligned inside Box)
-            const legendX = BOX_X + 5;
-            const legendY = sectionStartY + 5;
+            // --- 縮寫圖例 (Abbreviations Legend) ---
+            const legendBlockBaseY = doc.lastAutoTable.finalY + 5; // 位於費用表格下方，為整個區塊的基準 Y 座標
+            const legendBlockBaseX = financialTableX; // 整個區塊的基準 X 座標
+            const legendBlockWidth = financialWrapperWidth;
 
+            // 內部文字起始位置 (包含內邊距)
+            const textPaddingLeft = 4; // [FIX] Increased padding
+            const textPaddingTop = 4; // [FIX] Increased padding
+            const textPaddingBottom = 4; // [FIX] Increased padding
+
+            let currentTextY = legendBlockBaseY + textPaddingTop; // 當前文字的 Y 座標 (基線)
+            const textX = legendBlockBaseX + textPaddingLeft; // 當前文字的 X 座標
+
+            // 標題
             doc.setFontSize(10);
             doc.setFont(undefined, 'bold');
-            doc.text("Abbreviations Key", legendX, legendY);
+            doc.text("Abbreviations Key", textX, currentTextY);
+            currentTextY += 5; // 標題後留白
+
             doc.setFont(undefined, 'normal');
             doc.setFontSize(9);
 
             const drawLegendItem = (text, color, y) => {
-                doc.setDrawColor(153, 153, 153);
+                doc.setDrawColor(153, 153, 153); // #999 邊框
                 doc.setFillColor(...color);
-                doc.rect(legendX, y - 3, 4, 4, 'FD');
-                doc.text(text, legendX + 6, y);
+                // 盒子：HTML 中 width=12px, height=12px -> 約 3.5mm
+                // y - 2.5 是為了讓盒子中心與文字基線對齊
+                doc.rect(textX, y - 2.5, 3.5, 3.5, 'FD');
+                doc.text(text, textX + 5, y); // margin-right 5px -> 約 5mm
             };
 
-            drawLegendItem("Blockout (BO)", [240, 240, 240], legendY + 6);
-            drawLegendItem("Screen (SN)", [224, 247, 250], legendY + 11);
-            drawLegendItem("Light Filter (LF)", [255, 230, 230], legendY + 16);
-            doc.text("HD: Heavy-Duty Winder", legendX, legendY + 21);
-            doc.text("Dual: Double Bracket", legendX, legendY + 26);
+            drawLegendItem("Blockout (BO)", [240, 240, 240], currentTextY); currentTextY += 5; // #f0f0f0
+            drawLegendItem("Screen (SN)", [224, 247, 250], currentTextY); currentTextY += 5; // #e0f7fa
+            drawLegendItem("Light Filter (LF)", [255, 235, 235], currentTextY); currentTextY += 5; // #ffebee
 
+            currentTextY += 5; // HD/Dual 前留白
 
-            doc.save(`{{pdfFileName}}.pdf`);
+            // HD 說明
+            doc.setFont(undefined, 'bold');
+            doc.text("HD:", textX, currentTextY);
+            doc.setFont(undefined, 'normal');
+            doc.text("Heavy-Duty Winder", textX + doc.getTextWidth("HD: ") + 1, currentTextY);
+            currentTextY += 5;
+
+            // Dual 說明
+            doc.setFont(undefined, 'bold');
+            doc.text("Dual:", textX, currentTextY);
+            doc.setFont(undefined, 'normal');
+            doc.text("Double Bracket", textX + doc.getTextWidth("Dual: ") + 1, currentTextY);
+            // currentTextY 不再增加，因為這是最後一行文字，我們要用它的底部來計算總高度
+
+            // 計算整個 Abbreviations 區塊的總高度，並繪製外框
+            const legendBlockHeight = (currentTextY - legendBlockBaseY) + textPaddingBottom + textPaddingTop;
+            doc.setDrawColor(173, 216, 230); // #add8e6
+            doc.setLineWidth(0.5);
+            doc.rect(legendBlockBaseX - 2, legendBlockBaseY - 2, legendBlockWidth + 4, legendBlockHeight + 4);
+
+            // 儲存 PDF
+            doc.save(`${pdfFileName}.pdf`);
         });
     </script>
-
 </body>
 
 </html>

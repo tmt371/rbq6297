@@ -379,6 +379,7 @@ class App {
             // [REMOVED] K5 component merged into K3
             // [NEW] (v6298-F4-Search) Inject search dialog component
             searchDialogComponent: this.searchDialogComponent,
+            authService: this.appContext.get('authService'), // [NEW] (v3.44)
         });
 
         // Step 5: Continue with the rest of the application startup.

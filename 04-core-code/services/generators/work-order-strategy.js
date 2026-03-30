@@ -31,6 +31,33 @@ export class WorkOrderStrategy {
         let hdCount = 0;
         let totalListPrice = 0;
 
+        // --- Pre-process items to determine fabric text colors per TYPE ---
+        const fabricCounts = { [LOGIC_CODES.BLOCKOUT]: {}, [LOGIC_CODES.SCREEN]: {}, [LOGIC_CODES.LIGHT_FILTER]: {} };
+        const itemsArray = sortedItems || [];
+
+        itemsArray.forEach(item => {
+            const type = item.typeCode || '';
+            const fabricStr = (item.fabricName || '').trim();
+            const colorStr = (item.fabricColor || '').trim();
+            const fabricKey = `${fabricStr} ${colorStr}`.trim(); // Combine F-name + F-color
+
+            if (fabricCounts[type] && fabricKey) {
+                fabricCounts[type][fabricKey] = (fabricCounts[type][fabricKey] || 0) + 1;
+            }
+        });
+
+        const fabricColors = { [LOGIC_CODES.BLOCKOUT]: {}, [LOGIC_CODES.SCREEN]: {}, [LOGIC_CODES.LIGHT_FILTER]: {} };
+        Object.keys(fabricColors).forEach(type => {
+            // Sort fabrics by count descending
+            const sortedFabrics = Object.keys(fabricCounts[type]).sort((a, b) => fabricCounts[type][b] - fabricCounts[type][a]);
+            sortedFabrics.forEach((fabric, index) => {
+                if (index === 0) fabricColors[type][fabric] = ''; // Default
+                else if (index === 1) fabricColors[type][fabric] = '#FF0000'; // Red
+                else fabricColors[type][fabric] = '#FFA500'; // Orange
+            });
+        });
+        // ------------------------------------------------------------------
+
         // 3. Generate HTML Rows
         const rowsHtml = sortedItems.map((item, index) => {
             // Stats (using standardized properties from ExportItem)
@@ -40,12 +67,29 @@ export class WorkOrderStrategy {
 
             // --- Styles Mapping ---
             let fabricClass = '';
+            let rowStyle = '';
             if (item.isLf) {
                 fabricClass = 'bg-light-filter';
+                rowStyle = 'background-color: #FFE6E6;';
             } else if (item.typeCode === LOGIC_CODES.BLOCKOUT) { // [MODIFIED] Use constant
                 fabricClass = 'bg-blockout';
+                rowStyle = 'background-color: #F2F2F2;';
             } else if (item.typeCode === LOGIC_CODES.SCREEN) { // [MODIFIED] Use constant
                 fabricClass = 'bg-screen';
+                rowStyle = 'background-color: #E6F2FF;';
+            }
+
+            // --- Fabric Text Style ---
+            let fabricTextStyle = '';
+            const typeStr = item.typeCode || '';
+            const fabricStr = (item.fabricName || '').trim();
+            const colorStr = (item.fabricColor || '').trim();
+            const fabricKey = `${fabricStr} ${colorStr}`.trim();
+            if (fabricColors[typeStr] && fabricColors[typeStr][fabricKey]) {
+                const textColor = fabricColors[typeStr][fabricKey];
+                if (textColor) {
+                    fabricTextStyle = `color: ${textColor}; font-weight: bold;`;
+                }
             }
 
             const rowData = {
@@ -68,6 +112,8 @@ export class WorkOrderStrategy {
 
                 // Styles
                 fabricClass: fabricClass,
+                rowStyle: rowStyle,
+                fabricTextStyle: fabricTextStyle,
                 isEmptyClassDual: item.dual ? '' : 'is-empty-cell',
                 isEmptyClassHD: item.winder ? '' : 'is-empty-cell',
                 isEmptyClassMotor: item.motor ? '' : 'is-empty-cell'
@@ -87,9 +133,9 @@ export class WorkOrderStrategy {
                 <td data-label="dual" class="text-center">${dualPairs}</td>
                 <td data-label="chain" class="text-center"></td>
                 <td data-label="HD" class="text-center">${hdCount}</td>
-                <td data-label="motor" class="text-center wo-text-red wo-text-small">${discountPercentage}%<span style="font-size: 70%;">off</span></td>
+                <td data-label="motor" class="text-center wo-text-red wo-text-small" style="color: #FF0000; font-weight: bold;">${discountPercentage}%<span style="font-size: 70%;">off</span></td>
                 <td data-label="loc" class="text-center"></td>
-                <td data-label="PRICE" class="text-right wo-text-red">$${discountedTotal.toFixed(2)}</td>
+                <td data-label="PRICE" class="text-right wo-text-red" style="color: #FF0000; font-weight: bold;">$${discountedTotal.toFixed(2)}</td>
             </tr>
         `;
 

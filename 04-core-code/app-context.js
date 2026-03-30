@@ -204,26 +204,8 @@ export class AppContext {
         // const f3View = new F3QuotePrepView(...);
         // const f4View = new F4ActionsView(...);
         const rightPanelElement = document.getElementById('function-panel'); // [NEW] Still need this
-
-
-        // --- Instantiate Main RightPanelComponent Manager ---
-        // [MODIFIED] (Refactor - Lazy Load)
-        // Removed f1View-f4View dependencies.
-        // Injected services (stateService, calculationService) so the component
-        // can dynamically instantiate views itself.
-        // [MODIFIED] (v6298) Injected authService
-        const rightPanelComponent = new RightPanelComponent({
-            panelElement: rightPanelElement,
-            eventAggregator,
-            stateService,
-            calculationService,
-            authService // [NEW] (v6298) Pass auth service for F4
-            // f1View, // [REMOVED]
-            // f2View, // [REMOVED]
-            // f3View, // [REMOVED]
-            // f4View  // [REMOVED]
-        });
-        this.register('rightPanelComponent', rightPanelComponent);
+        // [DIRECTIVE-v3.27] RightPanelComponent instantiation MOVED to after WorkflowService
+        // so that workflowService is defined when passed in.
 
         // --- [REMOVED] Quote Preview Component instantiation ---
 
@@ -261,10 +243,24 @@ export class AppContext {
             detailConfigView,
             quoteGeneratorService, // [NEW] Inject the new service
             authService, // [NEW] (v6297) Inject AuthService
+            quotePersistenceService // [DIRECTIVE-v3.9] Inject for live ledger fetching
             // excelExportService // [REMOVED] (v6299 Phase 4) Moved to QuotePersistenceService
         });
         // [REMOVED]
         this.register('workflowService', workflowService);
+
+        // --- [DIRECTIVE-v3.27] Instantiate Main RightPanelComponent Manager (moved here) ---
+        // Must be after WorkflowService so workflowService is defined when passed in.
+        const rightPanelComponent = new RightPanelComponent({
+            panelElement: rightPanelElement,
+            eventAggregator,
+            stateService,
+            calculationService,
+            authService,
+            quotePersistenceService, // [Scheme B] For F3 live ledger
+            workflowService // [DIRECTIVE-v3.27] For Service-Layer Tollbooth in F3
+        });
+        this.register('rightPanelComponent', rightPanelComponent);
 
         const quickQuoteView = new QuickQuoteView({
             stateService,

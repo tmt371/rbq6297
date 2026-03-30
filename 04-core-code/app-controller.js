@@ -9,6 +9,7 @@
 
 import { EVENTS, STORAGE_KEYS } from './config/constants.js';
 import * as uiActions from './actions/ui-actions.js';
+import * as quoteActions from './actions/quote-actions.js'; // [NEW] Import quoteActions for partial status update
 
 const AUTOSAVE_INTERVAL_MS = 60000;
 export class AppController {
@@ -178,18 +179,18 @@ export class AppController {
                 // [NEW] State-based locking observability
                 // Automatically lock whenever K3/K5 Dual/Chain or Drive/Accessory mode is active
                 // [MODIFIED] (Phase 4.6c) If Correction Mode is ON, force isModeActive to FALSE to prevent auto-locking
-                const isModeActive = (!!newState.ui.dualChainMode || !!newState.ui.driveAccessoryMode) && !newState.ui.isCorrectionMode;
+                const isModeActive = (!!newState?.ui?.dualChainMode || !!newState?.ui?.driveAccessoryMode) && !newState?.ui?.isCorrectionMode;
                 this._updateLock('mode', isModeActive);
 
                 // [NEW] Global Processing Observer
                 // Automatically lock whenever global processing flag is true
-                this._updateLock('processing', !!newState.ui.isProcessing);
+                this._updateLock('processing', !!newState?.ui?.isProcessing);
 
                 // [NEW] (Phase 5) 使用者流程禁制令
                 // 當 K1~K5 任何操作模式「啟動中」時，鎖定數字盤、F盤、K盤頁籤
-                const isFlowActive = !!newState.ui.activeEditMode ||
-                    !!newState.ui.dualChainMode ||
-                    !!newState.ui.driveAccessoryMode;
+                const isFlowActive = !!newState?.ui?.activeEditMode ||
+                    !!newState?.ui?.dualChainMode ||
+                    !!newState?.ui?.driveAccessoryMode;
                 if (isFlowActive) {
                     document.body.classList.add('flow-locked');
                     document.body.classList.add('workflow-active-lockdown'); // [NEW] (Phase 14.3) 絕對鎖定
@@ -214,7 +215,12 @@ export class AppController {
         };
 
         this._subscribe(EVENTS.NUMERIC_KEY_PRESSED, async (data) => {
-            await this.executeWithStateLock(async () => await delegate('handleNumericKeyPress', data));
+            // [MODIFIED] (Phase E) Selective Locking: Only lock for 'ENT' (commit)
+            if (data.key === 'ENT') {
+                await this.executeWithStateLock(async () => await delegate('handleNumericKeyPress', data));
+            } else {
+                await delegate('handleNumericKeyPress', data);
+            }
         });
         this._subscribe(EVENTS.USER_REQUESTED_INSERT_ROW, async () => {
             await this.executeWithStateLock(async () => await delegate('handleInsertRow'));
@@ -226,7 +232,8 @@ export class AppController {
             await this.executeWithStateLock(async () => await delegate('handleClearRow'));
         });
         this._subscribe(EVENTS.USER_MOVED_ACTIVE_CELL, async (data) => {
-            await this.executeWithStateLock(async () => await delegate('handleMoveActiveCell', data));
+            // [MODIFIED] (Phase E) Exempted from UI lock to improve navigation speed
+            await delegate('handleMoveActiveCell', data);
         });
         this._subscribe(EVENTS.USER_REQUESTED_CYCLE_TYPE, async () => {
             await this.executeWithStateLock(async () => await delegate('handleCycleType'));
@@ -264,14 +271,13 @@ export class AppController {
         };
 
         this._subscribe(EVENTS.TABLE_CELL_CLICKED, async (data) => {
-            await this.executeWithStateLock(async () => {
-                const { ui } = this.stateService.getState();
-                if (ui.currentView === 'QUICK_QUOTE') {
-                    await this.quickQuoteView.handleTableCellClick(data);
-                } else {
-                    await this.detailConfigView.handleTableCellClick(data);
-                }
-            });
+            // [MODIFIED] (Phase E) Exempted from UI lock
+            const { ui } = this.stateService.getState();
+            if (ui.currentView === 'QUICK_QUOTE') {
+                await this.quickQuoteView.handleTableCellClick(data);
+            } else {
+                await this.detailConfigView.handleTableCellClick(data);
+            }
         });
         this._subscribe(EVENTS.SEQUENCE_CELL_CLICKED, async (data) => {
             await this.executeWithStateLock(async () => {
@@ -352,6 +358,11 @@ export class AppController {
         this._subscribe(EVENTS.FILE_LOADED, (data) =>
             this.workflowService.handleFileLoad(data)
         );
+        this._subscribe(EVENTS.OPEN_DOCUMENT_WINDOW, (data) => {
+            if (data && data.url) {
+                window.open(data.url, '_blank');
+            }
+        });
     }
 
     _subscribeF1Events() {
@@ -367,7 +378,19 @@ export class AppController {
     _subscribeF3Events() {
         this._subscribe(
             EVENTS.USER_REQUESTED_PRINTABLE_QUOTE,
-            () => this.workflowService.handlePrintableQuoteRequest()
+            () => this.workflowService.handlePrintableQuoteRequest('Quotation')
+        );
+        this._subscribe(
+            EVENTS.USER_REQUESTED_PRINTABLE_INVOICE,
+            () => this.workflowService.handlePrintableQuoteRequest('Tax Invoice')
+        );
+        this._subscribe(
+            EVENTS.USER_REQUESTED_PRINTABLE_RECEIPT,
+            (data) => this.workflowService.handlePrintableQuoteRequest('Receipt', data?.receiptData)
+        );
+        this._subscribe(
+            EVENTS.USER_REQUESTED_PRINTABLE_OVERDUE,
+            () => this.workflowService.handlePrintableQuoteRequest('Overdue Invoice')
         );
         // [NEW] (Phase 4, Step 1)
         this._subscribe(
@@ -375,6 +398,8 @@ export class AppController {
             () => this.workflowService.handleGmailQuoteRequest()
         );
     }
+
+
 
     // [MODIFIED] (Phase 3) 全面遷移至 executeWithStateLock
     _subscribeF4Events() {
@@ -407,8 +432,35 @@ export class AppController {
             this.workflowService.handleReset();
         });
         this._subscribe(EVENTS.USER_REQUESTED_UPDATE_STATUS, async (payload) => {
-            await this.executeWithStateLock(async () => await this.quotePersistenceService.handleUpdateStatus(payload));
+            const state = this.stateService.getState();
+            const quoteId = state.quoteData?.quoteId;
+
+            if (!quoteId) {
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    type: 'warning',
+                    message: "Please save the quote at least once before updating status."
+                });
+                return;
+            }
+
+            await this.executeWithStateLock(async () => {
+                await this.quotePersistenceService.updateQuoteStatusOnly(quoteId, payload.newStatus);
+                // Update local state so the UI reflects the new status without a full reload
+                this.stateService.dispatch(quoteActions.updateQuoteProperty('status', payload.newStatus));
+            });
         });
+
+        this._subscribe(EVENTS.USER_REQUESTED_REGISTER_PAYMENT, async (payload) => {
+            const { quoteId } = this.stateService.getState().quoteData;
+            if (!quoteId) {
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { type: 'error', message: 'Cannot register payment for an unsaved quote.' });
+                return;
+            }
+            await this.executeWithStateLock(async () => {
+                await this.quotePersistenceService.handleRegisterPayment(quoteId, payload);
+            });
+        });
+
         this._subscribe(EVENTS.USER_REQUESTED_CANCEL_CORRECT, () => {
             this.workflowService.handleCancelCorrectRequest();
         });

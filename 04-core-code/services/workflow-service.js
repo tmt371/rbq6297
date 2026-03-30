@@ -1,19 +1,10 @@
 /* FILE: 04-core-code/services/workflow-service.js */
-// [MODIFIED] (v6297 ?жш║л) чз╗щЩдф║Жц?ф╣Ех??Пш╝п
-// [FIX] (v6297 ?жш║л) ф┐оцнгф║?handleFileLoad х┤йц╜░?пшкд
-// [FIX] (v6297 ?жш║л) ф┐Эч?ф║?fileService ф╛Эш│┤я╝Мх???handleFileLoad ф╗Нщ?ф╜┐чФихоГуА?
-// [MODIFIED] (Correction Flow Phase 2) Added handleCancelCorrectRequest.
-// [MODIFIED] (Correction Flow Phase 4) Implemented _handleCancelOrderFlow with input dialog.
-// [FIX] (Correction Flow Fix) Added setTimeout to _handleCancelOrderFlow to prevent dialog conflict.
-// [MODIFIED] (v6299 Phase 4) Removed handleGenerateExcel (moved to QuotePersistenceService).
-// [MODIFIED] (v6299 Phase 4) Removed excelExportService injection.
 
 import { initialState } from '../config/initial-state.js';
 import { EVENTS, DOM_IDS } from '../config/constants.js';
 import * as uiActions from '../actions/ui-actions.js';
 import * as quoteActions from '../actions/quote-actions.js';
 import { paths } from '../config/paths.js';
-// [MODIFIED] чз╗щЩдф║?saveQuoteToCloud
 import {
     loadQuoteFromCloud,
     searchQuotesAdvanced, // [MODIFIED] (v6298-F4-Search) Import new function
@@ -33,7 +24,7 @@ export class WorkflowService {
         detailConfigView,
         quoteGeneratorService,
         authService, // [NEW] (v6297) Inject authService
-        // excelExportService // [REMOVED] (v6299 Phase 4) Moved to QuotePersistenceService
+        quotePersistenceService // [DIRECTIVE-v3.9] Inject
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
@@ -43,7 +34,7 @@ export class WorkflowService {
         this.detailConfigView = detailConfigView;
         this.quoteGeneratorService = quoteGeneratorService; // [NEW] Store the injected service
         this.authService = authService; // [NEW] (v6297) Store authService
-        // this.excelExportService = excelExportService; // [REMOVED] (v6299 Phase 4)
+        this.quotePersistenceService = quotePersistenceService; // [DIRECTIVE-v3.9] Store
         this.quotePreviewComponent = null; // Will be set by AppContext
 
         console.log('WorkflowService Initialized.');
@@ -53,7 +44,24 @@ export class WorkflowService {
         this.quotePreviewComponent = component;
     }
 
-    // [REMOVED] (v6299 Phase 4) handleGenerateExcel has been moved to QuotePersistenceService
+    /**
+     * [DIRECTIVE-v3.27] Service-Layer Tollbooth (migrated from F3QuotePrepView).
+     * Validates that a quote has been saved (has a quoteId) before financial documents
+     * are generated. Publishing from the Service layer ensures async delivery, which
+     * matches the timing of the successful "Save Success" toast.
+     * @param {object} quoteData - The current quoteData from state.
+     * @returns {boolean} - `true` if valid, `false` if blocked.
+     */
+    validateQuoteStateForAction(quoteData) {
+        if (!quoteData || !quoteData.quoteId) {
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                type: 'warning',
+                message: 'Please click SAVE first to generate a Quote ID before printing documents.'
+            });
+            return false;
+        }
+        return true;
+    }
 
     // [NEW] ?Оцо╡ 1: х╗║ч?х╖ехЦоц╡Бч?
     async handleGenerateWorkOrder() {
@@ -72,7 +80,7 @@ export class WorkflowService {
                 // 2. (?Мцне) ?Лх??░х???
                 const blob = new Blob([finalHtml], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
-                window.open(url, '_blank');
+                this.eventAggregator.publish(EVENTS.OPEN_DOCUMENT_WINDOW, { url });
             } else {
                 throw new Error(
                     'QuoteGeneratorService did not return Work Order HTML. Templates might not be loaded.'
@@ -88,28 +96,37 @@ export class WorkflowService {
         }
     }
 
-    async handlePrintableQuoteRequest() {
+    async handlePrintableQuoteRequest(documentType = 'Quotation', receiptData = null) {
         try {
             // [MODIFIED] Get state. f3Data (from DOM) is no longer needed.
             const { quoteData, ui } = this.stateService.getState();
+            
+            // [DIRECTIVE-v3.9] Fetch Live Ledger before generating payload
+            let liveLedger = null;
+            if (this.quotePersistenceService && quoteData.quoteId) {
+                liveLedger = await this.quotePersistenceService.getLiveLedger(quoteData.quoteId);
+            }
 
             // [REFACTORED] Delegate the entire HTML generation process to the new service.
             // [MODIFIED] Pass the live quoteData object as the f3Data parameter.
             // [FIX] Added 'await' to resolve the Promise returned by the async function.
+            // [NEW] Passing liveLedger to map single source of truth financials
             const finalHtml =
                 await this.quoteGeneratorService.generateQuoteHtml(
                     quoteData,
                     ui,
-                    quoteData
+                    quoteData,
+                    documentType,
+                    receiptData,
+                    liveLedger
                 );
 
             if (finalHtml) {
-                // [MODIFIED] Phase 2: Replace the old iframe event with the new window.open mechanism.
                 // this.eventAggregator.publish(EVENTS.SHOW_QUOTE_PREVIEW, finalHtml);
 
                 const blob = new Blob([finalHtml], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
-                window.open(url, '_blank');
+                this.eventAggregator.publish(EVENTS.OPEN_DOCUMENT_WINDOW, { url });
             } else {
                 throw new Error(
                     'QuoteGeneratorService did not return HTML. Templates might not be loaded.'
@@ -125,7 +142,6 @@ export class WorkflowService {
         }
     }
 
-    // [NEW] (Phase 4, Step 2)
     async handleGmailQuoteRequest() {
         try {
             // [MODIFIED] Get state. f3Data (from DOM) is no longer needed.
@@ -145,7 +161,7 @@ export class WorkflowService {
                 // Open the generated HTML in a new tab
                 const blob = new Blob([finalHtml], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
-                window.open(url, '_blank');
+                this.eventAggregator.publish(EVENTS.OPEN_DOCUMENT_WINDOW, { url });
             } else {
                 throw new Error(
                     'QuoteGeneratorService did not return GTH HTML. Templates might not be loaded.'
@@ -160,11 +176,6 @@ export class WorkflowService {
             });
         }
     }
-
-    // [REMOVED] _getF3OverrideData is no longer needed. State is the single source of truth.
-    // _getF3OverrideData() { ... }
-
-    // [REMOVED] Methods handleRemoteDistribution and handleDualDistribution have been moved to F1CostView.
 
     // [MODIFIED] Phase 9.0: Uses cached strategy from singleton factory
     handleF1TabActivation() {
@@ -183,8 +194,6 @@ export class WorkflowService {
 
         this.stateService.dispatch(quoteActions.setQuoteData(updatedQuoteData));
     }
-
-    // [REMOVED] All F2-related methods have been moved to F2SummaryView.
 
     handleNavigationToDetailView() {
         const { ui } = this.stateService.getState();
@@ -221,23 +230,30 @@ export class WorkflowService {
         this.detailConfigView.activateTab(tabId);
     }
 
-    // [REMOVED] (v6297 ?жш║л) _getQuoteDataWithSnapshots has been moved to quote-persistence-service.js
-
-    // [REMOVED] (v6297 ?жш║л) handleSaveToFile has been moved to quote-persistence-service.js
-
-    // [REMOVED] (v6297 ?жш║л) handleSaveAsNewVersion has been moved to quote-persistence-service.js
-
-    // [REMOVED] (v6297 ?жш║л) handleExportCSV has been moved to quote-persistence-service.js
-
     // [MODIFIED v6285 Phase 5] Logic migrated from quick-quote-view.js and updated.
     handleReset() {
-        if (window.confirm('This will clear all data. Are you sure?')) {
-            this.stateService.dispatch(quoteActions.resetQuoteData());
-            this.stateService.dispatch(uiActions.resetUi());
-            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                message: 'Quote has been reset.',
-            });
-        }
+        this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
+            message: 'This will clear all data. Are you sure?',
+            layout: [
+                [
+                    {
+                        type: 'button',
+                        text: 'Yes, Clear All Data',
+                        className: 'primary-confirm-button btn-danger',
+                        colspan: 1,
+                        callback: () => {
+                            this.stateService.dispatch(quoteActions.resetQuoteData());
+                            this.stateService.dispatch(uiActions.resetUi());
+                            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                                message: 'Quote has been reset.',
+                            });
+                            return true;
+                        }
+                    },
+                    { type: 'button', text: 'Cancel', className: 'secondary', colspan: 1, callback: () => { return true; } }
+                ]
+            ]
+        });
     }
 
     handleUserRequestedLoad() {
@@ -262,7 +278,6 @@ export class WorkflowService {
         this.eventAggregator.publish(EVENTS.TRIGGER_FILE_LOAD);
     }
 
-    // [MODIFIED] (v6298) Refactored to be a simple loader.
     async handleLoadFromCloud(quoteId) {
         if (!quoteId || quoteId.trim() === '') {
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
@@ -285,21 +300,12 @@ export class WorkflowService {
         }
     }
 
-    // [NEW] (v6298) Handles the new search dialog workflow
-    // [MODIFIED] (v6298-F4-Search) This function now dispatches the NEW event.
     handleSearchDialogRequest() {
         // [OLD]
         // this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, { ... });
         // [NEW]
         this.eventAggregator.publish(EVENTS.SHOW_SEARCH_DIALOG);
     }
-
-    // [REMOVED] (v6298-F4-Search) This complex logic will be moved into the new SearchDialogComponent
-    // async _executeSearch(customerName) { ... }
-
-    // [REMOVED] (v6298-F4-Search) This complex logic will be moved into the new SearchDialogComponent
-    // _showSearchResultsDialog(results, message) { ... }
-
 
     // [REFACTORED] Extracted file load logic into a private helper
     _dispatchLoadActions(data, message) {
@@ -330,7 +336,6 @@ export class WorkflowService {
         });
     }
 
-    // [FIX] (v6297 ?жш║л) 
     // This is the function that crashed.
     // It is now clean and only contains the correct logic.
     handleFileLoad({ fileName, content }) {
@@ -352,7 +357,6 @@ export class WorkflowService {
         );
     }
 
-    // [NEW] (Correction Flow Phase 2) Handles the Cancel/Correct button click
     handleCancelCorrectRequest() {
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
             message: 'Please select an action for this active order:',
@@ -364,7 +368,6 @@ export class WorkflowService {
                         text: 'A. Cancel Order',
                         className: 'secondary',
                         callback: () => {
-                            // [MODIFIED] (Correction Flow Phase 4) Call actual cancel flow
                             this._handleCancelOrderFlow();
                             return true; // Close dialog
                         }
@@ -397,7 +400,6 @@ export class WorkflowService {
         });
     }
 
-    // [NEW] (Correction Flow Phase 4) Implemented Cancel logic with delay fix
     _handleCancelOrderFlow() {
         // [FIX] Use setTimeout to ensure the previous dialog is fully closed and DOM is cleared
         // before attempting to open the new confirmation dialog.
@@ -407,7 +409,8 @@ export class WorkflowService {
                 layout: [
                     [
                         { type: 'text', text: 'Reason:', className: 'dialog-label' },
-                        { type: 'input', id: DOM_IDS.DIALOG_INPUT_CANCEL_REASON, placeholder: 'e.g., Customer changed mind' }
+                        // [MODIFIED] Added autofocus property so DialogComponent handles it
+                        { type: 'input', id: DOM_IDS.DIALOG_INPUT_CANCEL_REASON, placeholder: 'e.g., Customer changed mind', autofocus: true }
                     ],
                     [
                         {
@@ -415,9 +418,10 @@ export class WorkflowService {
                             text: 'Confirm Cancellation',
                             className: 'primary-confirm-button btn-danger', // Use danger style if available, else default
                             colspan: 2,
-                            callback: () => {
-                                const reasonInput = document.getElementById(DOM_IDS.DIALOG_INPUT_CANCEL_REASON);
-                                const reason = reasonInput ? reasonInput.value.trim() : '';
+                            callback: (inputValues) => {
+                                const reason = inputValues && inputValues[DOM_IDS.DIALOG_INPUT_CANCEL_REASON]
+                                    ? inputValues[DOM_IDS.DIALOG_INPUT_CANCEL_REASON].trim()
+                                    : '';
 
                                 if (!reason) {
                                     this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
@@ -434,14 +438,7 @@ export class WorkflowService {
                         },
                         { type: 'button', text: 'Back', className: 'secondary', colspan: 2, callback: () => { return true; } }
                     ]
-                ],
-                onOpen: () => {
-                    // Focus the input field when dialog opens
-                    setTimeout(() => {
-                        const input = document.getElementById(DOM_IDS.DIALOG_INPUT_CANCEL_REASON);
-                        if (input) input.focus();
-                    }, 50);
-                }
+                ]
             });
         }, 100); // 100ms delay should be sufficient
     }

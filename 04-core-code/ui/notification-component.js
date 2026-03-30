@@ -54,6 +54,7 @@ export class NotificationComponent {
      * @param {object} data The notification data { message, type, action }.
      */
     show({ message, type = 'info', action = null }) {
+        console.log("🍞 [TOAST INK] 1. show() invoked with message:", message);
         const toast = document.createElement('div');
         toast.className = 'toast-message';
         // Use an inner span for the text message
@@ -78,12 +79,15 @@ export class NotificationComponent {
             toast.classList.add('error');
         }
 
+        console.log("🍞 [TOAST INK] 2. Container Reference exists?", !!this.container);
         this.container.appendChild(toast);
+        console.log("🍞 [TOAST INK] 3. toast appended to DOM. Current Children count:", this.container.children.length);
 
         // The animation defined in CSS will handle the fade out.
         // We just need to remove the element from the DOM after the animation is complete.
         setTimeout(() => {
             toast.remove();
+            console.log("🍞 [TOAST INK] 4. toast removed via setTimeout.");
         }, 5000); // Should match the animation duration in style.css
     }
 }

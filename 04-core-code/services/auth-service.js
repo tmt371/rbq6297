@@ -136,17 +136,45 @@ export class AuthService {
      * @param {function} onUserLoggedOut - Callback when no user is found.
      */
     observeAuthState(onUserLoggedIn, onUserLoggedOut) {
-        onAuthStateChanged(auth, (user) => {
+        onAuthStateChanged(auth, async (user) => {
             if (user) {
                 // User is signed in
                 this.currentUser = user;
+                
+                // [NEW] (v3.43) Pre-fetch role for quick access
+                try {
+                    const tokenResult = await user.getIdTokenResult();
+                    this.currentUserRole = tokenResult.claims.role || 'user';
+                } catch (e) {
+                    console.warn("Failed to fetch custom claims.", e);
+                    this.currentUserRole = 'user';
+                }
+
                 onUserLoggedIn(user);
             } else {
                 // User is signed out
                 this.currentUser = null;
+                this.currentUserRole = null;
                 onUserLoggedOut();
             }
         });
+    }
+
+    /**
+     * [NEW] (v3.43) Checks if the current user has the 'admin' role.
+     * @returns {boolean}
+     */
+    isAdmin() {
+        return this.currentUserRole === 'admin';
+    }
+
+    /**
+     * [NEW] (v3.44) Returns the username prefix (email before @).
+     * @returns {string}
+     */
+    getCurrentUsernamePrefix() {
+        if (!this.currentUser || !this.currentUser.email) return 'Guest';
+        return this.currentUser.email.split('@')[0];
     }
 
     /**

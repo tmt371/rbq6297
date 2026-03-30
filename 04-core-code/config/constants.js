@@ -25,8 +25,12 @@ export const EVENTS = {
 
     // --- [NEW] Quote Preview Workflow ---
     USER_REQUESTED_PRINTABLE_QUOTE: 'userRequestedPrintableQuote',
+    USER_REQUESTED_PRINTABLE_INVOICE: 'userRequestedPrintableInvoice', // [NEW]
+    USER_REQUESTED_PRINTABLE_RECEIPT: 'userRequestedPrintableReceipt', // [NEW]
+    USER_REQUESTED_PRINTABLE_OVERDUE: 'userRequestedPrintableOverdue', // [NEW]
     USER_REQUESTED_GMAIL_QUOTE: 'userRequestedGmailQuote', // [NEW]
     SHOW_QUOTE_PREVIEW: 'showQuotePreview',
+    OPEN_DOCUMENT_WINDOW: 'openDocumentWindow', // [NEW] Phase D: Env Isolation
 
 
     // --- User Actions: Quick Quote View ---
@@ -99,6 +103,7 @@ export const EVENTS = {
 
     // [NEW] (F4 Status Phase 3)
     USER_REQUESTED_UPDATE_STATUS: 'userRequestedUpdateStatus',
+    USER_REQUESTED_REGISTER_PAYMENT: 'USER_REQUESTED_REGISTER_PAYMENT',
 
     // [NEW] (Correction Flow Phase 1)
     USER_REQUESTED_CANCEL_CORRECT: 'userRequestedCancelCorrect',
@@ -186,6 +191,9 @@ export const DOM_IDS = {
     // --- F3 Panel Elements ---
     BTN_ADD_QUOTE: 'btn-add-quote', // [NEW]
     BTN_GTH: 'btn-gth', // [NEW]
+    BTN_ADD_INVOICE: 'btn-add-invoice', // [NEW]
+    BTN_ADD_RECEIPT: 'btn-add-receipt', // [NEW]
+    BTN_ADD_OVERDUE: 'btn-add-overdue', // [NEW]
 
     // --- [NEW] v6298 F4 Panel Elements ---
     F4_BTN_SEARCH_DIALOG: 'f4-key-search-dialog',

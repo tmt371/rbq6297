@@ -1,65 +1,42 @@
-﻿/* FILE: 04-core-code/ui/views/f4-actions-view.js */
-// [MODIFIED] (Phase 1) Added new "Generate Work Order" button.
-// [MODIFIED] (Phase 11) Added Re-Login button handler.
-// [MODIFIED] (F4 Status Phase 2) Added logic for status dropdown and update button.
-// [MODIFIED] (F4 Status Phase 3) Bound update button to USER_REQUESTED_UPDATE_STATUS event.
-// [MODIFIED] (Correction Flow Phase 1) Added Cancel/Correct button logic.
-// [MODIFIED] (Correction Flow Fix) Added SET/Exit buttons and Correction Mode UI logic.
-// [MODIFIED] (Correction Flow Phase 5) Implemented Locking UI Logic (Disable Save/SaveAs when locked).
-// [MODIFIED] (v6299 Gen-Xls) Added logic for Gen-Xls button.
-
+/* FILE: 04-core-code/ui/views/f4-actions-view.js */
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
-// [NEW] (F4 Status Phase 2) Import status constants
-import { QUOTE_STATUS } from '../../config/status-config.js';
+import { QUOTE_STATUS, ROLE_STATUS_PERMISSIONS, STATE_TRANSITIONS } from '../../config/status-config.js';
 
-/**
- * @fileoverview A dedicated sub-view for handling all logic related to the F4 (Actions) tab.
- */
 export class F4ActionsView {
     constructor({ panelElement, eventAggregator, authService }) {
         this.panelElement = panelElement;
         this.eventAggregator = eventAggregator;
         this.authService = authService;
-
-        // [NEW] (v6298-fix-5) Store bound handlers
         this.boundHandlers = [];
+        this.subscriptions = []; // [NEW] EventAggregator registry
+        this.currentState = null;
 
         this._cacheF4Elements();
-        this._initializeF4Listeners();
-        // [NEW] Phase 8.1: RBAC — disable Admin button for non-admin users
+        // [MOVED] Initialization of listeners is now dynamically managed in activate()
         this._checkAdminPermission();
-        console.log('F4ActionsView Initialized.');
+        console.log('F4ActionsView Initialized (with Fixed Metadata Tollbooth).');
     }
 
-    // [NEW] Phase 8.1: RBAC Permission Check for Admin Button
     async _checkAdminPermission() {
         try {
             const { auth } = await import('../../config/firebase-config.js');
             const user = auth.currentUser;
             if (user) {
                 const tokenResult = await user.getIdTokenResult();
-                const role = tokenResult.claims.role;
-                if (role !== 'admin') {
-                    // Lock the admin button for non-admin users
+                this.currentUserRole = tokenResult.claims.role;
+
+                if (this.currentUserRole !== 'admin') {
                     if (this.f4.btnAdminEntry) {
                         this.f4.btnAdminEntry.disabled = true;
-                        this.f4.btnAdminEntry.style.opacity = '0.5';
-                        this.f4.btnAdminEntry.style.cursor = 'not-allowed';
                         this.f4.btnAdminEntry.title = 'Admin access required';
                     }
-                    console.log("🔒 [RBAC] User lacks 'admin' role. Admin button disabled.");
-                } else {
-                    console.log("🔓 [RBAC] Admin role confirmed. Admin button enabled.");
                 }
             }
         } catch (err) {
-            console.warn("⚠️ [RBAC] Permission check failed, Admin button stays enabled.", err.message);
+            console.warn("⚠️ [RBAC] Permission check failed.", err.message);
         }
     }
 
-    /**
-     * [NEW] (v6298-fix-5) Helper to add and store listeners
-     */
     _addListener(element, event, handler) {
         if (!element) return;
         const boundHandler = handler.bind(this);
@@ -67,39 +44,50 @@ export class F4ActionsView {
         element.addEventListener(event, boundHandler);
     }
 
-    /**
-     * [NEW] (v6298-fix-5) Destroys all event listeners
-     */
-    destroy() {
+    deactivate() {
+        console.log(`[Lifecycle] Cleaning up listeners for ${this.constructor.name}...`);
         this.boundHandlers.forEach(({ element, event, handler }) => {
-            if (element) {
-                element.removeEventListener(event, handler);
-            }
+            if (element) element.removeEventListener(event, handler);
         });
         this.boundHandlers = [];
-        console.log("F4ActionsView destroyed.");
+
+        // [NEW] Unsubscribe global events
+        if (this.subscriptions && this.subscriptions.length > 0) {
+            this.subscriptions.forEach(sub => {
+                if (sub && typeof sub.dispose === 'function') sub.dispose();
+            });
+            this.subscriptions = [];
+        }
     }
 
+    destroy() {
+        this.deactivate();
+    }
 
     _cacheF4Elements() {
         const query = (id) => this.panelElement.querySelector(id);
         this.f4 = {
-            // [NEW] (F4 Status Phase 2) Cache status elements
             statusDropdown: query('#f4-status-dropdown'),
             statusUpdateButton: query('#f4-status-update-btn'),
-            // [NEW] (Correction Flow Phase 1) Cache Cancel/Correct button
             cancelCorrectButton: query('#f4-btn-cancel-correct'),
-            // [NEW] (Correction Flow Fix) Cache Correction Controls
             correctionControls: query('#f4-correction-controls'),
             btnCorrectionSet: query('#f4-btn-correction-set'),
             btnCorrectionExit: query('#f4-btn-correction-exit'),
-            btnAdminEntry: query('#f4-btn-admin-entry'), // [NEW] (Phase 4.11)
+            btnAdminEntry: query('#f4-btn-admin-entry'),
+
+            paymentPanel: query('#f4-payment-modal'), // The actual modal overlay
+            btnOpenPaymentModal: query('#f4-btn-open-payment-modal'),
+            btnCancelPaymentModal: query('#f4-btn-cancel-payment'),
+            paymentAmount: query('#f4-payment-amount'),
+            paymentDate: query('#f4-payment-date'),
+            paymentMethod: query('#f4-payment-method'),
+            btnRegisterPayment: query('#f4-btn-register-payment'),
 
             buttons: {
                 'f1-key-save': query('#f1-key-save'),
                 'f4-key-save-as-new': query('#f4-key-save-as-new'),
                 'f4-key-generate-work-order': query('#f4-key-generate-work-order'),
-                'f4-key-generate-xls': query(`#${DOM_IDS.F4_BTN_GENERATE_XLS}`), // [NEW] (v6299 Gen-Xls)
+                'f4-key-generate-xls': query(`#${DOM_IDS.F4_BTN_GENERATE_XLS}`),
                 'f1-key-export': query('#f1-key-export'),
                 'f1-key-load': query('#f1-key-load'),
                 'f4-key-load-cloud': query(`#${DOM_IDS.F4_BTN_SEARCH_DIALOG}`),
@@ -111,26 +99,15 @@ export class F4ActionsView {
     }
 
     _initializeF4Listeners() {
-        // [REFACTOR] (Phase 4.7g-1) Universal Event Delegation for F4
         this._addListener(this.panelElement, 'click', (event) => {
-            // 尋找被點擊的按鈕（支持透過 ID 識別）
             const btn = event.target.closest('button');
-            if (!btn) return;
+            if (!btn || btn.disabled) return;
 
             const actionId = btn.id;
-            console.log(`🖱️ [F4 Delegate Click] Action ID: ${actionId}`);
+            if (btn.classList.contains('tab-button') || (actionId && actionId.includes('-tab'))) return;
 
-            // [CRITICAL FIX] (Phase 4.8a) Exempt tab buttons
-            if (btn.classList.contains('tab-button') || (actionId && actionId.includes('-tab'))) {
-                return;
-            }
-
-            if (btn.disabled || !actionId) return;
-
-            // [MODIFIED] (Phase 4.8a) Split exit to force unlock
             if (actionId === 'f4-btn-correction-exit') {
                 this.eventAggregator.publish(EVENTS.USER_REQUESTED_EXIT_CORRECTION_MODE);
-                // [FORCE] 防止鎖定殘留
                 this.eventAggregator.publish('STATE_DISPATCH', { type: 'ui/setIsProcessing', payload: { isProcessing: false } });
                 return;
             }
@@ -154,177 +131,237 @@ export class F4ActionsView {
             } else if (actionId === 'f4-status-update-btn') {
                 const newStatus = this.f4.statusDropdown ? this.f4.statusDropdown.value : null;
                 if (newStatus) {
+
+                    // --- [MODIFIED] 精準查帳收費站 ---
+                    if (newStatus === QUOTE_STATUS.L_CLOSED) {
+                        const metadata = this.currentState?.quoteData?.metadata || {};
+                        const payments = Array.isArray(metadata.payments) ? metadata.payments : [];
+                        const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+
+                        // Determine quote total accurately using grandTotal from UI state or quote snapshot
+                        const quoteTotal = parseFloat(this.currentState?.ui?.f2?.grandTotal || this.currentState?.quoteData?.f2Snapshot?.grandTotal || 0);
+
+                        if (totalPaid < quoteTotal) {
+                            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                                type: 'warning',
+                                message: `❌ Action Blocked: Full payment required to close order. (Paid: $${totalPaid}, Total: $${quoteTotal})`
+                            });
+
+                            if (this.currentState && this.currentState.quoteData) {
+                                this.f4.statusDropdown.value = this.currentState.quoteData.status || QUOTE_STATUS.A_SAVED;
+                            }
+                            return;
+                        }
+                    }
+
+                    if (newStatus === QUOTE_STATUS.D_DEPOSIT_PAID) {
+                        const metadata = this.currentState?.quoteData?.metadata || {};
+                        const hasPayments = Array.isArray(metadata.payments) && metadata.payments.length > 0;
+
+                        if (!hasPayments) {
+                            // Intercept status update and show the payment modal instead
+                            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                                type: 'info',
+                                message: 'Payment required before moving to "Deposit Paid".'
+                            });
+
+                            if (this.f4.paymentPanel) {
+                                this.f4.paymentPanel.style.display = 'flex';
+                                // Set context FLAG so the modal knows to emit status update upon success
+                                this.f4.paymentPanel.dataset.context = newStatus;
+                            }
+                            return;
+                        }
+                    }
+
                     this.eventAggregator.publish(EVENTS.USER_REQUESTED_UPDATE_STATUS, { newStatus });
                 }
-            } else if (actionId === DOM_IDS.F4_BTN_LOGOUT) {
-                if (this.authService) {
-                    this.authService.logout();
-                } else {
-                    console.error("AuthService not available in F4ActionsView.");
+            } else if (actionId === 'f4-btn-open-payment-modal') {
+                if (this.f4.paymentPanel) {
+                    this.f4.paymentPanel.style.display = 'flex';
+                    this.f4.paymentPanel.dataset.context = 'manual';
                 }
+            } else if (actionId === 'f4-btn-cancel-payment') {
+                if (this.f4.paymentPanel) {
+                    this.f4.paymentPanel.style.display = 'none';
+                    // Revert dropdown if it was an intercepted flow
+                    if (this.f4.paymentPanel.dataset.context !== 'manual' && this.currentState && this.currentState.quoteData) {
+                        if (this.f4.statusDropdown) {
+                            this.f4.statusDropdown.value = this.currentState.quoteData.status || QUOTE_STATUS.A_SAVED;
+                        }
+                    }
+                    this.f4.paymentPanel.dataset.context = '';
+                }
+            } else if (actionId === 'f4-btn-register-payment') {
+                const parsedAmount = parseFloat(this.f4.paymentAmount ? this.f4.paymentAmount.value : null);
+                const methodInput = this.f4.paymentMethod ? this.f4.paymentMethod.value : null;
+                const dateInput = this.f4.paymentDate ? this.f4.paymentDate.value : null;
+
+                if (parsedAmount && methodInput) {
+                    this.eventAggregator.publish(EVENTS.USER_REQUESTED_REGISTER_PAYMENT, {
+                        amount: parsedAmount,
+                        method: methodInput,
+                        date: dateInput || new Date().toISOString().split('T')[0]
+                    });
+
+                    // Cleanup and potentially continue intercepted status update
+                    if (this.f4.paymentPanel) {
+                        const context = this.f4.paymentPanel.dataset.context;
+                        this.f4.paymentPanel.style.display = 'none';
+                        this.f4.paymentPanel.dataset.context = '';
+
+                        if (context && context !== 'manual') {
+                            this.eventAggregator.publish(EVENTS.USER_REQUESTED_UPDATE_STATUS, { newStatus: context });
+                        }
+                    }
+                    if (this.f4.paymentAmount) this.f4.paymentAmount.value = '';
+                } else {
+                    this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { type: 'warning', message: 'Please enter a valid amount and select a method.' });
+                }
+            } else if (actionId === DOM_IDS.F4_BTN_LOGOUT) {
+                if (this.authService) this.authService.logout();
             } else if (actionId === 'f4-btn-admin-entry') {
-                // [MODIFIED] (Phase 4.10c) Official Admin Portal Launch
-                console.log("🚀 [Admin Portal] Launching Database Management...");
                 window.open('admin.html', '_blank');
             }
         });
 
-        // Ensure "Load File" text is correct
         const loadBtn = this.f4.buttons['f1-key-load'];
-        if (loadBtn) {
-            loadBtn.textContent = 'Load File';
-        }
+        if (loadBtn) loadBtn.textContent = 'Load File';
     }
 
-    /**
-     * [NEW] (F4 Status Phase 2) Renders the F4 tab, specifically the status dropdown.
-     * [MODIFIED] (Correction Flow Fix) Handles Correction Mode UI state (Disabling buttons, showing SET/Exit).
-     * [MODIFIED] (Correction Flow Phase 5) Handles Locked State UI (Disabling Save/SaveAs).
-     */
     render(state) {
-        // Guard clause: if DOM elements aren't cached, return
+        this.currentState = state;
+
         if (!this.f4.statusDropdown) return;
 
         const { quoteId, status } = state.quoteData;
-        const { isCorrectionMode } = state.ui; // [NEW] Get correction mode state
+        const { isCorrectionMode } = state.ui;
         const isNewQuote = !quoteId;
 
-        // Helper to set button state (disabled)
-        const setButtonState = (btnId, isDisabled) => {
-            const btn = this.f4.buttons[btnId];
-            if (btn) {
-                btn.disabled = isDisabled;
-            }
-        };
+        const allControls = [
+            this.f4.statusDropdown, this.f4.statusUpdateButton, this.f4.cancelCorrectButton,
+            this.f4.btnCorrectionSet, this.f4.btnCorrectionExit, this.f4.btnAdminEntry,
+            this.f4.btnOpenPaymentModal, this.f4.btnCancelPaymentModal, this.f4.paymentAmount, this.f4.paymentDate, this.f4.paymentMethod, this.f4.btnRegisterPayment,
+            ...Object.values(this.f4.buttons)
+        ];
 
-        // --- 1. CORRECTION MODE (Priority High) ---
+        allControls.forEach(el => { if (el) el.disabled = false; });
+
+        if (this.f4.correctionControls) {
+            this.f4.correctionControls.classList.toggle('is-hidden', !isCorrectionMode);
+        }
+
         if (isCorrectionMode) {
-            // Show Correction Controls (SET / Exit)
-            if (this.f4.correctionControls) {
-                this.f4.correctionControls.classList.remove('is-hidden');
-            }
+            const disabledIdsInCorrection = ['f1-key-save', 'f4-key-save-as-new', 'f1-key-export', 'f4-key-generate-xls', 'f4-key-generate-work-order'];
+            disabledIdsInCorrection.forEach(id => { if (this.f4.buttons[id]) this.f4.buttons[id].disabled = true; });
 
-            // Disable ALL Standard File Operations (Exempt Load/Search)
-            const allFileOps = [
-                'f1-key-save',
-                'f4-key-save-as-new',
-                'f1-key-export',
-                'f4-key-generate-xls' // [NEW] (v6299 Gen-Xls) Disable Gen-Xls in Correction Mode
-            ];
-            allFileOps.forEach(id => setButtonState(id, true));
-
-            // Disable Status Controls
             this.f4.statusDropdown.disabled = true;
             this.f4.statusUpdateButton.disabled = true;
-            if (this.f4.cancelCorrectButton) {
-                this.f4.cancelCorrectButton.disabled = true;
+            if (this.f4.cancelCorrectButton) this.f4.cancelCorrectButton.disabled = true;
+            if (this.f4.btnOpenPaymentModal) this.f4.btnOpenPaymentModal.disabled = true;
+            if (this.f4.btnRegisterPayment) this.f4.btnRegisterPayment.disabled = true;
+
+            this.f4.statusDropdown.value = status || QUOTE_STATUS.A_SAVED;
+        } else {
+            if (this.f4.btnCorrectionSet) this.f4.btnCorrectionSet.disabled = true;
+            if (this.f4.btnCorrectionExit) this.f4.btnCorrectionExit.disabled = true;
+
+            const lockedStates = [
+                QUOTE_STATUS.C_CONFIRMED, QUOTE_STATUS.D_DEPOSIT_PAID,
+                QUOTE_STATUS.E_TO_FACTORY, QUOTE_STATUS.F_PRODUCTION, QUOTE_STATUS.G_READY_PICKUP,
+                QUOTE_STATUS.H_DELIVERED, QUOTE_STATUS.I_COMPLETED, QUOTE_STATUS.J_INVOICED,
+                QUOTE_STATUS.K_OVERDUE, QUOTE_STATUS.L_CLOSED, QUOTE_STATUS.Y_ON_HOLD, QUOTE_STATUS.X_CANCELLED
+            ];
+
+            if (lockedStates.includes(status)) {
+                if (this.f4.buttons['f1-key-save']) this.f4.buttons['f1-key-save'].disabled = true;
+                if (this.f4.buttons['f4-key-save-as-new']) this.f4.buttons['f4-key-save-as-new'].disabled = true;
+            } else if (status === QUOTE_STATUS.B_QUOTED) {
+                // [LIFECYCLE UNLOCK] B_QUOTED allows versioning but blocks overwrites.
+                if (this.f4.buttons['f1-key-save']) this.f4.buttons['f1-key-save'].disabled = true;
+                if (this.f4.buttons['f4-key-save-as-new']) this.f4.buttons['f4-key-save-as-new'].disabled = false;
             }
 
-            this.f4.statusDropdown.value = status || QUOTE_STATUS.A_ARCHIVED;
-            return; // Exit render
-        }
+            const readOnlyStatusStates = [QUOTE_STATUS.J_INVOICED, QUOTE_STATUS.K_OVERDUE, QUOTE_STATUS.L_CLOSED, QUOTE_STATUS.X_CANCELLED];
+            const isStatusReadOnly = readOnlyStatusStates.includes(status);
+            const hasGodMode = this.currentUserRole === 'admin';
 
-        // --- 2. STANDARD MODE (Not Correction) ---
+            // Admin can bypass the read-only UI lock to progress states like J_INVOICED -> L_CLOSED
+            const isControlsDisabled = isNewQuote || (isStatusReadOnly && !hasGodMode);
 
-        // Ensure Correction Controls are hidden
-        if (this.f4.correctionControls) {
-            this.f4.correctionControls.classList.add('is-hidden');
-        }
+            this.f4.statusDropdown.disabled = isControlsDisabled;
+            this.f4.statusUpdateButton.disabled = isControlsDisabled;
 
-        // --- Locking Logic ---
-        // If the order is "Established" (B~I, or X/J), it is considered LOCKED for editing.
-        // Exception: If status is A (Saved) or new, it's unlocked.
-        const lockedStates = [
-            QUOTE_STATUS.B_VALID_ORDER,
-            QUOTE_STATUS.C_SENT_TO_FACTORY,
-            QUOTE_STATUS.D_IN_PRODUCTION,
-            QUOTE_STATUS.E_READY_FOR_PICKUP,
-            QUOTE_STATUS.F_PICKED_UP,
-            QUOTE_STATUS.G_COMPLETED,
-            QUOTE_STATUS.H_INVOICE_SENT,
-            QUOTE_STATUS.I_INVOICE_OVERDUE,
-            QUOTE_STATUS.X_CANCELLED,
-            QUOTE_STATUS.J_CLOSED
-        ];
+            if (this.f4.btnOpenPaymentModal) {
+                // 如果是新單，不能收款
+                this.f4.btnOpenPaymentModal.disabled = isNewQuote;
+                if (this.f4.paymentAmount) this.f4.paymentAmount.disabled = isNewQuote;
+                if (this.f4.paymentDate) this.f4.paymentDate.disabled = isNewQuote;
+                if (this.f4.paymentMethod) this.f4.paymentMethod.disabled = isNewQuote;
+                if (this.f4.btnRegisterPayment) this.f4.btnRegisterPayment.disabled = isNewQuote;
+            }
 
-        const isLocked = lockedStates.includes(status);
+            this.f4.statusDropdown.innerHTML = '';
+            const userRole = this.currentUserRole === 'admin' ? 'admin' : 'sales';
+            const allowedKeys = (typeof ROLE_STATUS_PERMISSIONS !== 'undefined' && ROLE_STATUS_PERMISSIONS[userRole])
+                ? ROLE_STATUS_PERMISSIONS[userRole]
+                : Object.keys(QUOTE_STATUS);
 
-        // Reset standard buttons first (Enable all)
-        // [MODIFIED] (v6299 Gen-Xls) Added generate-xls to reset list
-        ['f1-key-save', 'f4-key-save-as-new', 'f1-key-export', 'f1-key-load', 'f4-key-load-cloud', 'f4-key-generate-xls'].forEach(id => setButtonState(id, false));
+            const effectiveStatus = status || QUOTE_STATUS.A_SAVED;
+            const allowedTransitions = (typeof STATE_TRANSITIONS !== 'undefined' && STATE_TRANSITIONS[effectiveStatus])
+                ? STATE_TRANSITIONS[effectiveStatus]
+                : [];
 
-        // Apply Lock: Disable Save and Save As if locked
-        if (isLocked) {
-            setButtonState('f1-key-save', true);
-            setButtonState('f4-key-save-as-new', true);
-            // Note: Export, Load, and Search remain enabled for navigation/viewing.
-        }
-
-        // [MODIFIED] (Phase 4.7g) Remove opacity styling and inline disable reset if it overrides logic
-        // 確保搜尋與載入功能不受鎖定影響
-        const managementButtons = [
-            this.f4.buttons['f1-key-load'],
-            this.f4.buttons['f1-key-reset'],
-            this.f4.buttons['f4-key-load-cloud']
-        ];
-        managementButtons.forEach(btn => { if (btn) btn.disabled = false; });
-
-        // --- Status Controls Logic ---
-        // "Read Only" states are those where even Sales shouldn't change status (D~I, X, J).
-        // Sales CAN change B -> C.
-        const readOnlyStatusStates = [
-            QUOTE_STATUS.D_IN_PRODUCTION,
-            QUOTE_STATUS.E_READY_FOR_PICKUP,
-            QUOTE_STATUS.F_PICKED_UP,
-            QUOTE_STATUS.H_INVOICE_SENT,
-            QUOTE_STATUS.I_INVOICE_OVERDUE,
-            QUOTE_STATUS.X_CANCELLED,
-            QUOTE_STATUS.J_CLOSED
-        ];
-
-        const isStatusReadOnly = readOnlyStatusStates.includes(status);
-        const isControlsDisabled = isNewQuote || isStatusReadOnly;
-
-        this.f4.statusDropdown.disabled = isControlsDisabled;
-        this.f4.statusUpdateButton.disabled = isControlsDisabled;
-
-        // Populate options (Run once)
-        if (this.f4.statusDropdown.options.length === 0) {
-            for (const [key, text] of Object.entries(QUOTE_STATUS)) {
+            Object.entries(QUOTE_STATUS).forEach(([key, displayValue]) => {
                 const option = document.createElement('option');
-                option.value = text; // Store "A. Saved"
-                option.textContent = text;
+                option.value = displayValue;
+                option.textContent = displayValue;
 
-                // (Tweak 2) Visually distinguish non-sales options
-                if (readOnlyStatusStates.includes(text)) {
-                    option.style.background = "#eee";
-                    option.style.fontStyle = "italic";
+                // 1. Check RBAC (Role-based general permission for this status)
+                const isAllowedByRole = allowedKeys.includes(key);
+
+                // 2. Check FSM (Is this a legal step from the current status?)
+                const isLegalTransition = (displayValue === effectiveStatus) || allowedTransitions.includes(displayValue);
+
+                // 3. Strict Application: Must pass both, NO Admin bypass for FSM sequence
+                if (!isAllowedByRole || !isLegalTransition) {
+                    option.disabled = true;
+                    option.style.color = '#999';
                 }
                 this.f4.statusDropdown.appendChild(option);
-            }
+            });
+
+            this.f4.statusDropdown.value = status || QUOTE_STATUS.A_SAVED;
         }
 
-        // Set selected value
-        this.f4.statusDropdown.value = status || QUOTE_STATUS.A_ARCHIVED;
-
-        // [FORCE EXEMPTION] Phase 4.8a
-        // 管理類按鈕永遠不准被禁用，以確保用戶隨時有逃生出口
-        const adminButtons = [
-            this.f4.cancelCorrectButton,
-            this.f4.buttons['f1-key-reset'],
-            this.f4.buttons['f1-key-load'],
-            this.f4.buttons['f4-key-load-cloud'],
-            this.f4.btnAdminEntry // [NEW] Phase 4.11
-        ];
-
-        adminButtons.forEach(btn => {
-            if (btn) {
-                btn.disabled = false;
-                btn.style.pointerEvents = 'auto'; // 確保雙重保障
-                btn.style.opacity = '1';
-                btn.title = "Administrative Action (Always Available)";
+        allControls.forEach(el => {
+            if (el) {
+                if (el.disabled) {
+                    el.style.pointerEvents = 'none';
+                    el.style.opacity = '0.5';
+                } else {
+                    el.style.pointerEvents = 'auto';
+                    el.style.opacity = '1';
+                }
             }
         });
+
+        if (this.f4.btnAdminEntry && this.currentUserRole !== 'admin') {
+            this.f4.btnAdminEntry.disabled = true;
+            this.f4.btnAdminEntry.style.pointerEvents = 'none';
+            this.f4.btnAdminEntry.style.opacity = '0.5';
+        }
+
+        const accordionHeaders = this.panelElement.querySelectorAll('.f4-accordion-header');
+        accordionHeaders.forEach(header => {
+            header.style.pointerEvents = 'auto';
+            header.style.cursor = 'pointer';
+        });
+    }
+
+    activate() {
+        // [NEW] (Deactivate Pattern) Dynamically re-bind all listeners upon activation
+        this._initializeF4Listeners();
     }
 }
 

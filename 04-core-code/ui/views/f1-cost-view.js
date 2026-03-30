@@ -1,9 +1,8 @@
 /* FILE: 04-core-code/ui/views/f1-cost-view.js */
-// [MODIFIED] (v6297) 移除本地 F1 成本計算邏輯，改為呼叫 calculationService.calculateF1Costs
-// [MODIFIED] (F1 Motor Split) Added W-Motor display cache, render logic, and handleMotorDistribution dialog.
 
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
+import { formatCurrency } from '../../utils/format-utils.js';
 
 /**
  * @fileoverview A dedicated sub-view for handling all logic related to the F1 (Cost) tab.
@@ -15,12 +14,12 @@ export class F1CostView {
         this.calculationService = calculationService;
         this.stateService = stateService; // [NEW] Injected dependency
 
-        // [NEW] (v6298-fix-5) Store bound handlers
         this.boundHandlers = [];
+        this.subscriptions = []; // [NEW] EventAggregator registry
 
         this._cacheF1Elements();
         this._populateBrandDropdowns(); // [NEW] (Phase 5.10) Dynamic brand options
-        this._initializeF1Listeners();
+        // [MOVED] Initialization of listeners is now dynamically managed in activate()
         console.log("F1CostView Initialized.");
     }
 
@@ -35,19 +34,34 @@ export class F1CostView {
     }
 
     /**
-     * [NEW] (v6298-fix-5) Destroys all event listeners
+     * [NEW] Implements the lifecycle Deactivate pattern to clear listeners when swapping tabs.
      */
-    destroy() {
+    deactivate() {
+        console.log(`[Lifecycle] Cleaning up listeners for ${this.constructor.name}...`);
         this.boundHandlers.forEach(({ element, event, handler }) => {
             if (element) {
                 element.removeEventListener(event, handler);
             }
         });
         this.boundHandlers = [];
+
+        // [NEW] Unsubscribe global events
+        if (this.subscriptions && this.subscriptions.length > 0) {
+            this.subscriptions.forEach(sub => {
+                if (sub && typeof sub.dispose === 'function') sub.dispose();
+            });
+            this.subscriptions = [];
+        }
+    }
+
+    /**
+     * [NEW] (v6298-fix-5) Destroys all event listeners
+     */
+    destroy() {
+        this.deactivate();
         console.log("F1CostView destroyed.");
     }
 
-    // [NEW] (Phase 4.1b) Method to update F1 cost cache without triggering render loops
     updateF1Cache() {
         const state = this.stateService.getState();
         if (!state || !state.quoteData || !state.ui) return;
@@ -100,7 +114,6 @@ export class F1CostView {
                     'final-total': query(`#${DOM_IDS.F1_FINAL_TOTAL}`),
                 }
             },
-            // [NEW] (Phase 3.3b) Brand config section elements
             brand: {
                 hdFree: query('#f1-brand-hd-free'),
                 hdPaid: query('#f1-brand-hd-paid'),
@@ -155,30 +168,23 @@ export class F1CostView {
 
     _initializeF1Listeners() {
         const remote1chQtyDiv = this.f1.displays.qty['remote-1ch'];
-        // [MODIFIED] (v6298-fix-5) Use helper
         this._addListener(remote1chQtyDiv, 'click', this.handleRemoteDistribution);
 
         const slimQtyDiv = this.f1.displays.qty['slim'];
-        // [MODIFIED] (v6298-fix-5) Use helper
         this._addListener(slimQtyDiv, 'click', this.handleDualDistribution);
 
         // [NEW] (F1 Motor Split) Listener for W-Motor distribution
         const wMotorQtyDiv = this.f1.displays.qty['w-motor'];
         this._addListener(wMotorQtyDiv, 'click', this.handleMotorDistribution);
 
-
         const discountInput = this.f1.inputs['discount'];
-        // [MODIFIED] (v6298-fix-5) Use helper
         this._addListener(discountInput, 'input', this._onDiscountInput);
         this._addListener(discountInput, 'keydown', this._onInputKeydown);
 
-        // [NEW] (v6295) Add listener for Wifi input
         const wifiInput = this.f1.inputs['wifihub'];
-        // [MODIFIED] (v6298-fix-5) Use helper
         this._addListener(wifiInput, 'input', this._onWifiInput);
         this._addListener(wifiInput, 'keydown', this._onInputKeydown);
 
-        // [MODIFIED] (Phase 3.3c) Unified omni-sync brand select listeners
         if (this.f1.brand.motorSelect) {
             this._addListener(this.f1.brand.motorSelect, 'change', this._onAnyBrandChange);
         }
@@ -201,7 +207,6 @@ export class F1CostView {
         });
     }
 
-    // [NEW] (v6298-fix-5) Extracted handlers
     _onDiscountInput(event) {
         const percentage = parseFloat(event.target.value) || 0;
         this.eventAggregator.publish(EVENTS.F1_DISCOUNT_CHANGED, { percentage });
@@ -221,7 +226,6 @@ export class F1CostView {
         }
     }
 
-    // [MODIFIED] (Phase 3.3f) Omni-directional brand sync handler — ghost event fix
     _onAnyBrandChange(event) {
         event.preventDefault();
         event.stopPropagation();
@@ -235,26 +239,20 @@ export class F1CostView {
         if (this.f1.brand.remoteSelect) this.f1.brand.remoteSelect.value = newBrand;
         if (this.f1.brand.wifiSelect) this.f1.brand.wifiSelect.value = newBrand;
         // 3. Trigger full recalculation
-        // [FIX] (Phase 3.3f) Was EVENTS.CALCULATE_QUOTE (undefined!) → cross-talk with handleSaveThenLoad
         this.eventAggregator.publish(EVENTS.USER_REQUESTED_CALCULATE_AND_SUM);
         this.updateF1Cache();
     }
-
 
     render(state) {
         if (!this.f1 || !state || !state.quoteData || !state.ui) return;
 
         const { quoteData, ui } = state;
-        const formatPrice = (price) => (typeof price === 'number' && price > 0 ? `$${price.toFixed(2)}` : '');
         const formatDisplay = (value) => (value !== null && value !== undefined) ? value : '';
 
-        // [NEW] (Phase 4.3a) Financial rounding to 2 decimal places to prevent float errors
         const roundPrice = (num) => Math.round((num + Number.EPSILON) * 100) / 100;
-
 
         // --- [NEW] (第 7 次編修) ---
         // 1. 從 CalculationService 獲取 F1 成本的數據
-        // [NEW] (Phase 4.1c) Read from decoupled cache instead of calculating on every render
         const f1Costs = state.ui.f1.cachedCosts;
 
         // 安全防護：如果快取尚未準備好，直接略過渲染，等待 updateF1Cache 觸發
@@ -264,52 +262,49 @@ export class F1CostView {
         }
         // --- [END NEW] ---
 
-
         // --- [MODIFIED] (F1 Motor Split) Update Render Logic ---
 
         // --- Component Cost Display ---
         if (this.f1.displays.qty.winder) this.f1.displays.qty.winder.textContent = f1Costs.qtys.winder;
-        if (this.f1.displays.price.winder) this.f1.displays.price.winder.textContent = formatPrice(f1Costs.winderCost);
+        if (this.f1.displays.price.winder) this.f1.displays.price.winder.textContent = formatCurrency(f1Costs.winderCost);
 
         // [MODIFIED] Motor (B-Motor)
         // Using b_motor Qty and Cost from calculation service
         if (this.f1.displays.qty.motor) this.f1.displays.qty.motor.textContent = f1Costs.qtys.b_motor;
-        if (this.f1.displays.price.motor) this.f1.displays.price.motor.textContent = formatPrice(f1Costs.bMotorCost);
+        if (this.f1.displays.price.motor) this.f1.displays.price.motor.textContent = formatCurrency(f1Costs.bMotorCost);
 
         // [NEW] W-Motor
         if (this.f1.displays.qty['w-motor']) this.f1.displays.qty['w-motor'].textContent = f1Costs.qtys.w_motor;
-        if (this.f1.displays.price['w-motor']) this.f1.displays.price['w-motor'].textContent = formatPrice(f1Costs.wMotorCost);
-
+        if (this.f1.displays.price['w-motor']) this.f1.displays.price['w-motor'].textContent = formatCurrency(f1Costs.wMotorCost);
 
         if (this.f1.displays.qty['remote-1ch']) this.f1.displays.qty['remote-1ch'].textContent = f1Costs.qtys.remote1ch;
-        if (this.f1.displays.price['remote-1ch']) this.f1.displays.price['remote-1ch'].textContent = formatPrice(f1Costs.remote1chCost);
+        if (this.f1.displays.price['remote-1ch']) this.f1.displays.price['remote-1ch'].textContent = formatCurrency(f1Costs.remote1chCost);
 
         if (this.f1.displays.qty['remote-16ch']) this.f1.displays.qty['remote-16ch'].textContent = f1Costs.qtys.remote16ch;
-        if (this.f1.displays.price['remote-16ch']) this.f1.displays.price['remote-16ch'].textContent = formatPrice(f1Costs.remote16chCost);
+        if (this.f1.displays.price['remote-16ch']) this.f1.displays.price['remote-16ch'].textContent = formatCurrency(f1Costs.remote16chCost);
 
         if (this.f1.displays.qty.charger) this.f1.displays.qty.charger.textContent = f1Costs.qtys.charger;
-        if (this.f1.displays.price.charger) this.f1.displays.price.charger.textContent = formatPrice(f1Costs.chargerCost);
+        if (this.f1.displays.price.charger) this.f1.displays.price.charger.textContent = formatCurrency(f1Costs.chargerCost);
 
         if (this.f1.displays.qty['3m-cord']) this.f1.displays.qty['3m-cord'].textContent = f1Costs.qtys.cord;
-        if (this.f1.displays.price['3m-cord']) this.f1.displays.price['3m-cord'].textContent = formatPrice(f1Costs.cordCost);
+        if (this.f1.displays.price['3m-cord']) this.f1.displays.price['3m-cord'].textContent = formatCurrency(f1Costs.cordCost);
 
         if (this.f1.displays.qty['dual-combo']) this.f1.displays.qty['dual-combo'].textContent = f1Costs.qtys.combo;
-        if (this.f1.displays.price['dual-combo']) this.f1.displays.price['dual-combo'].textContent = formatPrice(f1Costs.dualComboCost);
+        if (this.f1.displays.price['dual-combo']) this.f1.displays.price['dual-combo'].textContent = formatCurrency(f1Costs.dualComboCost);
 
         if (this.f1.displays.qty.slim) this.f1.displays.qty.slim.textContent = f1Costs.qtys.slim;
-        if (this.f1.displays.price.slim) this.f1.displays.price.slim.textContent = formatPrice(f1Costs.slimCost);
+        if (this.f1.displays.price.slim) this.f1.displays.price.slim.textContent = formatCurrency(f1Costs.slimCost);
 
         if (this.f1.inputs.wifihub && document.activeElement !== this.f1.inputs.wifihub) {
             this.f1.inputs.wifihub.value = formatDisplay(f1Costs.qtys.wifi) || '';
         }
         if (this.f1.displays.price.wifihub) {
-            this.f1.displays.price.wifihub.textContent = formatPrice(f1Costs.wifiCost);
+            this.f1.displays.price.wifihub.textContent = formatCurrency(f1Costs.wifiCost);
         }
 
         if (this.f1.displays.price.total) {
-            this.f1.displays.price.total.textContent = formatPrice(f1Costs.componentTotal);
+            this.f1.displays.price.total.textContent = formatCurrency(f1Costs.componentTotal);
         }
-        // --- [END MODIFIED] ---
 
         // --- [MODIFIED] (Phase 3.3c) Brand config rendering - read HD from f1Costs ---
         if (this.f1.brand.hdFree) this.f1.brand.hdFree.value = f1Costs.qtys.hdFree ?? 0;
@@ -338,49 +333,46 @@ export class F1CostView {
             this.f1.brand.wifiSelect.value = f1State.wifiBrand || 'linx';
         }
 
-        // [NEW] (Phase 3.3d) Zero-qty disable logic: disable selects when qty is 0
         if (this.f1.brand.motorSelect) this.f1.brand.motorSelect.disabled = (totalMotorQty === 0);
         if (this.f1.brand.remoteSelect) this.f1.brand.remoteSelect.disabled = (totalRemoteQty === 0);
         if (this.f1.brand.wifiSelect) this.f1.brand.wifiSelect.disabled = ((f1Costs.qtys.wifi || 0) === 0);
         // --- [END MODIFIED] (Phase 3.3d) ---
 
-
         // --- RB Pricing Calculation ---
         const retailTotal = quoteData.products.rollerBlind.summary.totalSum || 0;
         const discountPercentage = ui.f1.discountPercentage || 0;
 
-        // [MODIFIED] (Phase 4.3a) Wrapped in roundPrice
         const rbPrice = roundPrice(retailTotal * (1 - (discountPercentage / 100)));
 
-        if (this.f1.displays.price['rb-retail']) this.f1.displays.price['rb-retail'].textContent = formatPrice(retailTotal);
+        if (this.f1.displays.price['rb-retail']) this.f1.displays.price['rb-retail'].textContent = formatCurrency(retailTotal);
         if (this.f1.inputs.discount && document.activeElement !== this.f1.inputs.discount) {
             this.f1.inputs.discount.value = formatDisplay(discountPercentage) || '';
         }
-        if (this.f1.displays.price['rb-price']) this.f1.displays.price['rb-price'].textContent = formatPrice(rbPrice);
+        if (this.f1.displays.price['rb-price']) this.f1.displays.price['rb-price'].textContent = formatCurrency(rbPrice);
 
         // --- Final Summary Calculation ---
-        // [MODIFIED] (Phase 4.3a) Wrapped all monetary sums in roundPrice
         const subTotal = roundPrice(f1Costs.componentTotal + rbPrice);
         const gst = roundPrice(subTotal * 0.10);
         const finalTotal = roundPrice(subTotal + gst);
 
-        // [NEW] (F1/F2 Refactor Phase 2) Dispatch the calculated totals to the central state
         this.stateService.dispatch(uiActions.setF1CostTotals(subTotal, finalTotal));
-        if (this.f1.displays.price['sub-total']) this.f1.displays.price['sub-total'].textContent = formatPrice(subTotal);
-        if (this.f1.displays.price.gst) this.f1.displays.price.gst.textContent = formatPrice(gst);
-        if (this.f1.displays.price['final-total']) this.f1.displays.price['final-total'].textContent = formatPrice(finalTotal);
+        if (this.f1.displays.price['sub-total']) this.f1.displays.price['sub-total'].textContent = formatCurrency(subTotal);
+        if (this.f1.displays.price.gst) this.f1.displays.price.gst.textContent = formatCurrency(gst);
+        if (this.f1.displays.price['final-total']) this.f1.displays.price['final-total'].textContent = formatCurrency(finalTotal);
 
         // --- [NEW] (Phase 3.9b) Sync Header Total ---
         const headerTotal = this.panelElement.querySelector('#f1-header-total');
         if (headerTotal) {
-            headerTotal.textContent = formatPrice(finalTotal);
+            headerTotal.textContent = formatCurrency(finalTotal);
         }
     }
 
     activate() {
+        // [NEW] (Deactivate Pattern) Dynamically re-bind all listeners upon activation
+        this._initializeF1Listeners();
+
         this.eventAggregator.publish(EVENTS.F1_TAB_ACTIVATED);
 
-        // [MODIFIED] (v6294) (第 12 次編修)
         // 恢復 F1 標籤的自動對焦功能，使其與 F2 標籤的行為一致
         // if (!window.matchMedia("(max-width: 600px)").matches) {
         setTimeout(() => {
@@ -392,7 +384,6 @@ export class F1CostView {
         }, 50); // A small delay ensures the element is visible and focusable.
         // }
 
-        // [NEW] (Phase 4.1b) Populate cache when F1 tab is opened
         this.updateF1Cache();
     }
 
@@ -402,7 +393,6 @@ export class F1CostView {
         const { ui } = this.stateService.getState();
         const totalRemoteCount = ui.driveRemoteCount || 0;
 
-        // [FIX] (v6295-fix) Read remote quantities directly from state
         const initial1ch = ui.f1.remote_1ch_qty || 0;
         const initial16ch = ui.f1.remote_16ch_qty || 0;
 

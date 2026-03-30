@@ -178,10 +178,13 @@ export function uiReducer(state, action) {
 
         case UI_ACTION_TYPES.SET_F2_VALUE: {
             const { key, value } = action.payload;
-            if (state.f2.hasOwnProperty(key)) {
-                return { ...state, f2: { ...state.f2, [key]: value } };
-            }
-            return state;
+            return { 
+                ...state, 
+                f2: { 
+                    ...state.f2, 
+                    [key]: value 
+                } 
+            };
         }
         case UI_ACTION_TYPES.TOGGLE_F2_FEE_EXCLUSION: {
             const key = `${action.payload.feeType}FeeExcluded`;
@@ -268,7 +271,7 @@ export function uiReducer(state, action) {
         // [NEW] (v6295) Restore F2 state from snapshot
         case UI_ACTION_TYPES.RESTORE_F2_SNAPSHOT: {
             // Overwrite state.f2 with the values from the snapshot,
-            // keeping any existing f2 properties that aren't in the snapshot.
+            // keeping any existing f2 properties that aren't in the snapshot (like lastSyncedSubtotal)
             return { ...state, f2: { ...state.f2, ...action.payload } };
         }
 

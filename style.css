@@ -150,6 +150,29 @@ body {
     filter: none;
 }
 
+/* [NEW] (Phase 15.5) Global Cancelled Order Warning Banner */
+#global-cancel-banner {
+    display: none;
+    background-color: #dc3545;
+    /* Danger Red */
+    color: white;
+    text-align: center;
+    padding: 10px;
+    font-weight: bold;
+    font-size: 16px;
+    width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+body.has-cancel-banner {
+    padding-top: 40px !important;
+    /* Push app content down so it's not covered */
+}
+
 /* --- [NEW] Global UI Lock Class --- */
 .ui-locked {
     pointer-events: none !important;
@@ -419,6 +442,15 @@ body {
 .global-ui-locked .tab-content-container {
     pointer-events: none !important;
     opacity: 0.85;
+}
+
+/* [Scheme B / DIRECTIVE-v3.7] Exempt financial panels from the global UI lock.
+   F3 (document generation) and F4 (payment/order actions) must remain interactive
+   after an order is confirmed. Only F1/F2 configuration panels should be read-only. */
+.global-ui-locked #f3-content,
+.global-ui-locked #f4-content {
+    pointer-events: auto !important;
+    opacity: 1 !important;
 }
 
 /* Ensure handles and tab buttons are ALWAYS interactive */

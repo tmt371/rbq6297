@@ -1,11 +1,9 @@
 /* FILE: 04-core-code/ui/views/f2-summary-view.js */
-// [MODIFIED] (Tweak 1) Implemented forced ceiling rounding for f2-balance.
-// [MODIFIED] (F1 Motor Split Fix) Render logic now recalculates motor price based on B/W split.
-// [MODIFIED] (F1 Motor Split Architecture Fix) Removed calculation logic from View. Now reads from State.
 
 import { EVENTS } from '../../config/constants.js';
 import * as uiActions from '../../actions/ui-actions.js';
 import * as quoteActions from '../../actions/quote-actions.js';
+import { formatCurrency } from '../../utils/format-utils.js';
 
 /**
  * @fileoverview A dedicated sub-view for handling all logic related to the F2 (Summary) tab.
@@ -16,10 +14,9 @@ export class F2SummaryView {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
         this.calculationService = calculationService;
+        this.isOfferOverridden = false; // Track manual override state
 
-        // [MODIFIED] (v6295) Updated to new 7-step focus order (removed wifi)
         this.f2InputSequence = [
-            // 'f2-b10-wifi-qty', // [REMOVED] (v6295)
             'f2-b13-delivery-qty',
             'f2-b14-install-qty',
             'f2-b15-removal-qty',
@@ -29,17 +26,14 @@ export class F2SummaryView {
             'f2-deposit' // 'f2-balance' is readonly, so no focus
         ];
 
-        // [NEW] (v6298-fix-5) Store bound handlers
         this.boundHandlers = [];
+        this.subscriptions = []; // EventAggregator registry
 
         this._cacheF2Elements();
-        this._initializeF2Listeners();
+        // Initialization of listeners is now dynamically managed in activate()
         console.log("F2SummaryView Initialized.");
     }
 
-    /**
-     * [NEW] (v6298-fix-5) Helper to add and store listeners
-     */
     _addListener(element, event, handler) {
         if (!element) return;
         const boundHandler = handler.bind(this);
@@ -48,15 +42,29 @@ export class F2SummaryView {
     }
 
     /**
-     * [NEW] (v6298-fix-5) Destroys all event listeners
+     * Implements the lifecycle Deactivate pattern to clear listeners when swapping tabs.
      */
-    destroy() {
+    deactivate() {
+        console.log("[F2View] Cleaning up listeners...");
         this.boundHandlers.forEach(({ element, event, handler }) => {
             if (element) {
                 element.removeEventListener(event, handler);
             }
         });
-        this.boundHandlers = [];
+        this.boundHandlers = []; // Clear the registry
+        this._f2AccordionsInitialized = false; // Allow accordions to remount next activate
+
+        // Unsubscribe global events
+        if (this.subscriptions && this.subscriptions.length > 0) {
+            this.subscriptions.forEach(sub => {
+                if (sub && typeof sub.dispose === 'function') sub.dispose();
+            });
+            this.subscriptions = [];
+        }
+    }
+
+    destroy() {
+        this.deactivate();
         console.log("F2SummaryView destroyed.");
     }
 
@@ -71,8 +79,7 @@ export class F2SummaryView {
             b7_remotePrice: query('f2-b7-remote-price'),
             b8_chargerPrice: query('f2-b8-charger-price'),
             b9_cordPrice: query('f2-b9-cord-price'),
-            b10_wifiQty: query('f2-b10-wifi-qty'), // [MODIFIED] (v6295) This is now a div
-            // c10_wifiSum: query('f2-c10-wifi-sum'), // [REMOVED] (v6295)
+            b10_wifiQty: query('f2-b10-wifi-qty'), // This is now a div
             b11_eAcceSum: query('f2-b11-e-acce-sum'),
 
             b13_deliveryQty: query('f2-b13-delivery-qty'),
@@ -84,7 +91,6 @@ export class F2SummaryView {
             b16_surchargeFee: query('f2-b16-surcharge-fee'),
             rollerSummaryHeaderAmount: query('f2-roller-summary-header-amount'),
 
-            // [NEW] Phase 8.1: Unit price inputs
             deliveryUnit: query('f2-delivery-unit'),
             installUnit: query('f2-install-unit'),
             removalUnit: query('f2-removal-unit'),
@@ -95,30 +101,30 @@ export class F2SummaryView {
             b18_discount: query('f2-b18-discount'),
             b19_disRbPrice: query('f2-b19-dis-rb-price'),
             b20_singleprofit: query('f2-b20-singleprofit'),
-            f2_17_pre_sum: query('f2-17-pre-sum'), // [MODIFIED]
+            f2_17_pre_sum: query('f2-17-pre-sum'),
             b21_rbProfit: query('f2-b21-rb-profit'),
             b22_sumprice: query('f2-b22-sumprice'),
-            // [REMOVED] b23_sumprofit: query('f2-b23-sumprofit'),
-            val_stotal: query('f2-val-stotal'), // [NEW] phase 12.6
-            new_offer: query('new-offer'), // [MODIFIED]
-            val_rate: query('f2-val-rate'), // [NEW] phase 12.6
-            label_gst: query('f2-label-gst'), // [NEW] (Phase 2)
+            val_stotal: query('f2-val-stotal'),
+            new_offer: query('new-offer'),
+            val_rate: query('f2-val-rate'),
+            label_gst: query('f2-label-gst'),
             b24_gst: query('f2-b24-gst'),
-            grand_total: query('grand-total'), // [MODIFIED]
+            grand_total: query('grand-total'),
 
-            sellingPriceHeaderAmount: query('f2-selling-price-header-amount'), // [NEW] phase 12.6
+            sellingPriceHeaderAmount: query('f2-selling-price-header-amount'),
             b25_netprofit: query('f2-b25-netprofit'),
 
-            // [NEW] v6290 Deposit/Balance
             deposit: query('f2-deposit'),
             balance: query('f2-balance'),
+
+            // Cache the label for Our Offer (it's the pill before the input)
+            new_offer_label: query('new-offer')?.previousElementSibling
         };
     }
 
     _initializeF2Listeners() {
         const setupF2InputListener = (inputElement) => {
             if (inputElement) {
-                // [MODIFIED] (v6298-fix-5) Use helper
                 this._addListener(inputElement, 'change', (event) => {
                     this.handleF2ValueChange({ id: event.target.id, value: event.target.value });
                 });
@@ -130,18 +136,15 @@ export class F2SummaryView {
                     }
                 });
 
-                // [NEW] (Phase 10.3) Auto-highlight on focus for easy overwrite
                 this._addListener(inputElement, 'focus', (e) => e.target.select());
             }
         };
 
-        // [MODIFIED] (v6294) Use the new sequence array to apply listeners
         this.f2InputSequence.forEach(inputId => {
             const inputElement = this.f2[inputId.replace(/-/g, '_')] || document.getElementById(inputId);
             setupF2InputListener(inputElement);
         });
 
-        // [NEW] Phase 8.1: Listeners for fee unit price inputs
         ['deliveryUnit', 'installUnit', 'removalUnit'].forEach(key => {
             setupF2InputListener(this.f2[key]);
         });
@@ -153,20 +156,16 @@ export class F2SummaryView {
         ];
         feeCells.forEach(({ el, type }) => {
             if (el) {
-                // [MODIFIED] (v6298-fix-5) Use helper
                 this._addListener(el, 'click', () => {
                     this.handleToggleFeeExclusion({ feeType: type });
                 });
             }
         });
 
-        // [NEW] (Phase 2) Add listener for GST toggle
         if (this.f2.label_gst) {
-            // [MODIFIED] (v6298-fix-5) Use helper
             this._addListener(this.f2.label_gst, 'click', this.handleToggleGstExclusion);
         }
 
-        // [NEW] (Phase 12.6.2) Add real-time input listener for deposit
         if (this.f2.deposit) {
             this._addListener(this.f2.deposit, 'input', (event) => {
                 this.handleF2ValueChange({ id: event.target.id, value: event.target.value });
@@ -174,7 +173,6 @@ export class F2SummaryView {
         }
     }
 
-    // --- [NEW] Phase 12.3.1: Robust Accordion Initialization ---
     _initF2Accordions() {
         if (this._f2AccordionsInitialized) return;
         this._f2AccordionsInitialized = true;
@@ -212,170 +210,200 @@ export class F2SummaryView {
         setAccordionState('f2-selling-price-group', true);      // Expanded
     }
 
-    render(state) {
-        // [FIX] (Phase 13) Strengthen guard clause
-        if (!this.f2 || !state || !state.ui.f2) return;
-
-        const f2State = state.ui.f2;
-        const productSummary = state.quoteData.products[state.quoteData.currentProduct]?.summary;
-        const accessories = productSummary?.accessories || {};
-
+    _renderF1Accessories(f2State, productSummary) {
+        if (!this.f2) return;
         const formatIntegerCurrency = (value) => (typeof value === 'number') ? `$${value.toFixed(0)}` : '$';
-        const formatDecimalCurrency = (value) => (typeof value === 'number') ? `$${value.toFixed(2)}` : '$';
-        const formatValue = (value) => (value !== null && value !== undefined) ? value : '';
-
-        const winderPrice = accessories.winderCostSum || 0;
+        const accessories = productSummary?.accessories || {};
+        const winderPrice = productSummary?.winderEvaluation?.totalPrice || 0;
         const dualPrice = accessories.dualCostSum || 0;
-
-        // --- [MODIFIED] (F1 Motor Split Architecture Fix) Read from State ---
-        // View no longer calculates price. It reads the value dispatched by the service.
-        // We fallback to 0 if it's not set yet (e.g. initial load before calculation).
         const motorPrice = f2State.motorPrice || 0;
-        // --- [END MODIFIED] ---
+        const remotePrice = f2State.remotePrice || 0;
+        const chargerPrice = f2State.chargerPrice || 0;
+        const cordPrice = f2State.cordPrice || 0;
+        const wifiSum = f2State.wifiSum || 0;
 
-        // --- [END MODIFIED] ---
-
-        // [MODIFIED] (Phase 4.4f) Read newly calculated retail prices from f2State
-        // Fallback to 0 if not calculated yet.
-        const remotePrice = f2State.remotePrice !== undefined ? f2State.remotePrice : 0;
-        const chargerPrice = f2State.chargerPrice !== undefined ? f2State.chargerPrice : 0;
-        const cordPrice = f2State.cordPrice !== undefined ? f2State.cordPrice : 0;
-
-        // [MODIFIED] (v6298-fix-5) Add checks for element existence
         if (this.f2.b2_winderPrice) this.f2.b2_winderPrice.textContent = formatIntegerCurrency(winderPrice);
         if (this.f2.b3_dualPrice) this.f2.b3_dualPrice.textContent = formatIntegerCurrency(dualPrice);
         if (this.f2.b6_motorPrice) this.f2.b6_motorPrice.textContent = formatIntegerCurrency(motorPrice);
         if (this.f2.b7_remotePrice) this.f2.b7_remotePrice.textContent = formatIntegerCurrency(remotePrice);
         if (this.f2.b8_chargerPrice) this.f2.b8_chargerPrice.textContent = formatIntegerCurrency(chargerPrice);
         if (this.f2.b9_cordPrice) this.f2.b9_cordPrice.textContent = formatIntegerCurrency(cordPrice);
+        if (this.f2.b10_wifiQty) this.f2.b10_wifiQty.textContent = formatIntegerCurrency(wifiSum);
 
-        // [MODIFIED] (v6295) Get Wifi Qty from F1 state and calculate price
-        const wifiQty = state.ui.f1.wifi_qty || 0;
-        const wifiSum = wifiQty * 300; // Use $300 sale price
+        const acceSum = winderPrice + dualPrice;
+        const eAcceSum = motorPrice + remotePrice + chargerPrice + cordPrice + wifiSum;
+        if (this.f2.b4_acceSum) this.f2.b4_acceSum.textContent = formatIntegerCurrency(acceSum);
+        if (this.f2.b11_eAcceSum) this.f2.b11_eAcceSum.textContent = formatIntegerCurrency(eAcceSum);
+    }
+
+    _renderF2Fees(f2State) {
+        if (!this.f2) return;
+        const formatIntegerCurrency = (value) => (typeof value === 'number') ? `$${value.toFixed(0)}` : '$';
 
         const deliveryFee = f2State.deliveryFee || 0;
         const installFee = f2State.installFee || 0;
         const removalFee = f2State.removalFee || 0;
-        const acceSum = winderPrice + dualPrice;
-
-        // [MODIFIED] Use the state-provided motorPrice
-        const eAcceSum = motorPrice + remotePrice + chargerPrice + cordPrice + wifiSum;
-
         const surchargeFee =
             (f2State.deliveryFeeExcluded ? 0 : deliveryFee) +
             (f2State.installFeeExcluded ? 0 : installFee) +
             (f2State.removalFeeExcluded ? 0 : removalFee);
 
-        if (this.f2.b4_acceSum) this.f2.b4_acceSum.textContent = formatIntegerCurrency(acceSum);
-        // [MODIFIED] (v6295) Render new wifiSum to the b10 div
-        if (this.f2.b10_wifiQty) this.f2.b10_wifiQty.textContent = formatIntegerCurrency(wifiSum);
-        if (this.f2.b11_eAcceSum) this.f2.b11_eAcceSum.textContent = formatIntegerCurrency(eAcceSum);
         if (this.f2.c13_deliveryFee) this.f2.c13_deliveryFee.textContent = formatIntegerCurrency(deliveryFee);
         if (this.f2.c14_installFee) this.f2.c14_installFee.textContent = formatIntegerCurrency(installFee);
         if (this.f2.c15_removalFee) this.f2.c15_removalFee.textContent = formatIntegerCurrency(removalFee);
         if (this.f2.b16_surchargeFee) this.f2.b16_surchargeFee.textContent = formatIntegerCurrency(surchargeFee);
 
-        if (this.f2.a17_totalSum) this.f2.a17_totalSum.textContent = formatValue(f2State.totalSumForRbTime);
-        if (this.f2.c17_1stRbPrice) this.f2.c17_1stRbPrice.textContent = formatDecimalCurrency(f2State.firstRbPrice);
-        if (this.f2.b19_disRbPrice) this.f2.b19_disRbPrice.textContent = formatDecimalCurrency(f2State.disRbPrice);
-        if (this.f2.rollerSummaryHeaderAmount) this.f2.rollerSummaryHeaderAmount.textContent = formatDecimalCurrency(f2State.disRbPrice);
-        if (this.f2.b20_singleprofit) this.f2.b20_singleprofit.textContent = formatDecimalCurrency(f2State.singleprofit);
-        if (this.f2.b21_rbProfit) this.f2.b21_rbProfit.textContent = formatDecimalCurrency(f2State.rbProfit);
+        if (this.f2.c13_deliveryFee) this.f2.c13_deliveryFee.classList.toggle('is-excluded', f2State.deliveryFeeExcluded);
+        if (this.f2.c14_installFee) this.f2.c14_installFee.classList.toggle('is-excluded', f2State.installFeeExcluded);
+        if (this.f2.c15_removalFee) this.f2.c15_removalFee.classList.toggle('is-excluded', f2State.removalFeeExcluded);
+    }
 
-        // [MODIFIED] (Phase 8) Use the correct state keys defined in initial-state.js
-        if (this.f2.b22_sumprice) this.f2.b22_sumprice.textContent = formatDecimalCurrency(f2State.sumPrice);
-        if (this.f2.val_stotal) this.f2.val_stotal.textContent = formatDecimalCurrency(f2State.sumPrice);
-        if (this.f2.f2_17_pre_sum) this.f2.f2_17_pre_sum.textContent = formatDecimalCurrency(f2State.f2_17_pre_sum);
-        if (this.f2.b24_gst) this.f2.b24_gst.textContent = formatDecimalCurrency(f2State.gst);
-        if (this.f2.grand_total) this.f2.grand_total.textContent = formatDecimalCurrency(f2State.grandTotal);
-        if (this.f2.sellingPriceHeaderAmount) this.f2.sellingPriceHeaderAmount.textContent = formatDecimalCurrency(f2State.grandTotal);
-        if (this.f2.b25_netprofit) this.f2.b25_netprofit.textContent = formatDecimalCurrency(f2State.netProfit);
+    _renderF2RollerSummary(f2State) {
+        if (!this.f2) return;
+        const formatValue = (value) => (value !== null && value !== undefined) ? value : '';
+
+        if (this.f2.a17_totalSum) this.f2.a17_totalSum.textContent = formatValue(f2State.totalSumForRbTime);
+        if (this.f2.c17_1stRbPrice) this.f2.c17_1stRbPrice.textContent = formatCurrency(f2State.firstRbPrice);
+        if (this.f2.b19_disRbPrice) this.f2.b19_disRbPrice.textContent = formatCurrency(f2State.disRbPrice);
+        if (this.f2.rollerSummaryHeaderAmount) this.f2.rollerSummaryHeaderAmount.textContent = formatCurrency(f2State.disRbPrice);
+        if (this.f2.b20_singleprofit) this.f2.b20_singleprofit.textContent = formatCurrency(f2State.singleprofit);
+        if (this.f2.b21_rbProfit) this.f2.b21_rbProfit.textContent = formatCurrency(f2State.rbProfit);
+    }
+
+    _renderF2SellingPrice(f2State) {
+        if (!this.f2) return;
+
+        if (this.f2.b22_sumprice) this.f2.b22_sumprice.textContent = formatCurrency(f2State.sumPrice);
+        if (this.f2.val_stotal) this.f2.val_stotal.textContent = formatCurrency(f2State.sumPrice);
+        if (this.f2.f2_17_pre_sum) this.f2.f2_17_pre_sum.textContent = formatCurrency(f2State.f2_17_pre_sum);
+        if (this.f2.b24_gst) this.f2.b24_gst.textContent = formatCurrency(f2State.gst);
+        if (this.f2.grand_total) this.f2.grand_total.textContent = formatCurrency(f2State.grandTotal);
+        if (this.f2.sellingPriceHeaderAmount) this.f2.sellingPriceHeaderAmount.textContent = formatCurrency(f2State.grandTotal);
+        if (this.f2.b25_netprofit) this.f2.b25_netprofit.textContent = formatCurrency(f2State.netProfit);
+
+        if (this.f2.label_gst) this.f2.label_gst.classList.toggle('strikethrough-active', f2State.gstExcluded);
+        if (this.f2.b24_gst) this.f2.b24_gst.classList.toggle('strikethrough-active', f2State.gstExcluded);
 
         const newOfferValue = (f2State.newOffer !== null && f2State.newOffer !== undefined) ? f2State.newOffer : f2State.sumPrice;
-
         const rate = f2State.sumPrice > 0 ? (newOfferValue / f2State.sumPrice) * 100 : 0;
         if (this.f2.val_rate) this.f2.val_rate.textContent = rate.toFixed(1) + '%';
+    }
 
-        // --- Render Inputs ---
-        // [REMOVED] (v6295) Wifi input is no longer rendered
-        // if (document.activeElement !== this.f2.b10_wifiQty) this.f2.b10_wifiQty.value = formatValue(f2State.wifiQty);
+    _renderInputs(state, f2State) {
+        if (!this.f2) return;
+        const formatValue = (value) => (value !== null && value !== undefined) ? value : '';
+
         if (this.f2.b13_deliveryQty && document.activeElement !== this.f2.b13_deliveryQty) this.f2.b13_deliveryQty.value = formatValue(f2State.deliveryQty);
         if (this.f2.b14_installQty && document.activeElement !== this.f2.b14_installQty) this.f2.b14_installQty.value = formatValue(f2State.installQty);
         if (this.f2.b15_removalQty && document.activeElement !== this.f2.b15_removalQty) this.f2.b15_removalQty.value = formatValue(f2State.removalQty);
 
-        // [NEW] Phase 8.1: Render unit price defaults (from state, falling back to ConfigManager fees)
-        const fees = this.calculationService?.configManager?.getFees?.() || { delivery: 100, install: 20, removal: 20 };
+        const fees = this.calculationService?.configManager?.getFees?.() || { delivery: 0, install: 0, removal: 0 };
         if (this.f2.deliveryUnit && document.activeElement !== this.f2.deliveryUnit) this.f2.deliveryUnit.value = f2State.deliveryUnitPrice ?? fees.delivery;
         if (this.f2.installUnit && document.activeElement !== this.f2.installUnit) this.f2.installUnit.value = f2State.installUnitPrice ?? fees.install;
         if (this.f2.removalUnit && document.activeElement !== this.f2.removalUnit) this.f2.removalUnit.value = f2State.removalUnitPrice ?? fees.removal;
         if (this.f2.b17_mulTimes && document.activeElement !== this.f2.b17_mulTimes) this.f2.b17_mulTimes.value = formatValue(f2State.mulTimes);
         if (this.f2.b18_discount && document.activeElement !== this.f2.b18_discount) this.f2.b18_discount.value = formatValue(f2State.discount);
 
-        // [MODIFIED] (Phase 9) `newOffer` input now defaults to `sumPrice` if null
         if (this.f2.new_offer && document.activeElement !== this.f2.new_offer) {
             const newOfferValue = (f2State.newOffer !== null && f2State.newOffer !== undefined) ? f2State.newOffer : f2State.sumPrice;
             this.f2.new_offer.value = formatValue(newOfferValue);
-        }
-
-        // [NEW] v6290 Render Deposit and Balance
-        if (this.f2.deposit && document.activeElement !== this.f2.deposit) {
-            this.f2.deposit.value = formatValue(f2State.deposit);
-        }
-        // Balance is read-only, so no need to check activeElement
-        // [MODIFIED] (Phase 12.6.2) Balance rendering to textContent with $
-        if (this.f2.balance) this.f2.balance.textContent = (f2State.balance !== null && f2State.balance !== undefined) ? '$' + f2State.balance.toFixed(2) : '$0.00';
-
-
-        if (this.f2.c13_deliveryFee) this.f2.c13_deliveryFee.classList.toggle('is-excluded', f2State.deliveryFeeExcluded);
-        if (this.f2.c14_installFee) this.f2.c14_installFee.classList.toggle('is-excluded', f2State.installFeeExcluded);
-        if (this.f2.c15_removalFee) this.f2.c15_removalFee.classList.toggle('is-excluded', f2State.removalFeeExcluded);
-
-        // [NEW] (Phase 2 & 12.6.1) Toggle GST strikethrough styles
-        if (this.f2.label_gst) this.f2.label_gst.classList.toggle('strikethrough-active', f2State.gstExcluded);
-        if (this.f2.b24_gst) this.f2.b24_gst.classList.toggle('strikethrough-active', f2State.gstExcluded);
-
-        // --- [NEW] Phase 12.3.1: Mount Accordions Safely ---
-        this._initF2Accordions();
-
-    }
-
-    activate() {
-        // [REFACTORED] The view is now responsible for ensuring its data is fresh upon activation.
-        const { quoteData, ui } = this.stateService.getState();
-        const productStrategy = this.calculationService.productFactory.getProductStrategy(quoteData.currentProduct);
-        const { updatedQuoteData } = this.calculationService.calculateAndSum(quoteData, productStrategy);
-
-        this.stateService.dispatch(quoteActions.setQuoteData(updatedQuoteData));
-        // [NEW] (Phase 12) Auto-populate install Qty if it's null
-        if (ui.f2.installQty === null) {
-            // We use updatedQuoteData.products... to get the most current item list
-
-            const items = updatedQuoteData.products[updatedQuoteData.currentProduct].items;
-            const defaultInstallQty = items.length > 0 ? items.length - 1 : 0;
-            if (defaultInstallQty >= 0) {
-                this.stateService.dispatch(uiActions.setF2Value('installQty', defaultInstallQty));
+            
+            const hasMismatch = Math.abs(newOfferValue - f2State.sumPrice) > 0.01;
+            if (this.isOfferOverridden && hasMismatch) {
+                if (this.f2.new_offer_label && this.f2.new_offer_label.dataset.warnActive !== 'true') {
+                    this.f2.new_offer_label.style.setProperty('background-color', '#fce4e4', 'important');
+                    this.f2.new_offer_label.style.setProperty('color', '#991b1b', 'important');
+                    this.f2.new_offer_label.dataset.warnActive = 'true';
+                }
+            } else {
+                if (this.f2.new_offer_label && this.f2.new_offer_label.dataset.warnActive === 'true') {
+                    this.f2.new_offer_label.style.backgroundColor = '';
+                    this.f2.new_offer_label.style.color = '';
+                    this.f2.new_offer_label.dataset.warnActive = 'false';
+                }
             }
         }
 
+        if (this.f2.deposit && document.activeElement !== this.f2.deposit) this.f2.deposit.value = formatValue(f2State.deposit);
+        if (this.f2.balance) this.f2.balance.textContent = (f2State.balance !== null && f2State.balance !== undefined) ? '$' + f2State.balance.toFixed(2) : '$0.00';
+    }
+
+    render(state) {
+        if (!this.f2 || !state || !state.ui.f2) return;
+
+        const f2State = state.ui.f2;
+        const productSummary = state.quoteData.products[state.quoteData.currentProduct]?.summary;
+
+        this._renderF1Accessories(f2State, productSummary);
+        this._renderF2Fees(f2State);
+        this._renderF2RollerSummary(f2State);
+        this._renderF2SellingPrice(f2State);
+        this._renderInputs(state, f2State);
+        this._initF2Accordions();
+    }
+
+    activate() {
+        // 1. Re-bind listeners
+        this._initializeF2Listeners();
+
+        // 2. DYNAMIC SYNC: Fetch latest table data
+        const { quoteData } = this.stateService.getState();
+        const productStrategy = this.calculationService.productFactory.getProductStrategy(quoteData.currentProduct);
+        const { updatedQuoteData } = this.calculationService.calculateAndSum(quoteData, productStrategy);
+
+        // 3. Sync Table State
+        this.stateService.dispatch(quoteActions.setQuoteData(updatedQuoteData));
+
+        // 4. Calculate and FORCE-PUSH latest installation quantity to DOM
+        // This ensures the subsequent _calculateF2Summary() reads fresh data from the input elements.
+        const items = updatedQuoteData.products[updatedQuoteData.currentProduct].items;
+        const latestInstallQty = items.length > 0 ? items.length - 1 : 0;
+        
+        if (this.f2.b14_installQty) {
+            this.f2.b14_installQty.value = latestInstallQty;
+        }
+        this.stateService.dispatch(uiActions.setF2Value('installQty', latestInstallQty));
+
+        // --- SMART QUOTE LINKING (Phase G) ---
+        const state = this.stateService.getState();
+        const f2State = state.ui.f2;
+        
+        const tempSummary = this.calculationService.calculateF2Summary(updatedQuoteData, state.ui, { installQty: latestInstallQty });
+        const currentSubtotal = tempSummary.sumPrice;
+        const lastSyncedSubtotal = f2State.lastSyncedSubtotal;
+
+        if (lastSyncedSubtotal === null) {
+            this.stateService.dispatch(uiActions.setF2Value('lastSyncedSubtotal', currentSubtotal));
+        } else if (Math.abs(currentSubtotal - lastSyncedSubtotal) > 0.01) {
+            this.stateService.dispatch(uiActions.setF2Value('newOffer', currentSubtotal));
+            this.stateService.dispatch(uiActions.setF2Value('lastSyncedSubtotal', currentSubtotal));
+        }
+
+        // 5. Trigger final calculation
         this._calculateF2Summary();
 
-        // [MODIFIED] (Phase 10.3) Direct auto-focus on Delivery Qty for reliable UX
-        const deliveryInput = this.f2.b13_deliveryQty;
-        if (deliveryInput) {
+        // 6. FORCE RENDER: Immediately refresh sensitive UI components to avoid sync lag
+        // We bypass the async render loop here to ensure the user sees fresh data instantly.
+        const freshState = this.stateService.getState();
+        this._renderF2Fees(freshState.ui.f2);
+        this._renderF2SellingPrice(freshState.ui.f2);
+        this._renderInputs(freshState, freshState.ui.f2);
+
+        // 7. UI Polish: Focus delivery qty
+        if (this.f2.b13_deliveryQty) {
             setTimeout(() => {
-                deliveryInput.focus();
-                deliveryInput.select();
+                this.f2.b13_deliveryQty.focus();
+                this.f2.b13_deliveryQty.select();
             }, 100);
         }
     }
 
-    // --- [NEW] Methods migrated from WorkflowService ---
+    // --- Methods migrated from WorkflowService ---
     handleToggleFeeExclusion({ feeType }) {
         this.stateService.dispatch(uiActions.toggleF2FeeExclusion(feeType));
         this._calculateF2Summary();
     }
 
-    // [NEW] (Phase 2)
     handleToggleGstExclusion() {
         this.stateService.dispatch(uiActions.toggleGstExclusion());
         this._calculateF2Summary();
@@ -386,21 +414,31 @@ export class F2SummaryView {
         let keyToUpdate = null;
 
         switch (id) {
-            // case 'f2-b10-wifi-qty': keyToUpdate = 'wifiQty'; break; // [REMOVED] (v6295)
             case 'f2-b13-delivery-qty': keyToUpdate = 'deliveryQty'; break;
             case 'f2-b14-install-qty': keyToUpdate = 'installQty'; break;
             case 'f2-b15-removal-qty': keyToUpdate = 'removalQty'; break;
             case 'f2-b17-mul-times': keyToUpdate = 'mulTimes'; break;
             case 'f2-b18-discount': keyToUpdate = 'discount'; break;
-            case 'new-offer': keyToUpdate = 'newOffer'; break; // [NEW]
-            case 'f2-deposit': keyToUpdate = 'deposit'; break; // [NEW] v6290
-            // [NEW] Phase 8.1: Unit price inputs
+            case 'new-offer': 
+                keyToUpdate = 'newOffer'; 
+                // Track override status. Clearing the field restores sync.
+                this.isOfferOverridden = (value !== ''); 
+                break; 
+            case 'f2-deposit': 
+                keyToUpdate = 'deposit'; 
+                // [NEW] Phase I.9: Manual Lock. If user types a value, lock it. If they clear it, unlock.
+                this.stateService.dispatch(uiActions.setF2Value('isDepositManuallyEdited', (value !== '')));
+                break;
             case 'f2-delivery-unit': keyToUpdate = 'deliveryUnitPrice'; break;
             case 'f2-install-unit': keyToUpdate = 'installUnitPrice'; break;
             case 'f2-removal-unit': keyToUpdate = 'removalUnitPrice'; break;
         }
 
         if (keyToUpdate) {
+            // [GUARD] Prevent duplicate dispatches if value hasn't actually changed
+            const f2State = this.stateService.getState().ui?.f2 || {};
+            if (f2State[keyToUpdate] === numericValue) return;
+
             this.stateService.dispatch(uiActions.setF2Value(keyToUpdate, numericValue));
             this._calculateF2Summary();
         }
@@ -428,22 +466,31 @@ export class F2SummaryView {
 
     _calculateF2Summary() {
         const { quoteData, ui } = this.stateService.getState();
-        const summaryValues = this.calculationService.calculateF2Summary(quoteData, ui);
 
-        // [FIX] (Phase 8) Explicitly dispatch ALL values from calculation service
-        // to their corresponding state keys. This removes all ambiguity and
-        // fixes the logic error from previous edits.
+        const getDomVal = (el) => el ? el.value : undefined;
+        const domValues = {
+            deliveryUnitPrice: getDomVal(this.f2.deliveryUnit),
+            installUnitPrice: getDomVal(this.f2.installUnit),
+            removalUnitPrice: getDomVal(this.f2.removalUnit),
+            deliveryQty: getDomVal(this.f2.b13_deliveryQty),
+            installQty: getDomVal(this.f2.b14_installQty),
+            removalQty: getDomVal(this.f2.b15_removalQty)
+        };
+
+        const summaryValues = this.calculationService.calculateF2Summary(quoteData, ui, domValues);
 
         // Old compatible values
         this.stateService.dispatch(uiActions.setF2Value('totalSumForRbTime', summaryValues.totalSumForRbTime));
         this.stateService.dispatch(uiActions.setF2Value('wifiSum', summaryValues.wifiSum));
+        this.stateService.dispatch(uiActions.setF2Value('deliveryUnitPrice', summaryValues.deliveryUnitPrice));
+        this.stateService.dispatch(uiActions.setF2Value('installUnitPrice', summaryValues.installUnitPrice));
+        this.stateService.dispatch(uiActions.setF2Value('removalUnitPrice', summaryValues.removalUnitPrice));
         this.stateService.dispatch(uiActions.setF2Value('deliveryFee', summaryValues.deliveryFee));
         this.stateService.dispatch(uiActions.setF2Value('installFee', summaryValues.installFee));
         this.stateService.dispatch(uiActions.setF2Value('removalFee', summaryValues.removalFee));
         this.stateService.dispatch(uiActions.setF2Value('acceSum', summaryValues.acceSum));
         this.stateService.dispatch(uiActions.setF2Value('eAcceSum', summaryValues.eAcceSum));
 
-        // [NEW] (Phase 4.4i) Dispatch newly calculated accessory retail prices
         this.stateService.dispatch(uiActions.setF2Value('remotePrice', summaryValues.remotePrice));
         this.stateService.dispatch(uiActions.setF2Value('chargerPrice', summaryValues.chargerPrice));
         this.stateService.dispatch(uiActions.setF2Value('cordPrice', summaryValues.cordPrice));
@@ -454,56 +501,40 @@ export class F2SummaryView {
         this.stateService.dispatch(uiActions.setF2Value('singleprofit', summaryValues.singleprofit));
         this.stateService.dispatch(uiActions.setF2Value('mulTimes', summaryValues.mulTimes));
 
-        // New (Phase 2+) values
+        // New values
         this.stateService.dispatch(uiActions.setF2Value('f2_17_pre_sum', summaryValues.f2_17_pre_sum));
         this.stateService.dispatch(uiActions.setF2Value('sumPrice', summaryValues.sumPrice));
 
-        // [MODIFIED] (Phase 10) DO NOT dispatch newOffer.
-        // `newOffer` state is ONLY set by user input via `handleF2ValueChange`.
-        // We let the `render` function read `summaryValues.newOffer` if `f2State.newOffer` is null.
+        // Every calculation cycle now dispatches the updated newOffer to Global State immediately.
+        this.stateService.dispatch(uiActions.setF2Value('newOffer', summaryValues.newOffer));
 
         this.stateService.dispatch(uiActions.setF2Value('gst', summaryValues.new_gst)); // Dispatch new_gst to 'gst' state
 
         this.stateService.dispatch(uiActions.setF2Value('grandTotal', summaryValues.grandTotal));
         this.stateService.dispatch(uiActions.setF2Value('netProfit', summaryValues.netProfit));
 
-        // [NEW] (Accounting V2 Phase 2) Dispatch taxExclusiveTotal
         this.stateService.dispatch(uiActions.setF2Value('taxExclusiveTotal', summaryValues.taxExclusiveTotal));
 
-        // [NEW] (F1 Motor Split Architecture Fix) Dispatch calculated motor price to State
+        // Dispatch calculated motor price to State
         this.stateService.dispatch(uiActions.setF2MotorPrice(summaryValues.calculatedMotorPrice));
 
-        // [NEW] v6290 Calculate and dispatch Deposit and Balance
         const currentGrandTotal = summaryValues.grandTotal || 0;
-        const previousGrandTotalInState = ui.f2.grandTotal;
-        // [FIX] (Phase 11.3) Also trigger recalc on first load (prev=0, current>0)
-        const grandTotalChanged = currentGrandTotal !== previousGrandTotalInState
-            || (previousGrandTotalInState === 0 && currentGrandTotal > 0);
-
         const autoDeposit = Math.ceil((currentGrandTotal / 2) / 10) * 10;
         const currentDepositInState = ui.f2.deposit;
+        const isLocked = ui.f2.isDepositManuallyEdited === true;
 
-        let finalDeposit;
-        if (grandTotalChanged) {
-            // Rule 3C: grandTotal changed (or first real calculation), force recalculation
-            finalDeposit = autoDeposit;
-        } else {
-            // grandTotal did not change. Keep user's value if it exists, otherwise use auto-calc.
-            finalDeposit = (currentDepositInState !== null && currentDepositInState !== undefined) ? currentDepositInState : autoDeposit;
-        }
+        // [MODIFIED] Phase I.9 Logic: Favor manual deposit if locked, otherwise auto-calculate.
+        const finalDeposit = (isLocked && currentDepositInState !== null) ? currentDepositInState : autoDeposit;
 
-        // Rule 4: Balance = grandTotal - deposit
+        // Rule 4: Balance = grandTotal - deposit (strictly mathematical)
         const rawBalance = currentGrandTotal - finalDeposit;
-
-        // [NEW] Tweak 1: Force ceiling rounding to 2 decimal places
-        // 1. Multiply by 100 to get cents (e.g., 600.1331 -> 60013.31)
-        // 2. Use Math.ceil() to force round up (e.g., 60013.31 -> 60014)
-        // 3. Divide by 100 to get dollars (e.g., 60014 -> 600.14)
         const finalBalance = Math.ceil(rawBalance * 100) / 100;
 
         this.stateService.dispatch(uiActions.setF2Value('deposit', finalDeposit));
         this.stateService.dispatch(uiActions.setF2Value('balance', finalBalance));
 
-        // [REMOVED] The faulty for...in loop is now gone.
+        // [NEW] Phase I.9: Force DOM Reactivity
+        // Immediately trigger a view render to reflect the latest state without lag.
+        this.render(this.stateService.getState());
     }
 }

@@ -19,7 +19,6 @@
 <div class="tab-content-container">
     <div id="f1-content" class="tab-content active f1-accordion-container">
 
-        <!-- Accordion 1: Component Cost -->
         <div class="accordion-item active" id="f1-acc-components">
             <div class="accordion-header">
                 <h3>Component Cost</h3>
@@ -35,14 +34,12 @@
                     <div class="grid-cell font-bold" style="justify-content: center;">Qty</div>
                     <div class="grid-cell font-bold" style="justify-content: center;">$</div>
 
-                    <!-- Winder -->
                     <div class="grid-cell">HD Winder</div>
                     <div class="grid-cell qty-box" id="f1-qty-winder" data-section="components" data-item-id="winder"
                         data-field-type="qty-display"></div>
                     <div class="grid-cell price-box bg-bright-green" id="f1-price-winder" data-section="components"
                         data-item-id="winder" data-field-type="cost-display"></div>
 
-                    <!-- Dual Combo -->
                     <div class="group-row group-row-dual">
                         <div class="grid-cell">Dual Combo</div>
                         <div class="grid-cell qty-box" id="f1-qty-dual-combo" data-section="components"
@@ -51,7 +48,6 @@
                             data-section="components" data-item-id="dual-combo" data-field-type="cost-display"></div>
                     </div>
 
-                    <!-- Dual Slim -->
                     <div class="group-row group-row-dual">
                         <div class="grid-cell">Dual Slim</div>
                         <div class="grid-cell qty-box" id="f1-qty-slim" data-section="components" data-item-id="slim"
@@ -60,7 +56,6 @@
                             data-item-id="slim" data-field-type="cost-display"></div>
                     </div>
 
-                    <!-- Motors -->
                     <div class="group-row group-row-motor">
                         <div class="grid-cell">B-Motor</div>
                         <div class="grid-cell qty-box" id="f1-qty-motor" data-section="components"
@@ -75,7 +70,6 @@
                             data-item-id="w-motor" data-field-type="cost-display"></div>
                     </div>
 
-                    <!-- Remotes -->
                     <div class="group-row group-row-remote">
                         <div class="grid-cell">Remote 1 Ch</div>
                         <div class="grid-cell qty-box" id="f1-qty-remote-1ch" data-section="components"
@@ -91,7 +85,6 @@
                             data-section="components" data-item-id="remote-16ch" data-field-type="cost-display"></div>
                     </div>
 
-                    <!-- Accessories -->
                     <div class="grid-cell">Charger</div>
                     <div class="grid-cell qty-box" id="f1-qty-charger" data-section="components" data-item-id="charger"
                         data-field-type="qty-display"></div>
@@ -104,7 +97,6 @@
                     <div class="grid-cell price-box bg-bright-green" id="f1-price-3m-cord" data-section="components"
                         data-item-id="3m-cord" data-field-type="cost-display"></div>
 
-                    <!-- Wifi -->
                     <div class="group-row">
                         <div class="grid-cell">Wifi</div>
                         <div class="grid-cell">
@@ -120,7 +112,6 @@
             </div>
         </div>
 
-        <!-- Accordion 2: RB Pricing -->
         <div class="accordion-item" id="f1-acc-rb-pricing">
             <div class="accordion-header">
                 <h3>RB Pricing</h3>
@@ -153,7 +144,6 @@
             </div>
         </div>
 
-        <!-- Accordion 3: Final Summary -->
         <div class="accordion-item" id="f1-acc-final-summary">
             <div class="accordion-header">
                 <h3>Final Summary <span id="f1-header-total"
@@ -191,7 +181,6 @@
             </div>
         </div>
 
-        <!-- Accordion 4: Brand Configuration -->
         <div class="accordion-item" id="f1-acc-brand-config">
             <div class="accordion-header">
                 <h3>Brand Configuration</h3>
@@ -214,8 +203,7 @@
                         <div class="brand-item-single">
                             <select id="f1-motor-brand-select" class="brand-select" data-section="brand-config"
                                 data-item-id="motor-brand" data-field-type="brand-select">
-                                <!-- Options populated dynamically from V2 data -->
-                            </select>
+                                </select>
                             <input type="text" id="f1-motor-total-qty" readonly value="0">
                         </div>
                     </div>
@@ -224,8 +212,7 @@
                         <div class="brand-item-single">
                             <select id="f1-remote-brand-select" class="brand-select" data-section="brand-config"
                                 data-item-id="remote-brand" data-field-type="brand-select">
-                                <!-- Options populated dynamically from V2 data -->
-                            </select>
+                                </select>
                             <input type="text" id="f1-remote-total-qty" readonly value="0">
                         </div>
                     </div>
@@ -234,8 +221,7 @@
                         <div class="brand-item-single">
                             <select id="f1-wifi-brand-select" class="brand-select" data-section="brand-config"
                                 data-item-id="wifi-brand" data-field-type="brand-select">
-                                <!-- Options populated dynamically from V2 data -->
-                            </select>
+                                </select>
                             <input type="text" id="f1-wifi-total-qty" readonly value="0">
                         </div>
                     </div>
@@ -247,7 +233,6 @@
     </div>
     <div id="f2-content" class="tab-content">
 
-        <!-- Section 1: Accessories -->
         <div class="f2-accordion-group" id="f2-accessories-group">
             <div class="section-header f2-accordion-header"
                 style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
@@ -274,7 +259,6 @@
             </div>
         </div>
 
-        <!-- Section 2: E-RB -->
         <div class="f2-accordion-group" id="f2-erb-group">
             <div class="section-header f2-accordion-header"
                 style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
@@ -307,7 +291,6 @@
             </div>
         </div>
 
-        <!-- Section 3: Fee -->
         <div class="f2-accordion-group" id="f2-fee-group">
             <div class="section-header f2-accordion-header"
                 style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
@@ -321,7 +304,6 @@
             <div class="f2-accordion-content">
                 <div class="f2-summary-grid">
                     <div class="f2-group-costs grid-span-3">
-                        <!-- [MODIFIED] Phase 8.3b: Horizontal spacing matching Roller Summary -->
                         <div class="f2-fee-subgrid grid-span-3"
                             style="display:grid; grid-template-columns: minmax(55px,1fr) 22% 18% 25%; column-gap:8px; row-gap:2px; align-items:center; width:100%; box-sizing:border-box;">
                             <div class="grid-cell-label" style="font-size:11px;">Delivery</div>
@@ -362,7 +344,6 @@
             </div>
         </div>
 
-        <!-- Section 4: Roller Summary -->
         <div class="f2-accordion-group" id="f2-roller-summary-group">
             <div class="section-header f2-accordion-header"
                 style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
@@ -401,7 +382,6 @@
             </div>
         </div>
 
-        <!-- Section 5: Selling Price -->
         <div class="f2-accordion-group" id="f2-selling-price-group">
             <div class="section-header f2-accordion-header"
                 style="grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
@@ -516,127 +496,13 @@
             </div>
 
             <div class="f3-group-action">
-                <div></div>
-                <div class="grid-cell">
-                    <button id="btn-add-quote" class="action-button">Add-Quo</button>
-                </div>
-                <div class="grid-cell">
-                    <button id="btn-gth" class="action-button">GTH</button>
-                </div>
-                <div></div>
+                <button id="btn-add-quote" class="action-button">Add Quo</button>
+                <button id="btn-gth" class="action-button">GTH</button>
+                <button id="btn-add-invoice" class="action-button btn-invoice">Add Invoice</button>
+                <button id="btn-add-receipt" class="action-button btn-receipt">Add Receipt</button>
+                <button id="btn-add-overdue" class="action-button btn-overdue" style="grid-column: span 2;">Add Overdue Invoice</button>
             </div>
         </div>
     </div>
-    <div id="f4-content" class="tab-content">
-
-        <div class="f4-layout-container">
-
-            <div class="f4-accordion-group">
-                <div class="f4-accordion-header" onclick="toggleF4Accordion(this)">
-                    <span>File</span>
-                    <span class="f4-toggle-icon">▲</span>
-                </div>
-                <div class="f4-accordion-content">
-                    <button id="f1-key-save" class="f4-card-btn">
-                        <span class="main-txt">💾 Save</span>
-                        <span class="sub-txt">Overwrite current</span>
-                    </button>
-                    <button id="f4-key-save-as-new" class="f4-card-btn">
-                        <span class="main-txt">📄 Save as</span>
-                        <span class="sub-txt">Create new version</span>
-                    </button>
-                    <button id="f1-key-export" class="f4-card-btn" style="border-color: #ddd;">
-                        <span class="main-txt text-dark">⬇️ Export</span>
-                        <span class="sub-txt">Download CSV</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="f4-accordion-group">
-                <div class="f4-accordion-header" onclick="toggleF4Accordion(this)">
-                    <span>Search</span>
-                    <span class="f4-toggle-icon">▲</span>
-                </div>
-                <div class="f4-accordion-content">
-                    <button id="f1-key-load" class="f4-card-btn">
-                        <span class="main-txt text-dark">📂 Load File</span>
-                        <span class="sub-txt">Open local quote</span>
-                    </button>
-                    <button id="f4-key-search-dialog" class="f4-card-btn">
-                        <span class="main-txt text-dark">🔍 Search</span>
-                        <span class="sub-txt">Find by ID / Name</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="f4-separator"></div>
-
-            <div class="f4-accordion-group">
-                <div class="f4-accordion-header" onclick="toggleF4Accordion(this)">
-                    <span>Order</span>
-                    <span class="f4-toggle-icon">▲</span>
-                </div>
-                <div class="f4-accordion-content">
-                    <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <button id="f4-key-generate-work-order" class="btn btn-outline"
-                            style="padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; cursor: pointer; background: #fff;">Gen-Order</button>
-                        <button id="f4-key-generate-xls" class="btn btn-light-green"
-                            style="padding: 10px; border: 1px solid #c8e6c9; border-radius: 4px; font-weight: bold; cursor: pointer; background: #e8f5e9; color: #2e7d32;">Gen-Xls</button>
-                    </div>
-                    <button id="f4-btn-cancel-correct" class="btn btn-red-solid"
-                        style="width: 100%; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; background: #c62828; color: #fff; margin-top: 8px;">Cancel
-                        / Correct</button>
-
-                    <div id="f4-correction-controls" class="f4-correction-controls is-hidden"
-                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
-                        <button id="f4-btn-correction-set" class="btn btn-blue"
-                            style="padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; background: #007bff; color: #fff;">SET</button>
-                        <button id="f4-btn-correction-exit" class="btn btn-gray"
-                            style="padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; background: #6c757d; color: #fff;">Exit</button>
-                    </div>
-
-                    <div class="grid-status"
-                        style="display: grid; grid-template-columns: 3fr 1fr; gap: 8px; margin-top: 8px;">
-                        <select id="f4-status-dropdown" class="status-select"
-                            style="padding: 8px; border: 1px solid #ced4da; border-radius: 4px; background: #fff;">
-                            <option value="A. Saved">A. Saved</option>
-                            <option value="B. Quoted">B. Quoted</option>
-                            <option value="C. Ordered">C. Ordered</option>
-                        </select>
-                        <button id="f4-status-update-btn" class="btn btn-outline"
-                            style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; background: #fff; cursor: pointer;">⏎</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="f4-accordion-group collapsed">
-                <div class="f4-accordion-header" onclick="toggleF4Accordion(this)">
-                    <span>Login</span>
-                    <span class="f4-toggle-icon">▲</span>
-                </div>
-                <div class="f4-accordion-content">
-                    <div class="grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                        <button id="f4-key-logout" class="btn btn-light-red"
-                            style="padding: 10px; border: 1px solid #ffcdd2; border-radius: 4px; font-weight: bold; cursor: pointer; background: #ffebee; color: #c62828;">Logout</button>
-                        <button id="f4-key-relogin" class="btn btn-light-red"
-                            style="padding: 10px; border: 1px solid #ffcdd2; border-radius: 4px; font-weight: bold; cursor: pointer; background: #ffebee; color: #c62828;">Re-Login</button>
-                    </div>
-                    <button id="f1-key-reset" class="btn btn-red-solid"
-                        style="width: 100%; padding: 10px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; background: #c62828; color: #fff; margin-top: 8px;">Reset</button>
-                </div>
-            </div>
-
-            <div class="f4-accordion-group">
-                <div class="f4-accordion-header" onclick="toggleF4Accordion(this)">
-                    <span>Admin</span>
-                    <span class="f4-toggle-icon">▲</span>
-                </div>
-                <div class="f4-accordion-content" style="align-items: center;">
-                    <button id="f4-btn-admin-entry" class="btn btn-outline"
-                        style="width: 120px; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-weight: bold; cursor: pointer; background: #fff; margin: 0 auto; display: block;">Admin</button>
-                </div>
-            </div>
-
-        </div>
-    </div>
+    <div id="f4-content" class="tab-content"></div>
 </div>

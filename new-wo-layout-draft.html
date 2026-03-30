@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Order - RB202601282014 (With Green Divider)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #333;
+            line-height: 1.2;
+            margin: 0;
+            padding: 20px;
+            font-size: 11px;
+        }
+        .document-container {
+            max-width: 1050px;
+            margin: 0 auto;
+        }
+        
+        /* 頂部資訊區 */
+        h1 { margin: 0 0 5px 0; font-size: 20px; font-weight: normal; color: #000; }
+        .quote-no { font-size: 13px; margin-bottom: 15px; color: #000; }
+        
+        /* 表格通用設定 */
+        table {
+            width: 100%; /* 主表維持滿版 */
+            border-collapse: collapse;
+            margin-bottom: 5px; /* 為了配合分隔線稍微縮小底部 margin */
+        }
+        th, td {
+            border: 1px solid #666; 
+            padding: 4px 2px;
+            text-align: center;
+            vertical-align: middle;
+        }
+        th { 
+            background-color: #f0f0f0; 
+            font-weight: bold; 
+            font-size: 10px;
+        }
+        .text-left { text-align: left; padding-left: 5px; }
+        .text-right { text-align: right; padding-right: 5px; }
+        .text-red { color: #cc0000; font-weight: bold; } 
+        .bg-gray { background-color: #f0f0f0; } 
+        .bg-cyan { background-color: #e0f7fa; } 
+
+        /* ========================================== */
+        /* 新增：粉綠色分隔橫線 */
+        /* ========================================== */
+        .section-divider {
+            border: 0;
+            border-top: 3px solid #a8e6cf; /* 粉綠色 (Pastel Green) */
+            margin: 15px 0 20px 0; /* 上下留白，讓視覺有呼吸空間 */
+        }
+        
+        /* ========================================== */
+        /* 底部 Side-by-Side 與防切割列印設定 */
+        /* ========================================== */
+        .bottom-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 30px;
+            /* 關鍵程式設定：確保此區塊列印時不被切斷，會整塊移至下一頁 */
+            page-break-inside: avoid; 
+            break-inside: avoid;
+        }
+        
+        /* 配件表專屬樣式 */
+        .accessories-wrapper { 
+            flex-grow: 0; 
+        }
+        .accessories-wrapper table {
+            width: auto; /* 表格總寬度由內容與直欄設定撐開，不強制滿版 */
+        }
+        .table-title { font-weight: normal; margin-bottom: 5px; font-size: 14px; color: #000; }
+        
+        /* 根據指示微調的最新欄寬 */
+        .col-item { 
+            width: 110px; 
+            text-align: left; 
+            padding-left: 5px; 
+            white-space: nowrap; /* 終極防呆：絕對不允許文字斷行 */
+        } 
+        .col-spec { 
+            width: 112px; 
+            text-align: left; 
+            padding-left: 5px; 
+        } 
+        .col-qty { width: 28px; } 
+        .col-price { 
+            width: 96px; 
+            text-align: right; 
+            padding-right: 5px; 
+        } 
+        
+        .no-border-left { border-left: none; border-bottom: none; border-right: none; }
+        .bg-electronics { background-color: #fffde7; }
+        
+        .financial-wrapper { width: 35%; }
+        
+        /* 縮寫與圖例說明區 */
+        .abbreviations {
+            margin-top: 20px;
+            border: 1px solid #add8e6; 
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 11px;
+            background-color: #fff;
+        }
+        .abbreviations strong { font-size: 12px; display: block; margin-bottom: 8px; }
+        .legend-box {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border: 1px solid #999;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        .legend-bo { background-color: #f0f0f0; }
+        .legend-sn { background-color: #e0f7fa; }
+        .legend-lf { background-color: #ffebee; }
+        .legend-row { margin-bottom: 5px; line-height: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="document-container">
+    
+    <h1>Work Order</h1>
+    <div class="quote-no">Quote No: RB202601282014 L2MEV2</div>
+
+    <table>
+        <thead>
+            <tr>
+                <th colspan="16" class="bg-gray" style="font-size: 11px; padding: 5px;">Roller Blinds - Work Order</th>
+            </tr>
+            <tr>
+                <th width="3%">NO</th>
+                <th width="3%">#</th>
+                <th width="5%">TYPE</th>
+                <th width="12%">F-Name</th>
+                <th width="8%">F-Color</th>
+                <th width="6%">W</th>
+                <th width="6%">H</th>
+                <th width="4%">Over</th>
+                <th width="4%">O/I</th>
+                <th width="4%">L/R</th>
+                <th width="4%">Dual</th>
+                <th width="5%">Chain</th>
+                <th width="4%">HD</th>
+                <th width="5%">Motor</th>
+                <th width="17%">Location</th>
+                <th width="10%">PRICE</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>1</td><td>1</td><td>BO</td><td class="text-left">Eclipse</td><td>Chalk</td><td>2612</td><td>2095</td><td>O</td><td>IN</td><td>R</td><td></td><td></td><td></td><td>Y</td><td class="text-left">Lounge Front</td><td class="text-right">$243.00</td>
+            </tr>
+            <tr>
+                <td>2</td><td>2</td><td>BO</td><td class="text-left">Eclipse</td><td>Chalk</td><td>1728</td><td>2095</td><td>O</td><td>IN</td><td>R</td><td></td><td></td><td></td><td>Y</td><td class="text-left">Lounge Back</td><td class="text-right">$170.00</td>
+            </tr>
+            <tr>
+                <td>3</td><td>4</td><td>BO</td><td class="text-left">Eclipse</td><td>Chalk</td><td>987</td><td>2245</td><td></td><td>OUT</td><td>L</td><td></td><td></td><td>Y</td><td></td><td class="text-left">Bed1(Front door)</td><td class="text-right">$121.00</td>
+            </tr>
+            <tr>
+                <td>4</td><td>6</td><td>BO</td><td class="text-left">Eclipse</td><td>Chalk</td><td>986</td><td>2245</td><td></td><td>OUT</td><td>R</td><td></td><td></td><td>Y</td><td></td><td class="text-left">Bed2(->MB)</td><td class="text-right">$121.00</td>
+            </tr>
+            <tr>
+                <td>5</td><td>8</td><td>BO</td><td class="text-left">Eclipse</td><td>Chalk</td><td>1873</td><td>2245</td><td></td><td>OUT</td><td>R</td><td></td><td></td><td>Y</td><td></td><td class="text-left">MB</td><td class="text-right">$206.00</td>
+            </tr>
+            <tr>
+                <td>6</td><td>10</td><td>BO</td><td class="text-left">Eclipse</td><td>Chalk</td><td>1873</td><td>1345</td><td></td><td>OUT</td><td>R</td><td></td><td></td><td>Y</td><td></td><td class="text-left">Bed3</td><td class="text-right">$158.00</td>
+            </tr>
+            <tr>
+                <td>7</td><td>11</td><td>BO</td><td class="text-left">Eclipse</td><td>Chalk</td><td>1728</td><td>1045</td><td>O</td><td>IN</td><td>L</td><td></td><td></td><td></td><td>Y</td><td class="text-left">Kitchen</td><td class="text-right">$118.00</td>
+            </tr>
+            <tr>
+                <td>8</td><td>3</td><td class="bg-cyan">SN</td><td class="text-left bg-cyan">Uniview</td><td class="bg-cyan">Chalk</td><td>859</td><td>2095</td><td>O</td><td>IN</td><td>L</td><td></td><td></td><td>Y</td><td></td><td class="text-left">Bed1(Front door)</td><td class="text-right">$108.00</td>
+            </tr>
+            <tr>
+                <td>9</td><td>5</td><td class="bg-cyan">SN</td><td class="text-left bg-cyan">Uniview</td><td class="bg-cyan">Chalk</td><td>858</td><td>2095</td><td>O</td><td>IN</td><td>R</td><td></td><td></td><td>Y</td><td></td><td class="text-left">Bed2(->MB)</td><td class="text-right">$108.00</td>
+            </tr>
+            <tr>
+                <td>10</td><td>7</td><td class="bg-cyan">SN</td><td class="text-left bg-cyan">Uniview</td><td class="bg-cyan">Chalk</td><td>1729</td><td>2095</td><td>O</td><td>IN</td><td>R</td><td></td><td></td><td>Y</td><td></td><td class="text-left">MB</td><td class="text-right">$154.00</td>
+            </tr>
+            <tr>
+                <td>11</td><td>9</td><td class="bg-cyan">SN</td><td class="text-left bg-cyan">Uniview</td><td class="bg-cyan">Chalk</td><td>1728</td><td>1195</td><td>O</td><td>IN</td><td>R</td><td></td><td></td><td>Y</td><td></td><td class="text-left">Bed3</td><td class="text-right">$116.00</td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr class="bg-gray">
+                <td colspan="10" class="text-right" style="border: none; font-weight: bold;">(Summary)</td>
+                <td>0</td>
+                <td></td>
+                <td>8</td>
+                <td colspan="2" class="text-right text-red" style="border: none;">30%off</td>
+                <td class="text-right text-red">$1136.10</td>
+            </tr>
+        </tfoot>
+    </table>
+
+    <hr class="section-divider">
+
+    <div class="bottom-section">
+        
+        <div class="accessories-wrapper">
+            <div class="table-title">Motorised & Hardware Package Summary</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="col-item">Item</th>
+                        <th class="col-spec">Brand / Spec</th>
+                        <th class="col-qty">QTY</th>
+                        <th class="col-price">Price</th> 
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="bg-electronics">
+                        <td class="col-item">B-motor</td>
+                        <td class="col-spec"></td>
+                        <td class="col-qty"></td>
+                        <td class="col-price"></td>
+                    </tr>
+                    <tr class="bg-electronics">
+                        <td class="col-item">W-motor</td>
+                        <td class="col-spec"></td>
+                        <td class="col-qty">3</td>
+                        <td class="col-price">$480.00</td>
+                    </tr>
+                    <tr class="bg-electronics">
+                        <td class="col-item">Remote (1CH)</td>
+                        <td class="col-spec"></td>
+                        <td class="col-qty"></td>
+                        <td class="col-price"></td>
+                    </tr>
+                    <tr class="bg-electronics">
+                        <td class="col-item">Remote (16CH)</td>
+                        <td class="col-spec"></td>
+                        <td class="col-qty"></td>
+                        <td class="col-price"></td>
+                    </tr>
+                    <tr class="bg-electronics">
+                        <td class="col-item">Charger</td>
+                        <td class="col-spec"></td>
+                        <td class="col-qty">1</td>
+                        <td class="col-price">$25.00</td>
+                    </tr>
+                    <tr class="bg-electronics">
+                        <td class="col-item">3M Cord</td>
+                        <td class="col-spec"></td>
+                        <td class="col-qty"></td>
+                        <td class="col-price"></td>
+                    </tr>
+                    <tr class="bg-electronics">
+                        <td class="col-item">WiFi Hub</td>
+                        <td class="col-spec"></td>
+                        <td class="col-qty"></td>
+                        <td class="col-price"></td>
+                    </tr>
+                    <tr>
+                        <td class="col-item">HD Winder</td>
+                        <td class="col-spec"></td>
+                        <td class="col-qty"></td>
+                        <td class="col-price"></td>
+                    </tr>
+                    <tr>
+                        <td class="col-item">Dual combo</td>
+                        <td class="col-spec"></td>
+                        <td class="col-qty"></td>
+                        <td class="col-price"></td>
+                    </tr>
+                    <tr>
+                        <td class="col-item">Dual slim</td>
+                        <td class="col-spec"></td>
+                        <td class="col-qty"></td>
+                        <td class="col-price"></td>
+                    </tr>
+                    <tr>
+                        <td class="col-item">Bracket</td>
+                        <td class="col-spec"></td>
+                        <td class="col-qty"></td>
+                        <td class="col-price"></td>
+                    </tr>
+                    <tr class="bg-gray">
+                        <td colspan="2" class="no-border-left"></td>
+                        <td class="col-qty" style="font-weight: bold;">Total</td>
+                        <td class="col-price" style="font-weight: bold;">$505.00</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="financial-wrapper">
+            
+            <div class="table-title">Financial Summary</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="text-left">ITEM</th>
+                        <th class="text-right" style="width: 100px;">Price</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="text-left">RB</td>
+                        <td class="text-right">$1136.10</td>
+                    </tr>
+                    <tr>
+                        <td class="text-left">Acce.</td>
+                        <td class="text-right">$64.00</td>
+                    </tr>
+                    <tr>
+                        <td class="text-left">E-item</td>
+                        <td class="text-right">$505.00</td>
+                    </tr>
+                    <tr class="bg-gray">
+                        <td class="text-left text-red">Total</td>
+                        <td class="text-right text-red">$1705.10</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="abbreviations">
+                <strong>Abbreviations Key</strong>
+                <div class="legend-row">
+                    <span class="legend-box legend-bo"></span> Blockout (BO)
+                </div>
+                <div class="legend-row">
+                    <span class="legend-box legend-sn"></span> Screen (SN)
+                </div>
+                <div class="legend-row">
+                    <span class="legend-box legend-lf"></span> Light Filter (LF)
+                </div>
+                <div style="margin-top: 10px; line-height: 1.5;">
+                    HD: Heavy-Duty Winder<br>
+                    Dual: Double Bracket
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+</body>
+</html>

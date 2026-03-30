@@ -20,7 +20,7 @@ import { QUOTE_STATUS } from '../config/status-config.js';
 
 
 export class UIManager {
-    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k5TabComponent, searchDialogComponent }) { // [MODIFIED] (Phase 3.5a) k2TabComponent removed (merged into K1)
+    constructor({ appElement, eventAggregator, calculationService, rightPanelComponent, leftPanelTabManager, k1TabComponent, k2TabComponent, k3TabComponent, k5TabComponent, searchDialogComponent, authService }) { // [MODIFIED] (v3.44) Inject authService for username display
         this.appElement = appElement;
         this.eventAggregator = eventAggregator;
         this.calculationService = calculationService;
@@ -33,7 +33,7 @@ export class UIManager {
         this.k5TabComponent = k5TabComponent; // [NEW] Store instance
         // [NEW] (v6298-F4-Search) Store search dialog component
         this.searchDialogComponent = searchDialogComponent;
-        // [REMOVED] (v6297) this.authService = authService;
+        this.authService = authService; // [NEW] (v3.44)
 
         this.numericKeyboardPanel = document.getElementById(DOM_IDS.NUMERIC_KEYBOARD_PANEL);
 
@@ -224,14 +224,46 @@ export class UIManager {
     }
 
     render(state) {
+        // [FIX v3.49] Strict null check guard to prevent partial/empty state from crashing UIManager
+        if (!state || !state.ui) {
+            console.warn("[UIManager] Received incomplete state in render(), aborting.");
+            return;
+        }
+
         // [MODIFIED] (v6297) This render function is now ONLY called when the user is authenticated.
         // The logic to hide/show the main app vs login screen is in main.js.
 
-        const isDetailView = state.ui.currentView === 'DETAIL_CONFIG';
+        // --- [NEW] (Phase 15.5) Global Cancelled Order Warning Banner Rendering ---
+        let banner = document.getElementById('global-cancel-banner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'global-cancel-banner';
+            document.body.prepend(banner);
+        }
+
+        const quote = state.quoteData || {};
+        const status = quote?.status || '';
+
+        if (status.includes('Cancelled') || status.includes('Cancel')) {
+            const reason = (quote.metadata && quote.metadata.cancelReason) ? quote.metadata.cancelReason : 'No reason provided';
+            const rawDate = (quote.metadata && quote.metadata.cancelDate) ? quote.metadata.cancelDate : '';
+            const dateStr = rawDate ? new Date(rawDate).toLocaleString() : 'Unknown Date';
+
+            banner.innerHTML = `🚨 WARNING: THIS ORDER WAS CANCELLED ON ${dateStr} - REASON: ${reason} 🚨`;
+            banner.style.display = 'block';
+            document.body.classList.add('has-cancel-banner');
+        } else {
+            banner.style.display = 'none';
+            document.body.classList.remove('has-cancel-banner');
+        }
+        // --- [END NEW] ---
+
+        const currentView = state?.ui?.currentView;
+        const isDetailView = currentView === 'DETAIL_CONFIG';
         this.appElement.classList.toggle('detail-view-active', isDetailView);
 
         // [NEW] Add modal lock class to the main app container
-        this.appElement.classList.toggle('is-modal-active', state.ui.isModalActive);
+        this.appElement.classList.toggle('is-modal-active', state?.ui?.isModalActive);
 
         // [NEW] (Correction Flow Phase 2) Show/Hide Correction Banner
         if (this.correctionBanner) {
@@ -244,34 +276,40 @@ export class UIManager {
             const { quoteId, status } = state.quoteData;
             const { isCorrectionMode } = state.ui;
 
-            // 1. Update Quote ID Text
-            this.quoteIdText.textContent = quoteId || 'New Quote';
+            // 1. Update Quote ID Text (Merged Format)
+            const orderId = quoteId || 'New Quote';
+            const statusLabel = status || 'Configuring';
+            this.quoteIdText.textContent = `${orderId}  |  ${statusLabel}`;
 
-            // 2. Update Status Tag
-            this.quoteStatusTag.textContent = status || 'Configuring';
+            // 2. Update Status Tag (Now Right-Side Username)
+            this.quoteStatusTag.textContent = this.authService.getCurrentUsernamePrefix();
+            this.quoteStatusTag.classList.add('user-display');
 
             // 3. Update Lock Styling & Global Lock
-            // 判斷是否為「應鎖定狀態」 (B~J, X)
+            // [STRATEGIC UNLOCK] Only Lock UI if status is Confirmed (C) or higher.
+            // B. Quoted (B) remains interactive to allow Pre-Saving adjustments.
             const shouldBeLockedByStatus = [
-                QUOTE_STATUS.B_VALID_ORDER,
-                QUOTE_STATUS.C_SENT_TO_FACTORY,
-                QUOTE_STATUS.D_IN_PRODUCTION,
-                QUOTE_STATUS.E_READY_FOR_PICKUP,
-                QUOTE_STATUS.F_PICKED_UP,
-                QUOTE_STATUS.G_COMPLETED,
-                QUOTE_STATUS.H_INVOICE_SENT,
-                QUOTE_STATUS.I_INVOICE_OVERDUE,
-                QUOTE_STATUS.X_CANCELLED,
-                QUOTE_STATUS.J_CLOSED
+                QUOTE_STATUS.C_CONFIRMED,
+                QUOTE_STATUS.D_DEPOSIT_PAID,
+                QUOTE_STATUS.E_TO_FACTORY,
+                QUOTE_STATUS.F_PRODUCTION,
+                QUOTE_STATUS.G_READY_PICKUP,
+                QUOTE_STATUS.H_DELIVERED,
+                QUOTE_STATUS.I_COMPLETED,
+                QUOTE_STATUS.J_INVOICED,
+                QUOTE_STATUS.K_OVERDUE,
+                QUOTE_STATUS.L_CLOSED,
+                QUOTE_STATUS.Y_ON_HOLD,
+                QUOTE_STATUS.X_CANCELLED
             ].includes(status);
 
-            // [KEY CHANGE] 只有當「非更正模式」且「處於應鎖定狀態」時，才真正執行 UI 鎖定
+            const isBannerLocked = shouldBeLockedByStatus || status === QUOTE_STATUS.B_QUOTED;
             const finalLockState = shouldBeLockedByStatus && !isCorrectionMode;
 
-            // Apply lock to body
+            // Apply lock to body (Restricts overall input)
             document.body.classList.toggle('global-ui-locked', finalLockState);
-            // Apply lock to banner
-            this.quoteIdBanner.classList.toggle('is-locked', finalLockState);
+            // Apply lock styling to banner (Visual reminder)
+            this.quoteIdBanner.classList.toggle('is-locked', isBannerLocked && !isCorrectionMode);
         }
         // --- End Quote ID Banner ---
 
@@ -375,10 +413,9 @@ export class UIManager {
     }
 
     _toggleNumericKeyboard() {
-        const state = this.stateService.getState();
-        const isWorkflowActive = !!state.ui.activeEditMode || !!state.ui.dualChainMode || !!state.ui.driveAccessoryMode;
-        if (isWorkflowActive) {
-            console.warn('Numpad Toggle blocked by active workflow');
+        // [NEW] (Phase 15.6) Safe guard relying on the global lockdown class
+        if (document.body.classList.contains('workflow-active-lockdown')) {
+            console.warn('Numeric Keyboard toggle blocked by active workflow.');
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                 message: 'Finish the current workflow before toggling panels.',
                 type: 'warning'
