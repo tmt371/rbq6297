@@ -203,37 +203,40 @@ export class DataPreparationService {
      * 4. Original Index: Stable sort
      */
     _sortItems(items) {
-        // Count frequencies for secondary sorting
-        const typeCounts = {};
-        items.forEach((item) => {
-            const type = item.typeCode || 'Unknown';
-            typeCounts[type] = (typeCounts[type] || 0) + 1;
+        // [PHASE II.6a] Calculate fabric frequency WITHIN each type for Tier-2 Sorting
+        const fabricFrequencies = {}; // { type: { fabricKey: count } }
+        items.forEach(item => {
+            const type = item.typeCode || 'UNKNOWN';
+            const key = `${item.fabricName || ''}|${item.fabricColor || ''}`;
+            if (!fabricFrequencies[type]) fabricFrequencies[type] = {};
+            fabricFrequencies[type][key] = (fabricFrequencies[type][key] || 0) + 1;
         });
 
         const getCategoryRank = (item) => {
-            if (item.typeCode === LOGIC_CODES.LIGHT_FILTER) return 3; // LF Last
-            if (item.typeCode === LOGIC_CODES.BLOCKOUT) return 1; // Blockout First
-            if (item.typeCode === LOGIC_CODES.SCREEN) return 2; // Screen Second
-            return 4; // Others
+            if (item.typeCode === LOGIC_CODES.BLOCKOUT) return 1;
+            if (item.typeCode === LOGIC_CODES.SCREEN) return 2;
+            if (item.typeCode === LOGIC_CODES.LIGHT_FILTER) return 3;
+            return 4;
         };
 
         return items.sort((a, b) => {
-            // 1. Primary: Category
+            // 1. Primary: Category Rank (BO > SN > LF)
             const catA = getCategoryRank(a);
             const catB = getCategoryRank(b);
             if (catA !== catB) return catA - catB;
 
-            // 2. Secondary: Quantity (Most frequent first)
-            const countA = typeCounts[a.typeCode] || 0;
-            const countB = typeCounts[b.typeCode] || 0;
-            if (countA !== countB) return countB - countA;
+            // 2. Secondary: Frequency of (Fabric Name + Color) within type (Highest count first)
+            const keyA = `${a.fabricName || ''}|${a.fabricColor || ''}`;
+            const keyB = `${b.fabricName || ''}|${b.fabricColor || ''}`;
+            const freqA = fabricFrequencies[a.typeCode][keyA];
+            const freqB = fabricFrequencies[b.typeCode][keyB];
+            if (freqA !== freqB) return freqB - freqA;
 
-            // 3. Tertiary: Type Name
-            if (a.typeCode !== b.typeCode) {
-                return (a.typeCode || '').localeCompare(b.typeCode || '');
-            }
+            // 3. Tertiary: Alphabetical Fabric Name (A-Z) for ties in frequency
+            const nameComp = (a.fabricName || '').localeCompare(b.fabricName || '');
+            if (nameComp !== 0) return nameComp;
 
-            // 4. Quaternary: Original Index
+            // 4. Quaternary: Original Index (Stable sort fallback)
             return a.originalIndex - b.originalIndex;
         });
     }

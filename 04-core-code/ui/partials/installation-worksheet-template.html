@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installation Worksheet - {{quoteId}}</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            color: #000;
+            line-height: 1.2;
+            margin: 0;
+            padding: 20px;
+            font-size: 11px;
+            background-color: #fff;
+        }
+
+        .document-container {
+            max-width: 1050px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin: 0 0 5px 0;
+            font-size: 20px;
+            font-weight: bold;
+            color: #000;
+        }
+
+        .quote-no {
+            font-size: 13px;
+            margin-bottom: 15px;
+            color: #000;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 5px;
+        }
+
+        th, td {
+            border: 1px solid #000;
+            padding: 4px 2px;
+            text-align: center;
+            vertical-align: middle;
+            background-color: #fff !important;
+            color: #000 !important;
+        }
+
+        th {
+            background-color: #f0f0f0 !important;
+            font-weight: bold;
+            font-size: 10px;
+        }
+
+        .text-left { text-align: left; padding-left: 5px; }
+        .text-right { text-align: right; padding-right: 5px; }
+        .bg-gray { background-color: #f0f0f0 !important; }
+
+        .section-divider {
+            border: 0;
+            border-top: 2px solid #000;
+            margin: 15px 0;
+        }
+
+        .bottom-section {
+            display: flex;
+            justify-content: flex-start;
+            align-items: flex-start;
+            gap: 30px;
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        .accessories-wrapper { flex-grow: 0; }
+        .accessories-wrapper table { width: auto; }
+        .col-item { width: 110px; text-align: left; padding-left: 5px; white-space: nowrap; }
+        .col-spec { width: 150px; text-align: left; padding-left: 5px; }
+        .col-qty { width: 40px; }
+
+        #btn-download-pdf {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #000;
+            color: white;
+            border: 1px solid #777;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        @media print {
+            #btn-download-pdf { display: none !important; }
+        }
+
+        /* Zebra Striping */
+        #installation-main-table tr.row-even td {
+            background-color: #f5f5f5 !important;
+        }
+        /* Thick bottom border every 5 rows */
+        #installation-main-table tr.row-fifth td {
+            border-bottom: 2px solid #000 !important;
+        }
+    </style>
+</head>
+
+<body>
+    <button id="btn-download-pdf">Download Installer PDF</button>
+
+    <div class="document-container">
+        <h1>Installation Worksheet (Original Sequence)</h1>
+        <div class="quote-no">Quote No: {{quoteId}} | Customer: {{customerFullName}}</div>
+
+        <table id="installation-main-table">
+            <thead>
+                <tr>
+                    <th colspan="14" class="bg-gray" style="text-align: left; padding-left: 10px;">Items to Install</th>
+                </tr>
+                <tr>
+                    <th width="4%">NO</th>
+                    <th width="15%">Location</th>
+                    <th width="6%">TYPE</th>
+                    <th width="15%">F-Name</th>
+                    <th width="10%">F-Color</th>
+                    <th width="6%">W</th>
+                    <th width="6%">H</th>
+                    <th width="5%">Over</th>
+                    <th width="5%">O/I</th>
+                    <th width="5%">L/R</th>
+                    <th width="5%">Dual</th>
+                    <th width="6%">Chain</th>
+                    <th width="6%">HD</th>
+                    <th width="6%">Motor</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{{installationWorksheetRows}}}
+            </tbody>
+        </table>
+
+        <hr class="section-divider">
+
+        <div class="bottom-section">
+            <div class="accessories-wrapper">
+                <table id="installation-acce-table">
+                    <thead>
+                        <tr>
+                            <th colspan="3" class="bg-gray" style="text-align: left; padding-left: 5px;">
+                                Hardware & Motor Package Summary (Bring to Site)
+                            </th>
+                        </tr>
+                        <tr>
+                            <th class="col-item">Hardware Item</th>
+                            <th class="col-spec">Notes</th>
+                            <th class="col-qty">QTY</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>B-motor</td><td>{{{motorBrand}}}</td><td>{{bmotorQty}}</td></tr>
+                        <tr><td>W-motor</td><td>{{{motorBrand}}}</td><td>{{wmotorQty}}</td></tr>
+                        <tr><td>Remote (1CH)</td><td>{{{remoteBrand}}}</td><td>{{remote1chQty}}</td></tr>
+                        <tr><td>Remote (16CH)</td><td>{{{remoteBrand}}}</td><td>{{remote16chQty}}</td></tr>
+                        <tr><td>Charger</td><td>USB/Micro-USB</td><td>{{chargerQty}}</td></tr>
+                        <tr><td>3M Cord</td><td>Extension Cord</td><td>{{cord3mQty}}</td></tr>
+                        <tr><td>WiFi Hub</td><td>{{{wifiBrand}}}</td><td>{{wifiHubQty}}</td></tr>
+                        <tr><td>HD Winder</td><td>Heavy Duty</td><td>{{hdWinderQty}}</td></tr>
+                        <tr><td>Dual combo</td><td>Double Bracket Set</td><td>{{dualComboQty}}</td></tr>
+                        <tr><td>Dual slim</td><td>Slim Double Bracket</td><td>{{dualSlimQty}}</td></tr>
+                        <tr><td>Bracket</td><td>Standard Brackets</td><td>{{bracketQty}}</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('btn-download-pdf').addEventListener('click', function () {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4'});
+
+            const PAGE_WIDTH = doc.internal.pageSize.getWidth();
+            const LEFT_MARGIN = 10;
+            const RIGHT_MARGIN = 10;
+            const MAIN_TABLE_WIDTH = PAGE_WIDTH - LEFT_MARGIN - RIGHT_MARGIN;
+
+            doc.setFontSize(18);
+            doc.text('Installation Worksheet', LEFT_MARGIN, 15);
+            doc.setFontSize(11);
+            doc.text('Quote No: {{quoteId}} | Customer: {{customerFullName}}', LEFT_MARGIN, 22);
+
+            // Generate Main Table
+            doc.autoTable({
+                html: '#installation-main-table',
+                startY: 30,
+                margin: { left: LEFT_MARGIN, right: RIGHT_MARGIN },
+                tableWidth: MAIN_TABLE_WIDTH,
+                showHead: 'everyPage', // [NEW] Repeat headers on every page
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 1, valign: 'middle', halign: 'center', lineColor: [0, 0, 0], lineWidth: 0.1 },
+                headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' },
+                columnStyles: {
+                    0: { cellWidth: 10 },  // NO
+                    1: { cellWidth: 45, halign: 'left' }, // Location
+                    2: { cellWidth: 15 },  // TYPE
+                    3: { cellWidth: 45, halign: 'left' }, // F-Name
+                    4: { cellWidth: 30, halign: 'left' }, // F-Color
+                    5: { cellWidth: 14 },  // W
+                    6: { cellWidth: 14 },  // H
+                    7: { cellWidth: 13 },  // Over
+                    8: { cellWidth: 13 },  // O/I
+                    9: { cellWidth: 13 },  // L/R
+                    10: { cellWidth: 13 }, // Dual
+                    11: { cellWidth: 13 }, // Chain
+                    12: { cellWidth: 13 }, // HD
+                    13: { cellWidth: 13 }  // Motor
+                },
+                didParseCell: function(data) {
+                    if (data.section === 'body') {
+                        // Skip styling for the Summary row
+                        const rowEl = data.row.raw;
+                        if (rowEl && (rowEl.className === 'wo-summary-row' || (rowEl.classList && rowEl.classList.contains('wo-summary-row')))) {
+                            // [FIX] Ensure base summary row styling is applied if we return early
+                            data.cell.styles.fontStyle = 'bold';
+                            data.cell.styles.fillColor = [240, 240, 240];
+                            return;
+                        }
+
+                        const rowNumber = data.row.index + 1; // 1-based index
+
+                        // A. Zebra Striping: Even rows get light gray
+                        if (rowNumber % 2 === 0) {
+                            data.cell.styles.fillColor = [245, 245, 245];
+                        } else {
+                            data.cell.styles.fillColor = [255, 255, 255];
+                        }
+
+                        // B. 5-Row Anchor: Thicker bottom border every 5 rows
+                        if (rowNumber % 5 === 0) {
+                            // Use object notation to selectively thicken the bottom border (supported in autotable 3.5+)
+                            data.cell.styles.lineWidth = { top: 0.1, right: 0.1, bottom: 0.6, left: 0.1 };
+                        } else {
+                            data.cell.styles.lineWidth = 0.1; // Ensure default thin border for others
+                        }
+                    }
+                }
+            });
+
+            // [NEW] Smart Page Break for Accessories Table
+            let finalY = doc.lastAutoTable.finalY || 30;
+            const remainingHeight = doc.internal.pageSize.getHeight() - finalY;
+            if (remainingHeight < 80) { // If less than 80mm remains, push to next page
+                doc.addPage();
+                finalY = 15;
+            } else {
+                finalY += 15;
+            }
+
+            // Generate Accessories Table
+            doc.autoTable({
+                html: '#installation-acce-table',
+                startY: finalY,
+                margin: { left: LEFT_MARGIN },
+                tableWidth: 150,
+                theme: 'grid',
+                styles: { fontSize: 8, cellPadding: 1, valign: 'middle', halign: 'left', lineColor: [0, 0, 0], lineWidth: 0.1 },
+                headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' }
+            });
+
+            doc.save('{{pdfFileName}}');
+        });
+    </script>
+</body>
+</html>

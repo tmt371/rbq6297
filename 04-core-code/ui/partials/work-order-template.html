@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
@@ -243,7 +243,6 @@
                 </tr>
                 <tr>
                     <th width="3%">NO</th>
-                    <th width="3%">#</th>
                     <th width="5%">TYPE</th>
                     <th width="12%">F-Name</th>
                     <th width="8%">F-Color</th>
@@ -253,10 +252,11 @@
                     <th width="4%">O/I</th>
                     <th width="4%">L/R</th>
                     <th width="4%">Dual</th>
-                    <th width="5%">Chain</th>
+                    <th width="4%">Chain</th>
                     <th width="4%">HD</th>
                     <th width="5%">Motor</th>
                     <th width="17%">Location</th>
+                    <th width="3%">#</th>
                     <th width="10%">PRICE</th>
                 </tr>
             </thead>
@@ -290,25 +290,25 @@
                     <tbody>
                         <tr class="bg-electronics">
                             <td class="col-item" style="background-color: #fffde7;">B-motor</td>
-                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-spec" style="background-color: #fffde7;">{{{motorBrand}}}</td>
                             <td class="col-qty" style="background-color: #fffde7;">{{bmotorQty}}</td>
                             <td class="col-price" style="background-color: #fffde7;">{{bmotorPrice}}</td>
                         </tr>
                         <tr class="bg-electronics">
                             <td class="col-item" style="background-color: #fffde7;">W-motor</td>
-                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-spec" style="background-color: #fffde7;">{{{motorBrand}}}</td>
                             <td class="col-qty" style="background-color: #fffde7;">{{wmotorQty}}</td>
                             <td class="col-price" style="background-color: #fffde7;">{{wmotorPrice}}</td>
                         </tr>
                         <tr class="bg-electronics">
                             <td class="col-item" style="background-color: #fffde7;">Remote (1CH)</td>
-                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-spec" style="background-color: #fffde7;">{{{remoteBrand}}}</td>
                             <td class="col-qty" style="background-color: #fffde7;">{{remote1chQty}}</td>
                             <td class="col-price" style="background-color: #fffde7;">{{remote1chPrice}}</td>
                         </tr>
                         <tr class="bg-electronics">
                             <td class="col-item" style="background-color: #fffde7;">Remote (16CH)</td>
-                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-spec" style="background-color: #fffde7;">{{{remoteBrand}}}</td>
                             <td class="col-qty" style="background-color: #fffde7;">{{remote16chQty}}</td>
                             <td class="col-price" style="background-color: #fffde7;">{{remote16chPrice}}</td>
                         </tr>
@@ -326,7 +326,7 @@
                         </tr>
                         <tr class="bg-electronics">
                             <td class="col-item" style="background-color: #fffde7;">WiFi Hub</td>
-                            <td class="col-spec" style="background-color: #fffde7;"></td>
+                            <td class="col-spec" style="background-color: #fffde7;">{{{wifiBrand}}}</td>
                             <td class="col-qty" style="background-color: #fffde7;">{{wifiHubQty}}</td>
                             <td class="col-price" style="background-color: #fffde7;">{{wifiHubPrice}}</td>
                         </tr>
@@ -549,45 +549,39 @@
                 },
                 // 根據 new-wo-layout-draft.html 的列寬度設定
                 columnStyles: {
-                    0: { cellWidth: 8.3 }, // NO (3%)
-                    1: { cellWidth: 8.3 }, // # (3%)
-                    2: { cellWidth: 13.8 }, // TYPE (5%)
-                    3: { cellWidth: 33.2, halign: 'left' }, // F-Name (12%)
-                    4: { cellWidth: 22.1, halign: 'left' }, // F-Color (8%)
-                    5: { cellWidth: 16.6 }, // W (6%)
-                    6: { cellWidth: 16.6 }, // H (6%)
-                    7: { cellWidth: 11.1 }, // Over (4%)
-                    8: { cellWidth: 11.1 }, // O/I (4%)
-                    9: { cellWidth: 11.1 }, // L/R (4%)
-                    10: { cellWidth: 11.1 }, // Dual (4%)
-                    11: { cellWidth: 13.8 }, // Chain (5%)
-                    12: { cellWidth: 11.1 }, // HD (4%)
-                    13: { cellWidth: 13.8 }, // Motor (5%)
-                    14: { cellWidth: 47.0, halign: 'left' }, // Location (17%)
-                    15: { cellWidth: 27.7, halign: 'right' }  // PRICE (10%)
+                    0: { cellWidth: 8.3 }, // NO
+                    1: { cellWidth: 13.8 }, // TYPE
+                    2: { cellWidth: 33.2, halign: 'left' }, // F-Name
+                    3: { cellWidth: 22.1, halign: 'left' }, // F-Color
+                    4: { cellWidth: 16.6 }, // W
+                    5: { cellWidth: 16.6 }, // H
+                    6: { cellWidth: 11.1 }, // Over
+                    7: { cellWidth: 11.1 }, // O/I
+                    8: { cellWidth: 11.1 }, // L/R
+                    9: { cellWidth: 11.1 }, // Dual
+                    10: { cellWidth: 11.1 }, // Chain
+                    11: { cellWidth: 11.1 }, // HD
+                    12: { cellWidth: 13.8 }, // Motor
+                    13: { cellWidth: 47.0, halign: 'left' }, // Location
+                    14: { cellWidth: 8.3 }, // #
+                    15: { cellWidth: 27.7, halign: 'right' } // PRICE
                 },
                 didParseCell: function (data) {
+                    // [PHASE I.5] Universal Style Bridge
+                    if (typeof applyHtmlStylesToPdf === 'function') {
+                        applyHtmlStylesToPdf(data);
+                    }
+
                     if (data.section === 'body') {
+                        // [NEW] Force white background for NO (0) and everything after F-Color (index 3) to prevent color bleed
+                        if (data.column.index === 0 || data.column.index > 3) {
+                            data.cell.styles.fillColor = [255, 255, 255]; 
+                        }
+
                         const rowElement = data.row.raw;
-                        if (rowElement) {
-                            // 使用 rowElement (data.row.raw) 直接進行所有行級別的檢查
-                            // rowElement 已在外部 if (rowElement) 中進行 null 檢查
-                            // [NEW] 針對 rowElement.querySelector() 進行嚴格防呆檢查
-                            if (typeof rowElement.querySelector === 'function') {
-                                const typeCell = rowElement.querySelector('td:nth-child(3)');
-                                if (typeCell) {
-                                    const typeCode = typeCell.innerText.trim();
-                                    if (typeCode === 'SN') { // Screen
-                                        data.cell.styles.fillColor = [224, 247, 250]; // #e0f7fa
-                                    } else if (typeCode === 'BO') { // Blockout
-                                        data.cell.styles.fillColor = [240, 240, 240]; // #f0f0f0
-                                    } else if (typeCode === 'LF') { // Light Filter
-                                        data.cell.styles.fillColor = [255, 235, 235]; // #ffebee
-                                    }
-                                }
-                            }
-                            // [FIX] 針對 rowElement 的 classList.contains() 進行嚴格防呆檢查
-                            if (rowElement.classList && typeof rowElement.classList.contains === 'function' && rowElement.classList.contains('wo-summary-row')) {
+                        if (rowElement && rowElement.classList && typeof rowElement.classList.contains === 'function') {
+                            // Preserve Summary Row logic (Bold + Gray)
+                            if (rowElement.classList.contains('wo-summary-row')) {
                                 data.cell.styles.fontStyle = 'bold';
                                 data.cell.styles.fillColor = [240, 240, 240];
                                 if (data.column.index === 13 || data.column.index === 15) {
@@ -596,7 +590,6 @@
                             }
                         }
                     }
-                    applyHtmlStylesToPdf(data);
                 }
             });
 

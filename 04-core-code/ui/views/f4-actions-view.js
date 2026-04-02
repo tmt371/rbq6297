@@ -1,6 +1,6 @@
 /* FILE: 04-core-code/ui/views/f4-actions-view.js */
 import { EVENTS, DOM_IDS } from '../../config/constants.js';
-import { QUOTE_STATUS, ROLE_STATUS_PERMISSIONS, STATE_TRANSITIONS } from '../../config/status-config.js';
+import { QUOTE_STATUS, ROLE_STATUS_PERMISSIONS, STATE_TRANSITIONS, normalizeQuoteStatus } from '../../config/status-config.js';
 
 export class F4ActionsView {
     constructor({ panelElement, eventAggregator, authService }) {
@@ -83,6 +83,13 @@ export class F4ActionsView {
             paymentMethod: query('#f4-payment-method'),
             btnRegisterPayment: query('#f4-btn-register-payment'),
 
+            // [NEW] Production Center Modal
+            prodCenterModal: query('#f4-production-center-modal'),
+            btnGenFactoryOrder: query('#f4-btn-gen-factory-order'),
+            btnGenInstallWorksheet: query('#f4-btn-gen-install-worksheet'),
+            btnGenBothWorksheets: query('#f4-btn-gen-both-worksheets'),
+            btnCloseProdCenter: query('#f4-btn-close-prod-center'),
+
             buttons: {
                 'f1-key-save': query('#f1-key-save'),
                 'f4-key-save-as-new': query('#f4-key-save-as-new'),
@@ -115,7 +122,7 @@ export class F4ActionsView {
             const buttonEventMap = {
                 'f1-key-save': EVENTS.USER_REQUESTED_SAVE,
                 'f4-key-save-as-new': EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION,
-                'f4-key-generate-work-order': EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER,
+                // 'f4-key-generate-work-order': EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, // [HIJACKED]
                 [`${DOM_IDS.F4_BTN_GENERATE_XLS}`]: EVENTS.USER_REQUESTED_GENERATE_EXCEL,
                 'f1-key-export': EVENTS.USER_REQUESTED_EXPORT_CSV,
                 'f1-key-load': EVENTS.USER_REQUESTED_LOAD,
@@ -128,6 +135,22 @@ export class F4ActionsView {
 
             if (buttonEventMap[actionId]) {
                 this.eventAggregator.publish(buttonEventMap[actionId]);
+            } else if (actionId === 'f4-key-generate-work-order') {
+                // [NEW] Open Production Center Modal instead of immediate generation
+                if (this.f4.prodCenterModal) {
+                    this.f4.prodCenterModal.style.display = 'flex';
+                }
+            } else if (actionId === 'f4-btn-gen-factory-order') {
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER);
+                if (this.f4.prodCenterModal) this.f4.prodCenterModal.style.display = 'none';
+            } else if (actionId === 'f4-btn-gen-install-worksheet') {
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_GENERATE_INSTALLATION_WORKSHEET);
+                if (this.f4.prodCenterModal) this.f4.prodCenterModal.style.display = 'none';
+            } else if (actionId === 'f4-btn-gen-both-worksheets') {
+                this.eventAggregator.publish(EVENTS.USER_REQUESTED_GENERATE_BOTH_WORKSHEETS);
+                if (this.f4.prodCenterModal) this.f4.prodCenterModal.style.display = 'none';
+            } else if (actionId === 'f4-btn-close-prod-center') {
+                if (this.f4.prodCenterModal) this.f4.prodCenterModal.style.display = 'none';
             } else if (actionId === 'f4-status-update-btn') {
                 const newStatus = this.f4.statusDropdown ? this.f4.statusDropdown.value : null;
                 if (newStatus) {
@@ -221,7 +244,7 @@ export class F4ActionsView {
             } else if (actionId === DOM_IDS.F4_BTN_LOGOUT) {
                 if (this.authService) this.authService.logout();
             } else if (actionId === 'f4-btn-admin-entry') {
-                window.open('admin.html', '_blank');
+                window.open('admin/admin.html', '_blank');
             }
         });
 
@@ -307,7 +330,7 @@ export class F4ActionsView {
                 ? ROLE_STATUS_PERMISSIONS[userRole]
                 : Object.keys(QUOTE_STATUS);
 
-            const effectiveStatus = status || QUOTE_STATUS.A_SAVED;
+            const effectiveStatus = normalizeQuoteStatus(status);
             const allowedTransitions = (typeof STATE_TRANSITIONS !== 'undefined' && STATE_TRANSITIONS[effectiveStatus])
                 ? STATE_TRANSITIONS[effectiveStatus]
                 : [];

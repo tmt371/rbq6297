@@ -15,6 +15,23 @@ export class CalculationService {
     }
 
     /**
+     * [NEW] Maps raw brand values (e.g., 'linx', 'alpha') to display names (e.g., 'Linx', 'Alpha').
+     * @param {string} brand - Raw brand identifier.
+     * @private
+     */
+    _mapBrandName(brand) {
+        if (!brand) return '';
+        const lower = brand.toLowerCase();
+        const mapping = {
+            'linx': 'Linx',
+            'alpha': 'Alpha',
+            'tbs': 'TBS',
+            'luna': 'Luna'
+        };
+        return mapping[lower] || (brand.charAt(0).toUpperCase() + brand.slice(1));
+    }
+
+    /**
      * Calculates line prices for all valid items and the total sum using a provided product strategy.
      */
     calculateAndSum(quoteData, productStrategy) {
@@ -684,7 +701,7 @@ export class CalculationService {
                 const ph = (liveQuoteData.customer.phone || '').trim();
                 const qn = liveQuoteData.quoteId || 'WO';
                 let fileNameName = fn || ln || 'customer';
-                let name = `${qn}_${fileNameName}`;
+                let name = `Order ${qn}_${fileNameName}`;
                 if (ph) name += `_${ph}`;
                 return name;
             })(),
@@ -749,9 +766,15 @@ export class CalculationService {
             dualSlimPrice: f1Costs.slimCost || 0,
             bracketQty: 0, bracketPrice: 0,
             eAcceSum: eAcceSum || 0,
-            wo_rb_price: f1_rb_price || 0,
-            wo_acce_price: acce_total || 0,
-            wo_total_price: f1_sub_total || 0,
+
+            // --- [NEW] Brand Mapping for Document Summaries (Motor, Remote, WiFi) ---
+            motorBrand: this._mapBrandName(ui.f1?.motorBrand),
+            remoteBrand: this._mapBrandName(ui.f1?.remoteBrand),
+            wifiBrand: this._mapBrandName(ui.f1?.wifiBrand),
+
+            wo_rb_price: Number(ui.f2.disRbPrice || 0).toFixed(2),
+            wo_acce_price: Number((ui.f2.acceSum || 0) + (ui.f2.eAcceSum || 0)).toFixed(2),
+            wo_total_price: Number(ui.f2.grandTotal || 0).toFixed(2),
             summaryData: summaryData,
             uiState: ui
         };

@@ -7,7 +7,7 @@ import * as quoteActions from '../actions/quote-actions.js';
 import { paths } from '../config/paths.js';
 import {
     loadQuoteFromCloud,
-    searchQuotesAdvanced, // [MODIFIED] (v6298-F4-Search) Import new function
+    searchQuotesAdvanced, 
 } from './online-storage-service.js';
 
 /**
@@ -18,24 +18,24 @@ export class WorkflowService {
     constructor({
         eventAggregator,
         stateService,
-        fileService, // [MODIFIED] (v6297 ?жш║л) ?╢ц?ф┐оцнгя╝Ъф???fileService
+        fileService, 
         calculationService,
         productFactory,
         detailConfigView,
         quoteGeneratorService,
-        authService, // [NEW] (v6297) Inject authService
-        quotePersistenceService // [DIRECTIVE-v3.9] Inject
+        authService, 
+        quotePersistenceService 
     }) {
         this.eventAggregator = eventAggregator;
         this.stateService = stateService;
-        this.fileService = fileService; // [MODIFIED] (v6297 ?жш║л) ?╢ц?ф┐оцнгя╝Ъф???fileService
+        this.fileService = fileService; 
         this.calculationService = calculationService;
         this.productFactory = productFactory;
         this.detailConfigView = detailConfigView;
-        this.quoteGeneratorService = quoteGeneratorService; // [NEW] Store the injected service
-        this.authService = authService; // [NEW] (v6297) Store authService
-        this.quotePersistenceService = quotePersistenceService; // [DIRECTIVE-v3.9] Store
-        this.quotePreviewComponent = null; // Will be set by AppContext
+        this.quoteGeneratorService = quoteGeneratorService; 
+        this.authService = authService; 
+        this.quotePersistenceService = quotePersistenceService; 
+        this.quotePreviewComponent = null; 
 
         console.log('WorkflowService Initialized.');
     }
@@ -63,13 +63,11 @@ export class WorkflowService {
         return true;
     }
 
-    // [NEW] ?Оцо╡ 1: х╗║ч?х╖ехЦоц╡Бч?
-    async handleGenerateWorkOrder() {
+    // [NEW] 方案 B: 使用隱藏 Iframe 進行背景下載
+    async handleGenerateWorkOrder(isSilent = false) {
         try {
             const { quoteData, ui } = this.stateService.getState();
 
-            // 1. (?Юх?цн? шлЛц? quoteGeneratorService ?вч? HTML
-            // цндщ?цо╡я??Щц?чв║ф?ш╝ЙхЕецибцЭ┐
             const finalHtml =
                 await this.quoteGeneratorService.generateWorkOrderHtml(
                     quoteData,
@@ -77,10 +75,16 @@ export class WorkflowService {
                 );
 
             if (finalHtml) {
-                // 2. (?Мцне) ?Лх??░х???
-                const blob = new Blob([finalHtml], { type: 'text/html' });
-                const url = URL.createObjectURL(blob);
-                this.eventAggregator.publish(EVENTS.OPEN_DOCUMENT_WINDOW, { url });
+                if (isSilent) {
+                    // [NEW] Phase II.6b: Silent Download Strategy (Plan B)
+                    this._downloadPdfSilently(finalHtml);
+                } else {
+                    // [MODIFIED] Phase II.6d: Modern Blob URL Preview Strategy
+                    // Resolves parser-blocking warnings and "View Page Source" issues.
+                    const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                }
             } else {
                 throw new Error(
                     'QuoteGeneratorService did not return Work Order HTML. Templates might not be loaded.'
@@ -96,21 +100,56 @@ export class WorkflowService {
         }
     }
 
+    // [NEW] Phase II.6b: 安裝工單處理程序
+    async handleGenerateInstallationWorksheet(isSilent = false) {
+        try {
+            const { quoteData } = this.stateService.getState();
+            const currentProductKey = quoteData.currentProduct;
+
+            const finalHtml = await this.quoteGeneratorService.generateInstallationWorksheetHtml(
+                quoteData,
+                currentProductKey
+            );
+
+            if (finalHtml) {
+                if (isSilent) {
+                    // [NEW] Phase II.6b: Silent Download Strategy (Plan B)
+                    this._downloadPdfSilently(finalHtml);
+                } else {
+                    // [MODIFIED] Phase II.6d: Modern Blob URL Preview Strategy
+                    // Resolves parser-blocking warnings and "View Page Source" issues.
+                    const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    window.open(url, '_blank');
+                }
+            } else {
+                throw new Error('QuoteGeneratorService did not return Installation Worksheet HTML.');
+            }
+        } catch (error) {
+            console.error('Error generating installation worksheet:', error);
+            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                message: 'Failed to generate installation worksheet.',
+                type: 'error',
+            });
+        }
+    }
+
+    // [NEW] Phase II.6c: 一鍵雙開 (工廠 + 安裝) - 靜默後台下載模式
+    async handleGenerateBothWorksheets() {
+        // [FIX] Using silent downloader via iframes to bypass popup blockers
+        await this.handleGenerateWorkOrder(true);
+        await this.handleGenerateInstallationWorksheet(true);
+    }
+
     async handlePrintableQuoteRequest(documentType = 'Quotation', receiptData = null) {
         try {
-            // [MODIFIED] Get state. f3Data (from DOM) is no longer needed.
             const { quoteData, ui } = this.stateService.getState();
             
-            // [DIRECTIVE-v3.9] Fetch Live Ledger before generating payload
             let liveLedger = null;
             if (this.quotePersistenceService && quoteData.quoteId) {
                 liveLedger = await this.quotePersistenceService.getLiveLedger(quoteData.quoteId);
             }
 
-            // [REFACTORED] Delegate the entire HTML generation process to the new service.
-            // [MODIFIED] Pass the live quoteData object as the f3Data parameter.
-            // [FIX] Added 'await' to resolve the Promise returned by the async function.
-            // [NEW] Passing liveLedger to map single source of truth financials
             const finalHtml =
                 await this.quoteGeneratorService.generateQuoteHtml(
                     quoteData,
@@ -122,8 +161,6 @@ export class WorkflowService {
                 );
 
             if (finalHtml) {
-                // this.eventAggregator.publish(EVENTS.SHOW_QUOTE_PREVIEW, finalHtml);
-
                 const blob = new Blob([finalHtml], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 this.eventAggregator.publish(EVENTS.OPEN_DOCUMENT_WINDOW, { url });
@@ -144,12 +181,8 @@ export class WorkflowService {
 
     async handleGmailQuoteRequest() {
         try {
-            // [MODIFIED] Get state. f3Data (from DOM) is no longer needed.
             const { quoteData, ui } = this.stateService.getState();
 
-            // Call the new service method for the GTH template
-            // [MODIFIED] Pass the live quoteData object as the f3Data parameter.
-            // [FIX] Added 'await' to resolve the Promise returned by the async function.
             const finalHtml =
                 await this.quoteGeneratorService.generateGmailQuoteHtml(
                     quoteData,
@@ -158,7 +191,6 @@ export class WorkflowService {
                 );
 
             if (finalHtml) {
-                // Open the generated HTML in a new tab
                 const blob = new Blob([finalHtml], { type: 'text/html' });
                 const url = URL.createObjectURL(blob);
                 this.eventAggregator.publish(EVENTS.OPEN_DOCUMENT_WINDOW, { url });
@@ -177,7 +209,6 @@ export class WorkflowService {
         }
     }
 
-    // [MODIFIED] Phase 9.0: Uses cached strategy from singleton factory
     handleF1TabActivation() {
         const { quoteData } = this.stateService.getState();
         const productStrategy =
@@ -188,7 +219,6 @@ export class WorkflowService {
             return;
         }
 
-        // Strategy is now a singleton — no redundant re-initialization
         const { updatedQuoteData } =
             this.calculationService.calculateAndSum(quoteData, productStrategy);
 
@@ -230,7 +260,6 @@ export class WorkflowService {
         this.detailConfigView.activateTab(tabId);
     }
 
-    // [MODIFIED v6285 Phase 5] Logic migrated from quick-quote-view.js and updated.
     handleReset() {
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
             message: 'This will clear all data. Are you sure?',
@@ -290,7 +319,6 @@ export class WorkflowService {
         const result = await loadQuoteFromCloud(quoteId.trim());
 
         if (result.success) {
-            // Use the exact same logic as local file load
             this._dispatchLoadActions(result.data, result.message);
         } else {
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
@@ -301,47 +329,34 @@ export class WorkflowService {
     }
 
     handleSearchDialogRequest() {
-        // [OLD]
-        // this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, { ... });
-        // [NEW]
         this.eventAggregator.publish(EVENTS.SHOW_SEARCH_DIALOG);
     }
 
-    // [REFACTORED] Extracted file load logic into a private helper
     _dispatchLoadActions(data, message) {
-        // 1. Set the new quote data
         this.stateService.dispatch(quoteActions.setQuoteData(data));
-
-        // 2. Reset the UI state to match the new data
         this.stateService.dispatch(uiActions.resetUi());
 
-        // 3. [MODIFIED v6285 Phase 4] Check for an f1Snapshot in the loaded data and restore it
         if (data.f1Snapshot) {
             this.stateService.dispatch(
                 uiActions.restoreF1Snapshot(data.f1Snapshot)
             );
         }
 
-        // 4. [NEW] (v6295) Check for an f2Snapshot and restore it
         if (data.f2Snapshot) {
             this.stateService.dispatch(
                 uiActions.restoreF2Snapshot(data.f2Snapshot)
             );
         }
 
-        // 5. Mark sum as outdated and notify user
         this.stateService.dispatch(uiActions.setSumOutdated(true));
         this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
             message: message,
         });
     }
 
-    // This is the function that crashed.
-    // It is now clean and only contains the correct logic.
     handleFileLoad({ fileName, content }) {
         const result = this.fileService.parseFileContent(fileName, content);
         if (result.success) {
-            // [MODIFIED] Use the new private helper
             this._dispatchLoadActions(result.data, result.message);
         } else {
             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
@@ -360,7 +375,7 @@ export class WorkflowService {
     handleCancelCorrectRequest() {
         this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
             message: 'Please select an action for this active order:',
-            gridTemplateColumns: '1fr 1fr', // Set 2 columns layout
+            gridTemplateColumns: '1fr 1fr', 
             layout: [
                 [
                     {
@@ -369,7 +384,7 @@ export class WorkflowService {
                         className: 'secondary',
                         callback: () => {
                             this._handleCancelOrderFlow();
-                            return true; // Close dialog
+                            return true; 
                         }
                     },
                     {
@@ -377,13 +392,12 @@ export class WorkflowService {
                         text: 'B. Correct Data',
                         className: 'primary-confirm-button',
                         callback: () => {
-                            // Enter Correction Mode
                             this.stateService.dispatch(uiActions.setCorrectionMode(true));
                             this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                                 message: 'Correction Mode Enabled. Edit data and click SET to finalize changes.',
                                 type: 'info'
                             });
-                            return true; // Close dialog
+                            return true; 
                         }
                     }
                 ],
@@ -401,22 +415,19 @@ export class WorkflowService {
     }
 
     _handleCancelOrderFlow() {
-        // [FIX] Use setTimeout to ensure the previous dialog is fully closed and DOM is cleared
-        // before attempting to open the new confirmation dialog.
         setTimeout(() => {
             this.eventAggregator.publish(EVENTS.SHOW_CONFIRMATION_DIALOG, {
                 message: 'Are you sure you want to CANCEL this order? This action is irreversible.',
                 layout: [
                     [
                         { type: 'text', text: 'Reason:', className: 'dialog-label' },
-                        // [MODIFIED] Added autofocus property so DialogComponent handles it
                         { type: 'input', id: DOM_IDS.DIALOG_INPUT_CANCEL_REASON, placeholder: 'e.g., Customer changed mind', autofocus: true }
                     ],
                     [
                         {
                             type: 'button',
                             text: 'Confirm Cancellation',
-                            className: 'primary-confirm-button btn-danger', // Use danger style if available, else default
+                            className: 'primary-confirm-button btn-danger', 
                             colspan: 2,
                             callback: (inputValues) => {
                                 const reason = inputValues && inputValues[DOM_IDS.DIALOG_INPUT_CANCEL_REASON]
@@ -428,10 +439,9 @@ export class WorkflowService {
                                         message: 'Cancellation reason is required.',
                                         type: 'error'
                                     });
-                                    return false; // Keep dialog open
+                                    return false; 
                                 }
 
-                                // Trigger the actual cancellation logic in QuotePersistenceService
                                 this.eventAggregator.publish(EVENTS.USER_REQUESTED_EXECUTE_CANCELLATION, { cancelReason: reason });
                                 return true;
                             }
@@ -440,6 +450,50 @@ export class WorkflowService {
                     ]
                 ]
             });
-        }, 100); // 100ms delay should be sufficient
+        }, 100); 
+    }
+
+    /**
+     * [DIRECTIVE-v3.52] Silent Background Downloader (Plan B - Syntax-Safe Edition)
+     * Renders HTML in a hidden off-screen iframe and triggers its download button from the parent.
+     * This avoids buggy script character injection and bypasses popup blockers.
+     * @param {string} htmlString - The complete HTML content of the document.
+     * @private
+     */
+    _downloadPdfSilently(htmlString) {
+        if (!htmlString) return;
+
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute';
+        iframe.style.left = '-9999px';
+        iframe.style.top = '-9999px';
+        iframe.style.width = '210mm';
+        iframe.style.height = '297mm';
+        iframe.style.visibility = 'hidden';
+        document.body.appendChild(iframe);
+
+        const idoc = iframe.contentWindow.document;
+        idoc.open();
+        idoc.write(htmlString);
+        idoc.close();
+
+        // Wait for the iframe to render and PDF scripts to initialize
+        setTimeout(() => {
+            try {
+                const btn = idoc.querySelector('#btn-download-pdf') || idoc.querySelector('button');
+                if (btn) {
+                    btn.click();
+                }
+            } catch (err) {
+                console.error('Silent download trigger failed:', err);
+            }
+            
+            // Cleanup the memory after the download triggers
+            setTimeout(() => {
+                if (document.body.contains(iframe)) {
+                    document.body.removeChild(iframe);
+                }
+            }, 8000);
+        }, 1500);
     }
 }

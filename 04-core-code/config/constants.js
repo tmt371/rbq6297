@@ -85,6 +85,8 @@ export const EVENTS = {
     FILE_LOADED: 'fileLoaded',
     // [NEW] ?цо?1 (х╖ехЦо)
     USER_REQUESTED_GENERATE_WORK_ORDER: 'userRequestedGenerateWorkOrder',
+    USER_REQUESTED_GENERATE_INSTALLATION_WORKSHEET: 'userRequestedGenerateInstallationWorksheet',
+    USER_REQUESTED_GENERATE_BOTH_WORKSHEETS: 'userRequestedGenerateBothWorksheets',
     // [NEW] (v6299 Gen-Xls)
     USER_REQUESTED_GENERATE_EXCEL: 'userRequestedGenerateExcel',
 

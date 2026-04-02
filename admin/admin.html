@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>A1 Admin Dashboard</title>
+    <link href="../style.css" rel="stylesheet">
+    <link href="./admin-style.css" rel="stylesheet">
+</head>
+
+<body class="edit-locked">
+
+    <div class="tabs-fixed">
+        <div class="tab active">A1: ACCESSORIES</div>
+        <div class="tab">A2: FABRICS</div>
+        <div class="tab">A3: ADVANCED</div>
+        <div class="tab">A4: ORDERS</div>
+    </div>
+
+    <div class="content" id="admin-content-area">
+    </div>
+
+    <div class="drawer" id="adminDrawer">
+        <div class="drawer-header">
+            <div class="native-pill" id="drawerToggle">
+                <span id="vArrow" class="v-arrow">︿</span>
+            </div>
+            <input type="text" class="search-bar" id="searchInput" placeholder="Quick Search...">
+        </div>
+        <div class="drawer-content">
+            <div class="row-2">
+                <button class="btn btn-edit" id="btnEnterEdit">📝 ENTER EDIT MODE</button>
+                <button class="btn btn-abort" id="btnAbort">❌ ABORT</button>
+            </div>
+            <div class="row-3">
+                <button class="btn btn-util">📥 IMPORT CSV</button>
+                <button class="btn btn-util">📤 EXPORT JSON</button>
+                <button class="btn btn-util">➕ ADD ITEM</button>
+            </div>
+            <div class="row-4">
+                <button class="btn btn-confirm" id="btnConfirm" disabled>💾 CONFIRM</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="../04-core-code/config-manager.js"></script>
+    <script type="module" src="./views/admin-order-view.js"></script>
+    <script type="module" src="./admin-main.js"></script>
+
+</body>
+
+</html>

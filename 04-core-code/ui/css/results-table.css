@@ -144,8 +144,8 @@
     box-shadow: inset 0 0 0 2px var(--primary-color);
 }
 
-.results-table td.selected-row-highlight {
-    background-color: var(--highlight-color);
+.results-table tbody tr td.selected-row-highlight {
+    background-color: var(--highlight-color) !important;
     font-weight: bold;
 }
 

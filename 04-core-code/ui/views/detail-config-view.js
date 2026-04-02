@@ -7,7 +7,7 @@
 
 import * as uiActions from '../../actions/ui-actions.js';
 import { EVENTS } from '../../config/constants.js';
-import { LOGIC_CODES } from '../../config/business-constants.js'; // [NEW]
+import { LOGIC_CODES, FABRIC_CODES } from '../../config/business-constants.js'; // [NEW]
 
 export class DetailConfigView {
     constructor({
@@ -84,8 +84,25 @@ export class DetailConfigView {
     }
 
     async handleSequenceCellClick({ rowIndex }) {
-        const { ui } = this.stateService.getState();
+        const state = this.stateService.getState();
+        const { ui, quoteData } = state;
         const { activeEditMode } = ui;
+
+        // [NEW] (Phase 16) Strict Per-Click Validation for Light-Filter Mode
+        // Ensure every click is validated before highlighting or state mutation.
+        if (activeEditMode === LOGIC_CODES.MODE_LF) {
+            const items = quoteData.products[quoteData.currentProduct].items;
+            const item = items[rowIndex];
+            const eligibleFabricTypes = [FABRIC_CODES.B2, FABRIC_CODES.B3, FABRIC_CODES.B4];
+
+            if (!item || !eligibleFabricTypes.includes(item.fabricType)) {
+                await this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
+                    message: "Invalid fabric. Only B2, B3, B4 can be selected for Light Filter.",
+                    type: "error"
+                });
+                return; // HALT selection immediately
+            }
+        }
 
         // [MODIFIED] Use LOGIC_CODES constants to match the state set by K2FabricView
         // This fixes the bug where LF-DEL mode ('LFD') was not recognized.

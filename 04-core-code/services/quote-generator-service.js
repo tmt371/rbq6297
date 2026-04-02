@@ -11,12 +11,14 @@ export class QuoteGeneratorService {
         calculationService,
         workOrderStrategy,
         originalQuoteStrategy,
-        gthQuoteStrategy
+        gthQuoteStrategy,
+        installationWorksheetStrategy
     }) {
         this.calculationService = calculationService;
         this.workOrderStrategy = workOrderStrategy;
         this.originalQuoteStrategy = originalQuoteStrategy;
         this.gthQuoteStrategy = gthQuoteStrategy;
+        this.installationWorksheetStrategy = installationWorksheetStrategy;
 
         this.quoteTemplate = '';
         this.detailsTemplate = '';
@@ -28,6 +30,8 @@ export class QuoteGeneratorService {
         this.detailedItemListRow = '';
         this.workOrderTemplate = '';
         this.workOrderRowTemplate = '';
+        this.installationWorksheetTemplate = '';
+        this.installationWorksheetRowTemplate = '';
 
         this.actionBarHtml = `
      <div id="action-bar">
@@ -42,7 +46,8 @@ export class QuoteGeneratorService {
         if (this.quoteTemplate && this.detailsTemplate && this.gmailTemplate &&
             this.quoteTemplateRow && this.gmailTemplateCard && this.quoteClientScript &&
             this.gmailClientScript && this.detailedItemListRow && this.workOrderTemplate &&
-            this.workOrderRowTemplate) {
+            this.workOrderRowTemplate && this.installationWorksheetTemplate && 
+            this.installationWorksheetRowTemplate) {
             return;
         }
         console.log("QuoteGeneratorService: First click detected, fetching templates...");
@@ -58,7 +63,9 @@ export class QuoteGeneratorService {
                 this.gmailClientScript,
                 this.detailedItemListRow,
                 this.workOrderTemplate,
-                this.workOrderRowTemplate
+                this.workOrderRowTemplate,
+                this.installationWorksheetTemplate,
+                this.installationWorksheetRowTemplate
             ] = await Promise.all([
                 fetch(paths.partials.quoteTemplate).then(res => res.text()),
                 fetch(paths.partials.detailedItemList).then(res => res.text()),
@@ -69,7 +76,9 @@ export class QuoteGeneratorService {
                 fetch(paths.partials.gmailClientScript).then(res => res.text()),
                 fetch(paths.partials.detailedItemListRow).then(res => res.text()),
                 fetch(paths.partials.workOrderTemplate).then(res => res.text()),
-                fetch(paths.partials.workOrderTemplateRow).then(res => res.text())
+                fetch(paths.partials.workOrderTemplateRow).then(res => res.text()),
+                fetch(paths.partials.installationWorksheetTemplate).then(res => res.text()),
+                fetch(paths.partials.installationWorksheetTemplateRow).then(res => res.text())
             ]);
             console.log("QuoteGeneratorService: All templates fetched.");
         } catch (error) {
@@ -104,6 +113,33 @@ export class QuoteGeneratorService {
         };
 
         let finalHtml = populateTemplate(this.workOrderTemplate, populatedData);
+        return finalHtml;
+    }
+
+    /**
+     * Generates the HTML for the Installation Worksheet (Original Sequence, No Prices).
+     */
+    async generateInstallationWorksheetHtml(quoteData, currentProductKey) {
+        await this._loadTemplates();
+
+        if (!this.installationWorksheetStrategy) {
+            console.error("QuoteGeneratorService: InstallationWorksheetStrategy is not loaded.");
+            return null;
+        }
+
+        // [NEW] Fetch latest UI and Template Data for accessory population
+        const ui = this.calculationService.stateService.getState().ui;
+        const latestQuoteData = this.calculationService.stateService.getState().quoteData;
+        const templateData = this.calculationService.getQuoteTemplateData(quoteData, ui, latestQuoteData, true);
+
+        const finalHtml = await this.installationWorksheetStrategy.generate(
+            quoteData,
+            currentProductKey,
+            this.installationWorksheetTemplate,
+            this.installationWorksheetRowTemplate,
+            templateData // [NEW] Pass normalized template data
+        );
+
         return finalHtml;
     }
 

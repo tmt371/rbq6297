@@ -411,4 +411,208 @@ export class QuotePersistenceService {
             throw error;
         }
     }
+
+    /**
+     * [NEW] (Phase II.1) Soft Delete: 將報價單標記為 isDeleted: true，
+     * 但保留原始數據於 Firestore 中。
+     * @param {string} quoteId 
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async softDeleteQuote(quoteId) {
+        try {
+            const docRef = doc(db, 'quotes', quoteId);
+            await updateDoc(docRef, { isDeleted: true });
+            console.log(`🗑️ [Admin] Quote ${quoteId} soft-deleted (flagged).`);
+            return { success: true };
+        } catch (e) {
+            console.error(`❌ [Admin] Soft delete failed for ${quoteId}:`, e);
+            return { success: false, error: e.message };
+        }
+    }
+
+    /**
+     * [NEW] (Phase II.1) Hard Delete: 使用批量寫入 (Batch) 永久從 Firestore 中移除文件。
+     * 強烈建議僅由 God Mode 管理員操作。
+     * @param {Array<string>} quoteIdArray 
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async hardDeleteQuotes(quoteIdArray) {
+        if (!Array.isArray(quoteIdArray) || quoteIdArray.length === 0) return { success: true };
+        
+        const batch = writeBatch(db);
+        quoteIdArray.forEach(id => {
+            const docRef = doc(db, 'quotes', id);
+            batch.delete(docRef);
+        });
+
+        try {
+            await batch.commit();
+            console.log(`🔥 [Admin] Hard deleted ${quoteIdArray.length} quotes from Firestore.`);
+            return { success: true };
+        } catch (e) {
+            console.error('❌ [Admin] Hard delete batch commit failed:', e);
+            return { success: false, error: e.message };
+        }
+    }
+
+    /**
+     * [NEW] Phase II.2.6: Batch Soft Delete using writeBatch for performance.
+     * @param {Array<string>} quoteIdArray 
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async batchSoftDeleteQuotes(quoteIdArray) {
+        if (!Array.isArray(quoteIdArray) || quoteIdArray.length === 0) return { success: true };
+        
+        const batch = writeBatch(db);
+        quoteIdArray.forEach(id => {
+            const docRef = doc(db, 'quotes', id);
+            batch.update(docRef, { isDeleted: true });
+        });
+
+        try {
+            await batch.commit();
+            console.log(`🗑️ [Admin] Batch soft-deleted ${quoteIdArray.length} quotes.`);
+            return { success: true };
+        } catch (e) {
+            console.error('❌ [Admin] Batch soft-delete commit failed:', e);
+            return { success: false, error: e.message };
+        }
+    }
+
+    /**
+     * [NEW] (Phase II.3) Restore: 將報價單恢復為未刪除狀態 (isDeleted: false)。
+     * @param {string} quoteId 
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async restoreQuote(quoteId) {
+        try {
+            const docRef = doc(db, 'quotes', quoteId);
+            await updateDoc(docRef, { isDeleted: false });
+            console.log(`✅ [Admin] Quote ${quoteId} restored.`);
+            return { success: true };
+        } catch (e) {
+            console.error(`❌ [Admin] Restoration failed for ${quoteId}:`, e);
+            return { success: false, error: e.message };
+        }
+    }
+
+    /**
+     * [NEW] (Phase II.3) Batch Restore: 使用 writeBatch 批量恢復報價單。
+     * @param {Array<string>} quoteIdArray 
+     * @returns {Promise<{success: boolean, error?: string}>}
+     */
+    async batchRestoreQuotes(quoteIdArray) {
+        if (!Array.isArray(quoteIdArray) || quoteIdArray.length === 0) return { success: true };
+        
+        const batch = writeBatch(db);
+        quoteIdArray.forEach(id => {
+            const docRef = doc(db, 'quotes', id);
+            batch.update(docRef, { isDeleted: false });
+        });
+
+        try {
+            await batch.commit();
+            console.log(`✅ [Admin] Batch restored ${quoteIdArray.length} quotes.`);
+            return { success: true };
+        } catch (e) {
+            console.error('❌ [Admin] Batch restore commit failed:', e);
+            return { success: false, error: e.message };
+        }
+    }
+}
+
+/**
+ * [NEW] (Phase II.1 Standalone) Soft Delete function for modular UI access.
+ */
+export async function softDeleteQuote(quoteId) {
+    try {
+        const docRef = doc(db, 'quotes', quoteId);
+        await updateDoc(docRef, { isDeleted: true });
+        console.log(`🗑️ [Admin] Quote ${quoteId} soft-deleted (flagged).`);
+        return { success: true };
+    } catch (e) {
+        console.error(`❌ [Admin] Soft delete failed for ${quoteId}:`, e);
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * [NEW] (Phase II.3 Standalone) Restore function for modular UI access.
+ */
+export async function restoreQuote(quoteId) {
+    try {
+        const docRef = doc(db, 'quotes', quoteId);
+        await updateDoc(docRef, { isDeleted: false });
+        console.log(`✅ [Admin] Quote ${quoteId} restored.`);
+        return { success: true };
+    } catch (e) {
+        console.error(`❌ [Admin] Restoration failed for ${quoteId}:`, e);
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * [NEW] (Phase II.1 Standalone) Hard Delete function for modular UI access.
+ */
+export async function hardDeleteQuotes(quoteIdArray) {
+    if (!Array.isArray(quoteIdArray) || quoteIdArray.length === 0) return { success: true };
+    
+    const batch = writeBatch(db);
+    quoteIdArray.forEach(id => {
+        const docRef = doc(db, 'quotes', id);
+        batch.delete(docRef);
+    });
+
+    try {
+        await batch.commit();
+        console.log(`🔥 [Admin] Hard deleted ${quoteIdArray.length} quotes from Firestore.`);
+        return { success: true };
+    } catch (e) {
+        console.error('❌ [Admin] Hard delete batch commit failed:', e);
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * [NEW] (Phase II.2.6 Standalone) Batch Soft Delete function for modular UI access.
+ */
+export async function batchSoftDeleteQuotes(quoteIdArray) {
+    if (!Array.isArray(quoteIdArray) || quoteIdArray.length === 0) return { success: true };
+    
+    const batch = writeBatch(db);
+    quoteIdArray.forEach(id => {
+        const docRef = doc(db, 'quotes', id);
+        batch.update(docRef, { isDeleted: true });
+    });
+
+    try {
+        await batch.commit();
+        console.log(`🗑️ [Admin] Batch soft-deleted ${quoteIdArray.length} quotes.`);
+        return { success: true };
+    } catch (e) {
+        console.error('❌ [Admin] Batch soft-delete commit failed:', e);
+        return { success: false, error: e.message };
+    }
+}
+
+/**
+ * [NEW] (Phase II.3 Standalone) Batch Restore function for modular UI access.
+ */
+export async function batchRestoreQuotes(quoteIdArray) {
+    if (!Array.isArray(quoteIdArray) || quoteIdArray.length === 0) return { success: true };
+    
+    const batch = writeBatch(db);
+    quoteIdArray.forEach(id => {
+        const docRef = doc(db, 'quotes', id);
+        batch.update(docRef, { isDeleted: false });
+    });
+
+    try {
+        await batch.commit();
+        console.log(`✅ [Admin] Batch restored ${quoteIdArray.length} quotes.`);
+        return { success: true };
+    } catch (e) {
+        console.error('❌ [Admin] Batch restore commit failed:', e);
+        return { success: false, error: e.message };
+    }
 }

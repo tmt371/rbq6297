@@ -184,8 +184,12 @@ export async function searchQuotesAdvanced(uid, filters) {
         // 6. 執行查詢
         const querySnapshot = await getDocs(q);
         const results = [];
-        querySnapshot.forEach((doc) => {
-            results.push(doc.data());
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            // [NEW] (Phase II.1) 排除已標記為刪除的報價單 (Soft Delete Filter)
+            if (data.isDeleted !== true) {
+                results.push(data);
+            }
         });
 
         if (results.length === 0) {
@@ -217,5 +221,42 @@ export async function searchQuotesAdvanced(uid, filters) {
             return { success: false, data: [], message: `Search error: ${e.message}` };
         }
         return { success: false, data: [], message: `Search error: ${e.message}` };
+    }
+}
+
+/**
+ * [NEW] (Phase II.1) 載入所有報價單供管理端稽核使用 (God Mode)。
+ * 繞過 ownerUid 限制。
+ * @returns {Promise<{success: boolean, data: Array, message: string}>}
+ */
+export async function loadGlobalAuditList() {
+    try {
+        console.log("🌐 [Admin] Fetching global audit list...");
+        // 抓取最近 200 筆報價單進行稽核
+        const q = query(collection(db, 'quotes'), orderBy("issueDate", "desc"), limit(200));
+        const querySnapshot = await getDocs(q);
+        const results = [];
+        querySnapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            results.push({
+                quoteId: data.quoteId || docSnap.id,
+                date: data.issueDate || data.creationDate || 'N/A',
+                customerName: data.customer?.name || 'Unknown',
+                customerPhone: data.customer?.phone || 'N/A',
+                customerEmail: data.customer?.email || 'N/A',
+                customerAddress: data.customer?.address || 'N/A',
+                itemCount: (data.products?.[data.currentProduct || 0]?.items?.length) || 0,
+                totalAmount: data.f2Snapshot?.grandTotal || 0,
+                deposit: data.f2Snapshot?.deposit || 0,
+                status: data.status || 'Draft',
+                ownerUid: data.ownerUid || 'System',
+                isDeleted: data.isDeleted || false,
+                notes: data.metadata?.notes || 'No notes available.'
+            });
+        });
+        return { success: true, data: results, message: `Loaded ${results.length} quotes for audit.` };
+    } catch (e) {
+        console.error('Global audit fetch failed:', e);
+        return { success: false, data: [], message: `Fetch error: ${e.message}` };
     }
 }

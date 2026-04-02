@@ -171,6 +171,12 @@ export class AppContext {
         const gthQuoteStrategy = new GthQuoteStrategy();
         this.register('gthQuoteStrategy', gthQuoteStrategy);
 
+        // [NEW] Phase II.6b: 初始化安裝工單策略
+        const installationWorksheetStrategy = new InstallationWorksheetStrategy({
+            dataPreparationService
+        });
+        this.register('installationWorksheetStrategy', installationWorksheetStrategy);
+
 
         // [NEW] (v6297 階段 7) 初始化 QuotePersistenceService
         // [MODIFIED] (v6299 Phase 4) Inject excelExportService here for centralization
@@ -193,7 +199,8 @@ export class AppContext {
             calculationService,
             workOrderStrategy,
             originalQuoteStrategy,
-            gthQuoteStrategy // [NEW]
+            gthQuoteStrategy,
+            installationWorksheetStrategy
         });
         this.register('quoteGeneratorService', quoteGeneratorService);
 
@@ -373,6 +380,7 @@ import { WorkOrderStrategy } from './services/generators/work-order-strategy.js'
 import { OriginalQuoteStrategy } from './services/generators/original-quote-strategy.js';
 // [NEW] (階段 4) Import the new generator strategy
 import { GthQuoteStrategy } from './services/generators/gth-quote-strategy.js';
+import { InstallationWorksheetStrategy } from './services/generators/installation-worksheet-strategy.js';
 
 
 // [NEW IMPORTS]

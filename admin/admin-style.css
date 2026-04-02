@@ -1,0 +1,788 @@
+/* ================= A1 ADMIN CORE UI ================= */
+:root {
+    --motor-blue: #007bff;
+    --warning-orange: #ff8800;
+    --danger-red: #dc3545;
+    --elec-purple: #6f42c1;
+    --hdw-green: #28a745;
+    --bg-dark: #212529;
+    --dirty-yellow: #fff9db;
+}
+
+body {
+    font-family: -apple-system, sans-serif;
+    margin: 0;
+    background: #f4f7f9;
+    padding-top: 40px;
+    padding-bottom: 60px;
+}
+
+/* 1. Tabs */
+.tabs-fixed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 2000;
+    display: flex;
+    background: var(--bg-dark);
+    height: 40px;
+}
+
+.tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.tab.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+    border-bottom: 3px solid var(--motor-blue);
+}
+
+/* 2. Content Area & Sections */
+.content {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 25px 15px;
+}
+
+.data-section {
+    position: relative;
+    border: 1.5px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 35px;
+    background: #fff;
+    padding: 20px 10px 5px 10px;
+}
+
+.section-tag {
+    position: absolute;
+    top: -11px;
+    left: 15px;
+    padding: 0 10px;
+    font-size: 10px;
+    font-weight: 900;
+    color: #fff;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+/* 3. Grid Layouts (Desktop vs Mobile) */
+.desktop-header {
+    display: grid;
+    grid-template-columns: 120px 1fr 1fr 80px 80px;
+    gap: 10px;
+    padding: 5px 10px;
+    border-bottom: 1.5px solid #eee;
+    font-size: 10px;
+    font-weight: bold;
+    color: #aaa;
+}
+
+.item-row {
+    display: grid;
+    grid-template-columns: 120px 1fr 1fr 80px 80px;
+    gap: 10px;
+    padding: 10px;
+    border-bottom: 1px solid #f0f0f0;
+    transition: 0.2s;
+}
+
+.item-row:last-child {
+    border-bottom: none;
+}
+
+.id-text {
+    font-family: monospace;
+    color: #aaa;
+    font-size: 11px;
+    align-self: center;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.mobile-hint {
+    display: none;
+    font-size: 9px;
+    color: #999;
+    font-weight: bold;
+    margin-bottom: 2px;
+}
+
+input.data-input {
+    width: 100%;
+    border: 1px solid transparent;
+    background: #f8f9fa;
+    padding: 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+/* 💡 State Classes */
+.edit-active input.data-input {
+    border-color: #ddd;
+    background: #fff;
+}
+
+.is-dirty {
+    background-color: var(--dirty-yellow) !important;
+    border-left: 4px solid #ffc107;
+}
+
+@media (max-width: 768px) {
+    .desktop-header {
+        display: none;
+    }
+
+    .item-row {
+        grid-template-columns: 1fr 1fr;
+        grid-template-areas: "id id" "brand model" "cost price";
+        padding: 15px 10px;
+    }
+
+    .item-row .id-text {
+        grid-area: id;
+        margin-bottom: 8px;
+    }
+
+    .mobile-hint {
+        display: block;
+    }
+
+    input.data-input {
+        text-align: left;
+    }
+}
+
+/* 4. Bottom Drawer */
+.drawer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 3000;
+    background: #fff;
+    border-top: 1px solid #ccc;
+    transition: transform 0.3s ease;
+    transform: translateY(calc(100% - 50px));
+}
+
+.drawer.open {
+    transform: translateY(0);
+}
+
+.drawer-header {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    padding: 0 15px;
+    gap: 15px;
+    background: #fff;
+    border-bottom: 1px solid #eee;
+}
+
+.native-pill {
+    width: 55px;
+    height: 26px;
+    border: 1.5px solid #ccc;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.v-arrow {
+    font-size: 14px;
+    color: #666;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.search-bar {
+    flex: 1;
+    height: 32px;
+    background: #f1f3f5;
+    border: 1px solid #ddd;
+    border-radius: 16px;
+    padding: 0 15px;
+    font-size: 13px;
+    outline: none;
+}
+
+/* Drawer Buttons Layout */
+.drawer-content {
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.btn {
+    padding: 12px 5px;
+    border-radius: 6px;
+    border: none;
+    font-size: 13px;
+    font-weight: 800;
+    cursor: pointer;
+    text-align: center;
+}
+
+.row-2 {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 10px;
+}
+
+.row-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.row-4 {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 10px;
+}
+
+.btn-edit {
+    background: var(--warning-orange);
+    color: #fff;
+}
+
+.btn-abort {
+    border: 1.5px solid var(--danger-red);
+    color: var(--danger-red);
+    background: #fff;
+}
+
+.btn-util {
+    background: #f8f9fa;
+    border: 1px solid #ddd;
+    color: #555;
+    font-size: 11px;
+}
+
+.btn-confirm {
+    background: var(--motor-blue);
+    color: #fff;
+    grid-column: 2;
+    border-bottom: 4px solid #0056b3;
+}
+
+.btn-confirm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-bottom: none;
+}
+
+/* ================= A3 FEE CONFIGURATION CARD ================= */
+.a3-card {
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    background: #fff;
+    max-width: 700px;
+    margin: 20px auto;
+}
+
+.a3-card-header {
+    background: #003366;
+    color: #fff;
+    padding: 18px 24px;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+}
+
+.a3-card-body {
+    padding: 0;
+}
+
+.a3-fee-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.a3-fee-table tr {
+    transition: background 0.2s ease;
+}
+
+.a3-fee-table tr:nth-child(even) {
+    background: #f8f9fa;
+}
+
+.a3-fee-table tr:hover {
+    background: #e9ecef;
+}
+
+.a3-fee-table td {
+    padding: 18px 16px;
+    vertical-align: middle;
+    border-bottom: 1px solid #eee;
+}
+
+.a3-fee-table td:first-child {
+    width: 55px;
+    text-align: center;
+    font-size: 22px;
+}
+
+.a3-fee-table td:nth-child(2) {
+    font-weight: 700;
+    font-size: 14px;
+    color: #333;
+    text-align: center;
+}
+
+.a3-fee-table td:last-child {
+    text-align: right;
+    width: 160px;
+}
+
+.a3-fee-table input.a3-fee-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    font-size: 18px;
+    font-weight: 700;
+    border: 1.5px solid #dee2e6;
+    border-radius: 6px;
+    background: #fff;
+    text-align: right;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    color: #003366;
+}
+
+.a3-fee-table input.a3-fee-input:focus {
+    border-color: #003366;
+    box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.15);
+}
+
+.a3-card-footer {
+    padding: 16px 24px;
+    background: #f8f9fa;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.a3-btn-confirm {
+    padding: 14px 32px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    background: linear-gradient(135deg, #003366, #004080);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.2s;
+    box-shadow: 0 3px 10px rgba(0, 51, 102, 0.3);
+}
+
+.a3-btn-confirm:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 5px 16px rgba(0, 51, 102, 0.4);
+}
+
+.a3-btn-confirm:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0, 51, 102, 0.3);
+}
+
+.a3-btn-confirm:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ================= A2 FABRIC MATRIX VIEWER ================= */
+.a2-container {
+    display: flex;
+    gap: 16px;
+    max-width: 1200px;
+    margin: 10px auto;
+}
+
+.a2-sidebar {
+    width: 160px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.a2-sidebar-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: #999;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 8px 0 4px 4px;
+}
+
+.a2-fabric-btn {
+    padding: 10px 12px;
+    border: 1.5px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    color: #333;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.2s ease;
+}
+
+.a2-fabric-btn:hover {
+    border-color: #003366;
+    color: #003366;
+    background: #f0f4f8;
+}
+
+.a2-fabric-btn.active {
+    background: #003366;
+    color: #fff;
+    border-color: #003366;
+    box-shadow: 0 2px 8px rgba(0, 51, 102, 0.3);
+}
+
+.a2-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.a2-card {
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+    background: #fff;
+}
+
+.a2-card-header {
+    background: #003366;
+    color: #fff;
+    padding: 14px 20px;
+    font-size: 14px;
+    font-weight: 800;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.a2-card-header .a2-fabric-name {
+    font-weight: 400;
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+.a2-matrix-scroll {
+    overflow: auto;
+    max-height: calc(100vh - 160px);
+}
+
+.a2-matrix-table {
+    border-collapse: collapse;
+    font-size: 12px;
+    font-family: 'SF Mono', 'Consolas', monospace;
+    white-space: nowrap;
+}
+
+.a2-matrix-table th {
+    background: #003366;
+    color: #fff;
+    padding: 8px 10px;
+    font-weight: 700;
+    font-size: 11px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.a2-matrix-table th.a2-corner {
+    z-index: 3;
+    left: 0;
+    background: #002244;
+}
+
+.a2-matrix-table td {
+    padding: 6px 10px;
+    text-align: center;
+    border-bottom: 1px solid #f0f0f0;
+    transition: background 0.15s;
+}
+
+.a2-matrix-table td.a2-row-header {
+    font-weight: 700;
+    color: #003366;
+    background: #f8f9fa;
+    text-align: right;
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    border-right: 2px solid #dee2e6;
+}
+
+.a2-matrix-table tbody tr:nth-child(even) td:not(.a2-row-header) {
+    background: #fafbfc;
+}
+
+.a2-matrix-table tbody tr:hover td:not(.a2-row-header) {
+    background: #e8f0fe;
+}
+
+.a2-matrix-table td.a2-null-cell {
+    color: #ccc;
+    font-style: italic;
+}
+
+.a2-empty-state {
+    padding: 60px 20px;
+    text-align: center;
+    color: #999;
+    font-size: 14px;
+}
+
+@media (max-width: 768px) {
+    .a2-container {
+        flex-direction: column;
+    }
+
+    .a2-sidebar {
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .a2-sidebar-title {
+        width: 100%;
+    }
+
+    .a2-fabric-btn {
+        flex: 1;
+        min-width: 60px;
+        text-align: center;
+    }
+}
+
+/* ================= A4 ORDER MANAGEMENT ENHANCEMENTS ================= */
+.a4-control-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.a4-control-bar input[type="text"] {
+    flex: 1;
+    min-width: 200px;
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.a4-control-bar label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #555;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+}
+
+.a4-control-bar select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    background: #fff;
+    cursor: pointer;
+}
+
+#a4-refresh-btn {
+    background: var(--motor-blue);
+    color: #fff;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+#a4-refresh-btn:hover {
+    opacity: 0.9;
+}
+
+.a4-table-scroll-wrapper {
+    overflow-y: auto;
+    max-height: 70vh;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+}
+
+/* Sticky Header for A4 Table */
+.a4-table-scroll-wrapper .desktop-header {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border-bottom: 2px solid #dee2e6;
+}
+
+.a4-info-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.a4-batch-delete-btn {
+    background: #fff;
+    border: 1.5px solid var(--danger-red);
+    color: var(--danger-red);
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.a4-batch-delete-btn:disabled {
+    opacity: 0.3;
+    pointer-events: none;
+    border-color: #ccc;
+    color: #999;
+}
+
+.a4-batch-delete-btn:not(:disabled):hover {
+    background: var(--danger-red);
+    color: #fff;
+}
+
+.a4-row-select, #a4-select-all {
+    width: 17px;
+    height: 17px;
+    cursor: pointer;
+    margin: 0;
+}
+
+/* ================= A4 MODAL UI ================= */
+.a4-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 5000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+.a4-modal-content {
+    background: #fff;
+    padding: 25px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.a4-modal-close {
+    position: absolute;
+    top: 15px;
+    right: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    color: #666;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.a4-modal-close:hover {
+    color: #000;
+}
+
+.a4-view-btn {
+    background: #f0f4f8;
+    border: 1.5px solid #003366;
+    color: #003366;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.a4-view-btn:hover {
+    background: #003366;
+    color: #fff;
+}
+
+.hidden {
+    display: none !important;
+}#a4-batch-hard-delete-btn {
+    background-color: #ffe5e5;
+    color: #cc0000;
+    border: 1px solid #cc0000;
+    font-weight: bold;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#a4-batch-hard-delete-btn:not(:disabled):hover {
+    background-color: #ffcccc;
+}
+
+#a4-batch-hard-delete-btn:disabled {
+    opacity: 0.3;
+    pointer-events: none;
+    border-color: #ccc;
+    color: #999;
+    background-color: #f8f9fa;
+}

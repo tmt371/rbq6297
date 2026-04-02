@@ -26,6 +26,8 @@ export const paths = {
         workOrderTemplate: './04-core-code/ui/partials/work-order-template.html',
         // [NEW] (?Оцо╡ 2) Add path for the work order row template
         workOrderTemplateRow: './04-core-code/ui/partials/work-order-template-row.html',
+        installationWorksheetTemplate: './04-core-code/ui/partials/installation-worksheet-template.html',
+        installationWorksheetTemplateRow: './04-core-code/ui/partials/installation-worksheet-template-row.html',
         // [REMOVED] workOrderCss path is no longer needed as styles are embedded
     },
     // [NEW] Add paths for new refactored tabs

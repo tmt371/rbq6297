@@ -412,6 +412,12 @@ export class AppController {
         this._subscribe(EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, async () => {
             await this.executeWithStateLock(async () => await this.workflowService.handleGenerateWorkOrder());
         });
+        this._subscribe(EVENTS.USER_REQUESTED_GENERATE_INSTALLATION_WORKSHEET, async () => {
+            await this.executeWithStateLock(async () => await this.workflowService.handleGenerateInstallationWorksheet());
+        });
+        this._subscribe(EVENTS.USER_REQUESTED_GENERATE_BOTH_WORKSHEETS, async () => {
+            await this.executeWithStateLock(async () => await this.workflowService.handleGenerateBothWorksheets());
+        });
         this._subscribe(EVENTS.USER_REQUESTED_GENERATE_EXCEL, async () => {
             await this.executeWithStateLock(async () => await this.quotePersistenceService.handleGenerateExcel());
         });
