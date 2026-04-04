@@ -168,6 +168,12 @@ function _parseCsvLine(line) {
     let match;
 
     while (match = regex.exec(line)) {
+        // [FIX] Zero-length match safety valve: if the regex matched at the same
+        // position it was already at (zero-length match), force lastIndex forward
+        // to prevent an infinite loop on lines of purely empty fields (e.g. ",,,,").
+        if (match.index === regex.lastIndex) {
+            regex.lastIndex++;
+        }
         if (match[1] === undefined || match[1] === null) continue;
 
         let value = match[1];
