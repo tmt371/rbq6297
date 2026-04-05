@@ -1,5 +1,14 @@
 // File: 04-core-code/services/state-service.js
 
+// [NEW] Singleton instance export for direct imports
+/** @type {StateService} */
+export let stateService = null;
+
+// [NEW] Setter for the singleton instance
+export const setStateServiceInstance = (instance) => {
+    stateService = instance;
+};
+
 import { EVENTS } from '../config/constants.js';
 import { createRootReducer } from '../reducers/root-reducer.js';
 

@@ -90,6 +90,13 @@ export class F4ActionsView {
             btnGenBothWorksheets: query('#f4-btn-gen-both-worksheets'),
             btnCloseProdCenter: query('#f4-btn-close-prod-center'),
 
+            // [NEW] Load Options Modal
+            loadOptionsModal: query('#f4-load-options-modal'),
+            btnMenuLoadCsv: query('#menu-load-csv'),
+            btnMenuOpenCamera: query('#menu-open-camera'),
+            btnMenuOpenOcr: query('#menu-open-ocr'),
+            btnCloseLoadModal: query('#f4-btn-close-load-modal'),
+
             buttons: {
                 'f1-key-save': query('#f1-key-save'),
                 'f4-key-save-as-new': query('#f4-key-save-as-new'),
@@ -101,6 +108,7 @@ export class F4ActionsView {
                 'f4-key-logout': query(`#${DOM_IDS.F4_BTN_LOGOUT}`),
                 'f4-key-relogin': query(`#${DOM_IDS.F4_BTN_RELOGIN}`),
                 'f1-key-reset': query('#f1-key-reset'),
+                'hidden-ocr-file-input': query('#hidden-ocr-file-input'),
             },
         };
     }
@@ -122,10 +130,9 @@ export class F4ActionsView {
             const buttonEventMap = {
                 'f1-key-save': EVENTS.USER_REQUESTED_SAVE,
                 'f4-key-save-as-new': EVENTS.USER_REQUESTED_SAVE_AS_NEW_VERSION,
-                // 'f4-key-generate-work-order': EVENTS.USER_REQUESTED_GENERATE_WORK_ORDER, // [HIJACKED]
                 [`${DOM_IDS.F4_BTN_GENERATE_XLS}`]: EVENTS.USER_REQUESTED_GENERATE_EXCEL,
                 'f1-key-export': EVENTS.USER_REQUESTED_EXPORT_CSV,
-                'f1-key-load': EVENTS.USER_REQUESTED_LOAD,
+                'menu-load-csv': EVENTS.USER_REQUESTED_LOAD,
                 [`${DOM_IDS.F4_BTN_SEARCH_DIALOG}`]: EVENTS.USER_REQUESTED_SEARCH_DIALOG,
                 'f1-key-reset': EVENTS.USER_REQUESTED_RESET,
                 [`${DOM_IDS.F4_BTN_RELOGIN}`]: EVENTS.USER_REQUESTED_RELOGIN,
@@ -135,8 +142,22 @@ export class F4ActionsView {
 
             if (buttonEventMap[actionId]) {
                 this.eventAggregator.publish(buttonEventMap[actionId]);
+                // Close load modal if it was a menu action
+                if (actionId === 'menu-load-csv' && this.f4.loadOptionsModal) {
+                    this.f4.loadOptionsModal.style.display = 'none';
+                }
+            } else if (actionId === 'f1-key-load') {
+                if (this.f4.loadOptionsModal) {
+                    this.f4.loadOptionsModal.style.display = 'flex';
+                }
+            } else if (actionId === 'f4-btn-close-load-modal') {
+                if (this.f4.loadOptionsModal) {
+                    this.f4.loadOptionsModal.style.display = 'none';
+                }
+            } else if (actionId === 'menu-open-camera') {
+                this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { type: 'info', message: 'Camera module placeholder' });
+                if (this.f4.loadOptionsModal) this.f4.loadOptionsModal.style.display = 'none';
             } else if (actionId === 'f4-key-generate-work-order') {
-                // [NEW] Open Production Center Modal instead of immediate generation
                 if (this.f4.prodCenterModal) {
                     this.f4.prodCenterModal.style.display = 'flex';
                 }
@@ -154,14 +175,10 @@ export class F4ActionsView {
             } else if (actionId === 'f4-status-update-btn') {
                 const newStatus = this.f4.statusDropdown ? this.f4.statusDropdown.value : null;
                 if (newStatus) {
-
-                    // --- [MODIFIED] 精準查帳收費站 ---
                     if (newStatus === QUOTE_STATUS.L_CLOSED) {
                         const metadata = this.currentState?.quoteData?.metadata || {};
                         const payments = Array.isArray(metadata.payments) ? metadata.payments : [];
                         const totalPaid = payments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-
-                        // Determine quote total accurately using grandTotal from UI state or quote snapshot
                         const quoteTotal = parseFloat(this.currentState?.ui?.f2?.grandTotal || this.currentState?.quoteData?.f2Snapshot?.grandTotal || 0);
 
                         if (totalPaid < quoteTotal) {
@@ -169,7 +186,6 @@ export class F4ActionsView {
                                 type: 'warning',
                                 message: `❌ Action Blocked: Full payment required to close order. (Paid: $${totalPaid}, Total: $${quoteTotal})`
                             });
-
                             if (this.currentState && this.currentState.quoteData) {
                                 this.f4.statusDropdown.value = this.currentState.quoteData.status || QUOTE_STATUS.A_SAVED;
                             }
@@ -180,23 +196,15 @@ export class F4ActionsView {
                     if (newStatus === QUOTE_STATUS.D_DEPOSIT_PAID) {
                         const metadata = this.currentState?.quoteData?.metadata || {};
                         const hasPayments = Array.isArray(metadata.payments) && metadata.payments.length > 0;
-
                         if (!hasPayments) {
-                            // Intercept status update and show the payment modal instead
-                            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
-                                type: 'info',
-                                message: 'Payment required before moving to "Deposit Paid".'
-                            });
-
+                            this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { type: 'info', message: 'Payment required before moving to "Deposit Paid".' });
                             if (this.f4.paymentPanel) {
                                 this.f4.paymentPanel.style.display = 'flex';
-                                // Set context FLAG so the modal knows to emit status update upon success
                                 this.f4.paymentPanel.dataset.context = newStatus;
                             }
                             return;
                         }
                     }
-
                     this.eventAggregator.publish(EVENTS.USER_REQUESTED_UPDATE_STATUS, { newStatus });
                 }
             } else if (actionId === 'f4-btn-open-payment-modal') {
@@ -207,7 +215,6 @@ export class F4ActionsView {
             } else if (actionId === 'f4-btn-cancel-payment') {
                 if (this.f4.paymentPanel) {
                     this.f4.paymentPanel.style.display = 'none';
-                    // Revert dropdown if it was an intercepted flow
                     if (this.f4.paymentPanel.dataset.context !== 'manual' && this.currentState && this.currentState.quoteData) {
                         if (this.f4.statusDropdown) {
                             this.f4.statusDropdown.value = this.currentState.quoteData.status || QUOTE_STATUS.A_SAVED;
@@ -227,12 +234,10 @@ export class F4ActionsView {
                         date: dateInput || new Date().toISOString().split('T')[0]
                     });
 
-                    // Cleanup and potentially continue intercepted status update
                     if (this.f4.paymentPanel) {
                         const context = this.f4.paymentPanel.dataset.context;
                         this.f4.paymentPanel.style.display = 'none';
                         this.f4.paymentPanel.dataset.context = '';
-
                         if (context && context !== 'manual') {
                             this.eventAggregator.publish(EVENTS.USER_REQUESTED_UPDATE_STATUS, { newStatus: context });
                         }
@@ -248,8 +253,58 @@ export class F4ActionsView {
             }
         });
 
-        const loadBtn = this.f4.buttons['f1-key-load'];
-        if (loadBtn) loadBtn.textContent = 'Load File';
+        // Device Detection Logic
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || navigator.maxTouchPoints > 0;
+        if (this.f4.btnMenuOpenCamera && !isMobile) {
+            this.f4.btnMenuOpenCamera.disabled = true;
+            this.f4.btnMenuOpenCamera.textContent = '📷 Camera (Mobile/Tablet Only)';
+            this.f4.btnMenuOpenCamera.style.opacity = '0.5';
+            this.f4.btnMenuOpenCamera.style.cursor = 'not-allowed';
+        }
+
+        // [NEW] Bulletproof OCR Delegation (Step 1.2.1 Fix)
+        this._addListener(document, 'click', (e) => {
+            const ocrBtn = e.target.closest('#menu-open-ocr');
+            if (ocrBtn) {
+                e.preventDefault();
+                console.log('✅ [OCR] Open OCR button clicked! Triggering file picker...');
+                const fileInput = document.getElementById('hidden-ocr-file-input');
+                if (fileInput) {
+                    fileInput.click();
+                    // Also close the Load Options Modal manually if delegation picked it up
+                    const modal = document.getElementById('f4-load-options-modal');
+                    if (modal) modal.style.display = 'none';
+                } else {
+                    console.error('❌ [OCR] ERROR: hidden-ocr-file-input not found in DOM!');
+                }
+            }
+        });
+
+        // [NEW] OCR Springboard Listener (Step 1.2.1 Fix)
+        this._addListener(document, 'change', (event) => {
+            if (event.target && event.target.id === 'hidden-ocr-file-input') {
+                const file = event.target.files[0];
+                if (!file) {
+                    console.warn('⚠️ [OCR] No file selected.');
+                    return;
+                }
+
+                console.log('✅ [OCR] File selected, loading to Cropper...');
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const dataUrl = e.target.result;
+                    // Reset input so selecting the same file again triggers 'change'
+                    event.target.value = ''; 
+                    
+                    console.log('✅ [OCR] File read successfully, publishing event...');
+                    this.eventAggregator.publish(EVENTS.USER_REQUESTED_OCR, { imageUrl: dataUrl });
+                };
+                reader.onerror = (error) => {
+                    console.error('❌ [OCR] FileReader error:', error);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
     }
 
     render(state) {

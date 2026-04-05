@@ -6,6 +6,7 @@
 // [MODIFIED] (v6299 Phase 5) Inject configManager into WorkOrderStrategy for height calculation.
 // [MODIFIED] (v6297 Stage 9) Register DataPreparationService.
 // [MODIFIED] (v6297 Stage 9 Phase 3) Inject dataPreparationService into ExcelExportService and WorkOrderStrategy.
+import { OcrApiService } from './services/ocr-api-service.js';
 
 /**
  * @description
@@ -63,6 +64,7 @@ export class AppContext {
         this.register('authService', authService);
 
         const configManager = new ConfigManager(eventAggregator);
+        setConfigManagerInstance(configManager); // [NEW] Set singleton instance
         this.register('configManager', configManager);
 
         // [NEW] (v6297 Stage 9) Initialize DataPreparationService early as it depends on ConfigManager
@@ -72,6 +74,9 @@ export class AppContext {
 
         const productFactory = new ProductFactory({ configManager });
         this.register('productFactory', productFactory);
+
+        const ocrApiService = new OcrApiService();
+        this.register('ocrApiService', ocrApiService);
 
         let initialStateWithData = JSON.parse(JSON.stringify(initialState));
         if (startingQuoteData) {
@@ -84,6 +89,7 @@ export class AppContext {
             productFactory,
             configManager
         });
+        setStateServiceInstance(stateService); // [NEW] Set singleton instance
         this.register('stateService', stateService);
 
         const calculationService = new CalculationService({
@@ -315,6 +321,9 @@ export class AppContext {
             s2View: s2View
         });
         this.register('searchDialogComponent', searchDialogComponent);
+        // --- [NEW] Step 1.1: Initialize OCR View ---
+        const ocrView = new OcrView({ eventAggregator });
+        this.register('ocrView', ocrView);
         // --- [END NEW] ---
 
         // [NEW] Initialize LeftPanelTabManager (Phase 6 Refactor)
@@ -337,10 +346,10 @@ export class AppContext {
 
 // Import all necessary classes
 import { EventAggregator } from './event-aggregator.js';
-import { ConfigManager } from './config-manager.js';
+import { ConfigManager, setConfigManagerInstance } from './config-manager.js';
 import { AppController } from './app-controller.js';
 import { ProductFactory } from './strategies/product-factory.js';
-import { StateService } from './services/state-service.js';
+import { StateService, setStateServiceInstance } from './services/state-service.js';
 import { CalculationService } from './services/calculation-service.js';
 import { FocusService } from './services/focus-service.js';
 import { FileService } from './services/file-service.js';
@@ -371,6 +380,8 @@ import { LeftPanelTabManager } from './ui/left-panel-tab-manager.js'; // [MODIFI
 import { DOM_IDS } from './config/constants.js'; // [MODIFIED]
 // [NEW] (v6298-F4-Search) Import the new search dialog component
 import { SearchDialogComponent } from './ui/search-dialog-component.js';
+// [NEW] Step 1.1: Import OCR View
+import { OcrView } from './ui/ocr-view.js';
 // [NEW] 階段 3：Import S1/S2 視圖
 import { SearchTabS1View } from './ui/views/search-tab-s1-view.js';
 import { SearchTabS2View } from './ui/views/search-tab-s2-view.js';

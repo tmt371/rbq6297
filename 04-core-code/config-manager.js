@@ -1,4 +1,10 @@
 // /04-core-code/config-manager.js
+// [NEW] (Step 3 Fix) Singleton instance for direct access
+export let configManager = null;
+export const setConfigManagerInstance = (instance) => {
+    configManager = instance;
+};
+export const getConfigManager = () => configManager;
 // [MODIFIED] (Phase 6.3) Refactored to read from Firebase SSOT with local JSON fallback.
 import { f2Config } from './config/f2-config.js';
 import { paths } from './config/paths.js';
@@ -16,6 +22,7 @@ export class ConfigManager {
         this.f2Config = f2Config || {};
         this.fabricTypeSequence = null;
         this.businessRules = null;
+        this.geminiApiKey = null; // [NEW] (Step 3)
         this.isInitialized = false;
     }
 
@@ -38,9 +45,15 @@ export class ConfigManager {
                 data = docSnap.data();
                 source = 'Firestore';
 
+                // [NEW] (Step 3) Extract Gemini API Key from root of document
+                if (data.geminiApiKey) {
+                    this.geminiApiKey = data.geminiApiKey;
+                    console.log("🔑 [ConfigManager] Gemini API Key loaded from Firestore.");
+                }
+
                 // [CRITICAL] Restore 2D price arrays from Firestore Objects
                 // During seeding (Phase 6.2c), we converted prices[][] → prices{0:[], 1:[]}
-                // We must reverse this transformation for calculation-service compatibility.
+// ... existing restoration logic remains ...
                 if (data.matrices) {
                     for (const fabricKey in data.matrices) {
                         const pricesData = data.matrices[fabricKey].prices;
@@ -67,6 +80,11 @@ export class ConfigManager {
                 data = await response.json();
                 source = 'Local JSON';
                 console.log(`✅ ConfigManager: Data loaded from ${source} (fallback).`);
+
+                // [NEW] (Step 3) Extract Gemini API Key from local JSON if available
+                if (data.geminiApiKey) {
+                    this.geminiApiKey = data.geminiApiKey;
+                }
             } catch (jsonError) {
                 console.error("❌ ConfigManager: Both Firestore and local JSON failed.", jsonError);
                 this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, { message: 'Error: Could not load the price list!', type: 'error' });
@@ -85,6 +103,15 @@ export class ConfigManager {
         this.fees = data.fees || { delivery: 0, install: 0, removal: 0 };
         this.isInitialized = true;
         console.log(`ConfigManager initialized successfully from ${source} (V2).`);
+    }
+
+    /**
+     * [NEW] Phase 3: Secure API Key Retrieval
+     * Returns the dynamic Gemini API Key loaded from Firestore.
+     * @returns {string|null}
+     */
+    getGeminiApiKey() {
+        return this.geminiApiKey;
     }
 
     // [NEW] Phase 8.1: Get fee unit prices (from Firestore or local defaults)

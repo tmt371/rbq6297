@@ -35,6 +35,8 @@ class App {
         this.searchDialogComponent = null;
         // [NEW] (第 11 次編修) Store bound handler
         this.reloginHandler = null;
+        // [NEW] Step 1.1: Store OCR View reference
+        this.ocrView = null;
     }
 
     async _loadPartials() {
@@ -228,6 +230,8 @@ class App {
             this.searchDialogComponent.destroy();
             this.searchDialogComponent = null;
         }
+        // [NEW] Step 1.1: Reset OCR View
+        this.ocrView = null;
         // [END v6298-fix-4]
 
         // [NEW] (v6298-fix-3) Destroy components *before* nulling them
@@ -364,6 +368,8 @@ class App {
         // [REMOVED] (Phase 3.5b) K5 components merged into K3
         // [NEW] (v6298-F4-Search) Get the search dialog component
         this.searchDialogComponent = this.appContext.get('searchDialogComponent');
+        // --- [NEW] Step 1.1: Get OCR View ---
+        this.ocrView = this.appContext.get('ocrView');
 
         // Step 4: Initialize the main UI manager.
         this.uiManager = new UIManager({

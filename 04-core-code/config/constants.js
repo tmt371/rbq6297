@@ -78,6 +78,7 @@ export const EVENTS = {
     USER_REQUESTED_EXPORT_CSV: 'userRequestedExportCSV',
     USER_REQUESTED_RESET: 'userRequestedReset',
     USER_REQUESTED_LOAD: 'userRequestedLoad',
+    USER_REQUESTED_OCR: 'userRequestedOcr', // [NEW] Step 1.1
     USER_REQUESTED_LOAD_FROM_CLOUD: 'userRequestedLoadFromCloud', // [MODIFIED] This is now the OLD button event
     USER_CHOSE_SAVE_THEN_LOAD: 'userChoseSaveThenLoad',
     USER_CHOSE_LOAD_DIRECTLY: 'userChoseLoadDirectly',

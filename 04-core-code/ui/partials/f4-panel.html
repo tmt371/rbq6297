@@ -28,12 +28,41 @@
         </div>
         <div class="f4-accordion-content">
             <button id="f1-key-load" class="f4-card-btn">
-                <span class="main-txt text-dark">📂 Load File</span>
-                <span class="sub-txt">Open local quote</span>
+                <span class="main-txt text-dark">📂 Load Data</span>
+                <span class="sub-txt">Select input method</span>
             </button>
             <button id="f4-key-search-dialog" class="f4-card-btn">
                 <span class="main-txt text-dark">🔍 Search</span>
                 <span class="sub-txt">Find by ID / Name</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- [NEW] Load Options Modal -->
+    <div id="f4-load-options-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(2px);">
+        <div style="background: white; padding: 25px; border-radius: 12px; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center;">
+            <h3 style="margin-top: 0; margin-bottom: 20px; color: #333; font-size: 18px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px;">Select Input Method</h3>
+            
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button id="menu-load-csv" class="btn" 
+                    style="padding: 12px; border: 1px solid #007bff; border-radius: 8px; font-weight: bold; cursor: pointer; background: #f0f7ff; color: #007bff;">
+                    📂 Load CSV
+                </button>
+                
+                <button id="menu-open-camera" class="btn" 
+                    style="padding: 12px; border: 1px solid #28a745; border-radius: 8px; font-weight: bold; cursor: pointer; background: #f0fff4; color: #28a745;">
+                    📷 Camera (Mobile/Tablet Only)
+                </button>
+                
+                <button id="menu-open-ocr" class="btn" 
+                    style="padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; background: #6f42c1; color: #fff;">
+                    🤖 Open OCR
+                </button>
+            </div>
+
+            <button id="f4-btn-close-load-modal" class="btn" 
+                style="width: 100%; margin-top: 20px; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-weight: normal; cursor: pointer; background: #fff; color: #666;">
+                Cancel
             </button>
         </div>
     </div>
