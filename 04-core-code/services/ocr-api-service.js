@@ -15,115 +15,158 @@ export class OcrApiService {
         // configManager is fetched directly via getter inside recognizeImages().
 
         this.SYSTEM_PROMPT = `
-You are a highly accurate data extraction system for window furnishing measurement forms.
-Analyze the provided image(s) and extract the tabular data.
-Return ONLY a valid, raw JSON array of objects. Do not wrap in markdown code blocks.
-Each object must represent a row. Extract fields accurately (e.g., Room, Qty, Width, Drop, Control, Fabric, etc.).
-Common fields to look for:
-- Room / Location
-- Quantity
-- Width (mm)
-- Drop / Height (mm)
-- Control Side (L/R)
-- Fabric Name / Color
-- Mounting (IB/OB)
+You are processing a specific window furnishing measurement form. Extract the tabular data and return a valid JSON Array of objects using ONLY the following keys, strictly obeying their data rules.
+
+CRITICAL RULES FOR EXTRACTION (STRICT ENFORCEMENT):
+
+1. "No": Must be the pre-printed item number (digits only).
+2. "Location": Text and numbers (e.g., "bed2", "sliding 2").
+3. IGNORE "G" COLUMN: Completely ignore the "G" column. Do not include it in the JSON.
+4. "Type": Must be STRICTLY "B", "S", "LF", or empty "".
+5. "Fabric": Text representing fabric name/material, or empty "".
+6. "Color": Text representing fabric color, or empty "".
+7. "Width": NUMBERS ONLY. CRITICAL: If the handwritten text contains a formula or calculation (e.g., "30+2250+60" or contains "+", "-", "="), you MUST IGNORE IT and return an empty string "". Do not calculate it. Do not include "mm".
+8. "Height": NUMBERS ONLY. Same rule as Width: If it is a formula or calculation, return empty "". Do not include "mm".
+9. "Over": Must be STRICTLY "O", "OVER", or empty "".
+10. "Mounting": Must be STRICTLY "O", "OUT", "I", "IN", or empty "".
+11. "Control": Must be STRICTLY "L", "R", or empty "".
+12. "Style": Must be STRICTLY "D" or empty "".
+13. "Chain": NUMBERS ONLY (representing chain length), or empty "".
+14. "HD-winder": Must be STRICTLY "H", "E", or empty "".
+
+FORMATTING RULES:
+- Return ONLY a valid, minified JSON array with no markdown formatting and no code block wrappers.
+- Do NOT use unescaped double quotes inside string values.
+- Do NOT include raw newline or carriage return characters inside field values.
+- The output must be parseable by a strict JSON.parse() call with zero modifications.
 `;
     }
 
     /**
-     * Sends a batch of cropped images to Gemini for OCR extraction.
+     * Processes a single image DataURL and returns an array of extracted rows.
+     * Isolated error handling ensures one failed image doesn't abort the whole batch.
+     * @param {string} dataUrl - A single base64 DataURL.
+     * @param {string} apiKey - The Gemini API key.
+     * @param {number} imageIndex - Index for logging purposes.
+     * @returns {Promise<Object[]>} - Extracted rows, or [] on failure.
+     * @private
+     */
+    async _processSingleImage(dataUrl, apiKey, imageIndex) {
+        const base64Data = dataUrl.split(',')[1];
+
+        const payload = {
+            contents: [
+                {
+                    role: "user",
+                    parts: [
+                        { text: this.SYSTEM_PROMPT },
+                        {
+                            inline_data: {
+                                mime_type: "image/jpeg",
+                                data: base64Data
+                            }
+                        }
+                    ]
+                }
+            ],
+            generationConfig: {
+                response_mime_type: "application/json",
+                temperature: 0.1,
+                topP: 0.95,
+                topK: 40,
+                maxOutputTokens: 8192,
+            }
+        };
+
+        try {
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`[OCR Service] Image #${imageIndex + 1} API Error:`, errorData);
+                // Return empty array for this image — don't abort the whole batch
+                return [];
+            }
+
+            const result = await response.json();
+            let jsonString = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (!jsonString) {
+                console.warn(`[OCR Service] Image #${imageIndex + 1}: Gemini returned empty response. Skipping.`);
+                return [];
+            }
+
+            // Strip markdown code block wrapping if present
+            jsonString = jsonString.replace(/^```(json)?\n?/i, '').replace(/\n?```$/i, '').trim();
+
+            const extractedData = JSON.parse(jsonString);
+            const rows = Array.isArray(extractedData) ? extractedData : [extractedData];
+
+            console.log(`[OCR Service] Image #${imageIndex + 1}: Extracted ${rows.length} row(s).`, rows);
+            return rows;
+
+        } catch (error) {
+            // Isolate per-image failures — log raw text and return empty so other images proceed
+            console.error(`[OCR Service] Image #${imageIndex + 1} failed:`, error.message);
+            // [NEW] Dashcam: log the exact raw string that failed to parse
+            if (typeof jsonString !== 'undefined') {
+                console.error(`[OCR Service] Image #${imageIndex + 1} — Raw text that failed JSON.parse:`, jsonString);
+            }
+            return [];
+        }
+    }
+
+    /**
+     * [REFACTORED] Sends each image in a SEPARATE concurrent API call to Gemini,
+     * then flattens all results into a single array of rows.
+     * This prevents token truncation and hallucination on multi-page batches.
      * @param {string[]} base64ImageArray - Array of DataURLs (base64).
-     * @returns {Promise<Object[]>} - Extracted JSON data rows.
+     * @returns {Promise<Object[]>} - All extracted rows from all images, merged.
      */
     async recognizeImages(base64ImageArray) {
         if (!base64ImageArray || base64ImageArray.length === 0) {
             throw new Error('No images provided for OCR.');
         }
 
-        // [NEW] (Step 3 Refactor) Fetch configManager directly via getter
+        // Fetch configManager and apiKey (secure, runtime resolution)
         const configManager = getConfigManager();
         if (!configManager) {
             throw new Error('[OCR Service] ❌ CRITICAL: ConfigManager instance not found. App may not have initialized correctly.');
         }
 
-        // [NEW] (Step 3) Fetch dynamic API Key from ConfigManager
         const apiKey = configManager.getGeminiApiKey();
-
         if (!apiKey) {
             console.error('[OCR Service] ❌ CRITICAL: Gemini API Key is missing from ConfigManager (not in Firestore).');
             throw new Error('System Configuration Error: OCR API Key not found. Please contact support.');
         }
 
-        try {
-            console.log(`[OCR Service] Preparing to process ${base64ImageArray.length} images...`);
+        console.log(`[OCR Service] Starting CONCURRENT processing of ${base64ImageArray.length} image(s)...`);
 
-            // Prepare Gemini 1.5/2.0 API Payload
-            const contents = [
-                {
-                    role: "user",
-                    parts: [
-                        { text: this.SYSTEM_PROMPT },
-                        ...base64ImageArray.map(dataUrl => {
-                            // Extract raw base64 from DataURL
-                            const base64Data = dataUrl.split(',')[1];
-                            return {
-                                inline_data: {
-                                    mime_type: "image/jpeg",
-                                    data: base64Data
-                                }
-                            };
-                        })
-                    ]
-                }
-            ];
+        // [NEW] Map each image to its own isolated Promise
+        const promises = base64ImageArray.map((dataUrl, index) =>
+            this._processSingleImage(dataUrl, apiKey, index)
+        );
 
-            // [MODIFIED] (Step 3) Use dynamic apiKey instead of this.API_KEY
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    contents,
-                    generationConfig: {
-                        response_mime_type: "application/json",
-                        temperature: 0.1,
-                        topP: 0.95,
-                        topK: 40,
-                        maxOutputTokens: 8192,
-                    }
-                })
-            });
+        // [NEW] Run all requests concurrently
+        const resultsPerImage = await Promise.all(promises);
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('[OCR Service] Gemini API Error:', errorData);
-                throw new Error(`Gemini API Error: ${errorData.error?.message || response.statusText}`);
-            }
+        // [NEW] Flatten array-of-arrays into a single merged result set
+        const allRows = resultsPerImage.flat();
 
-            const result = await response.json();
-            
-            // Extract the text content from the first candidate
-            let jsonString = result.candidates?.[0]?.content?.parts?.[0]?.text;
-            if (!jsonString) {
-                throw new Error('Gemini returned an empty response.');
-            }
+        console.log(`[OCR Service] Concurrent processing complete. Total rows extracted: ${allRows.length}`);
 
-            // 1. Log the raw string for debugging (Step 2.2 Fix)
-            console.log('[OCR Service] Raw Gemini Response:', jsonString);
-
-            // 2. Strip potential markdown wrapping (e.g., ```json ... ```)
-            jsonString = jsonString.replace(/^```(json)?\n?/i, '').replace(/\n?```$/i, '').trim();
-
-            // 3. Parse and return the JSON array
-            const extractedData = JSON.parse(jsonString);
-            console.log('[OCR Service] Successfully extracted data:', extractedData);
-            
-            return Array.isArray(extractedData) ? extractedData : [extractedData];
-
-        } catch (error) {
-            console.error('[OCR Service] Exception during recognition:', error);
-            throw error;
+        if (allRows.length === 0) {
+            throw new Error('OCR processing completed but no data was extracted from any image. Please check image quality.');
         }
+
+        return allRows;
     }
 }
+

@@ -122,14 +122,21 @@ export class OcrView {
                     const productData = currentState.quoteData.products[currentProductKey];
                     const currentItems = productData.items || [];
 
-                    // Map JSON keys to strict RBQ internal schema (Step 2.3.4 Refined)
+                    // Map JSON keys to strict RBQ internal schema
+                    // Note: Key names match the canonical schema defined in the Gemini system prompt.
                     const mappedResults = results.map((r, index) => {
                         // 1. Determine Mount (IN/OUT)
-                        const rawMount = (r["Mounting"] || r["mount"] || r["O/I"] || "").toLowerCase();
+                        const rawMount = (
+                            r["Mounting"] || r["Mounting (IB/OB)"] || r["mount"] ||
+                            r["Mount"] || r["IB/OB"] || r["O/I"] || r["M"] || ""
+                        ).toLowerCase();
                         const oiValue = rawMount.includes("out") || rawMount === "o" || rawMount === "ob" || rawMount === "face" ? "OUT" : "IN";
 
                         // 2. Determine Control (L/R)
-                        const rawControl = (r["Control Side"] || r["control"] || r["L/R"] || "").toLowerCase();
+                        const rawControl = (
+                            r["Control"] || r["Control Side (L/R)"] || r["Control Side"] ||
+                            r["control"] || r["L/R"] || r["C"] || ""
+                        ).toLowerCase();
                         const lrValue = rawControl.includes("r") || rawControl === "right" ? "R" : "L";
 
                         // 3. Determine Roll Direction (O for Over, "" for Standard)
@@ -137,38 +144,61 @@ export class OcrView {
                         const overValue = rawOver.includes("OVER") || rawOver === "O" ? "O" : "";
 
                         // 4. Determine Fabric Type (SN for Screen, B1 for Blockout, B2 for LF)
-                        const rawType = (r["Type"] || r["G"] || r["fabricType"] || "").toUpperCase();
-                        let fabricTypeValue = rawType; // fallback
+                        const rawType = (r["Type"] || r["fabricType"] || r["G"] || "").toUpperCase();
+                        let fabricTypeValue = rawType;
 
                         if (rawType.includes("S")) {
                             fabricTypeValue = "SN";
-                        } else if (rawType.includes("B") && !rawType.includes("LF")) {
-                            fabricTypeValue = "B1";
                         } else if (rawType.includes("LF")) {
                             fabricTypeValue = "B2";
+                        } else if (rawType.includes("B")) {
+                            fabricTypeValue = "B1";
                         }
+
+                        // 5. Location — canonical key from new prompt is "Location"
+                        const locationValue = r["Location"] || r["Room / Location"] || r["Room"] || r["location"] || r["Area"] || "";
+
+                        // 6. Width — canonical key from new prompt is "Width"
+                        //    If the value is a formula string (contains +/-/=), the prompt returns ""; parseInt("") → NaN → 0.
+                        const widthValue = parseInt(
+                            r["Width"] || r["Width (mm)"] || r["width"] || r["W"] || r["w"] || r["Width_mm"] || 0, 10
+                        ) || 0;
+
+                        // 7. Height — canonical key from new prompt is "Height"
+                        //    Formula values are returned as "" by the model, safely collapsed to 0.
+                        const heightValue = parseInt(
+                            r["Height"] || r["Drop / Height (mm)"] || r["Drop (mm)"] || r["Drop"] ||
+                            r["drop"] || r["height"] || r["H"] || r["h"] || r["Drop_mm"] || r["height_mm"] || 0, 10
+                        ) || 0;
 
                         return {
                             id: `ocr-${Date.now()}-${index}`, // Mandatory unique ID
-                            productType: 'rollerBlind', // CRITICAL: Prevent ProductFactory crash
-                            location: r["Room"] || r["location"] || r["Location"] || "",
-                            width: parseInt(r["Width (mm)"] || r["width"] || r["Width_mm"], 10) || 0,
-                            height: parseInt(r["Drop (mm)"] || r["height"] || r["Drop_mm"] || r["height_mm"], 10) || 0,
-                            oi: oiValue,      // 'IN' or 'OUT'
-                            lr: lrValue,      // 'L' or 'R'
-                            over: overValue,  // 'O' or ''
-                            fabricType: fabricTypeValue, // e.g. 'B4' or 'SN'
-                            fabric: r["Fabric Name"] || r["fabric"] || r["Material"] || "",
+                            productType: 'rollerBlind',        // CRITICAL: Prevent ProductFactory crash
+                            location: locationValue,
+                            width: widthValue,
+                            height: heightValue,
+                            oi: oiValue,             // 'IN' or 'OUT'
+                            lr: lrValue,             // 'L' or 'R'
+                            over: overValue,         // 'O' or ''
+                            fabricType: fabricTypeValue,
+                            fabric: r["Fabric"] || r["Fabric Name"] || r["fabric"] || r["Material"] || "",
                             color: r["Color"] || r["color"] || ""
                         };
+                    });
+
+                    // 8. [NEW] Ghost Row Filtering: Remove hallucinations with no dimensions
+                    const cleanResults = mappedResults.filter(item => {
+                        const hasWidth = item.width && item.width > 0;
+                        const hasHeight = item.height && item.height > 0;
+                        return hasWidth || hasHeight; // Keep if it has at least one valid dimension
                     });
 
                     // Replace if first row is empty, otherwise append
                     let newItems;
                     if (currentItems.length === 1 && !currentItems[0].width && !currentItems[0].height) {
-                        newItems = mappedResults;
+                        newItems = cleanResults;
                     } else {
-                        newItems = [...currentItems, ...mappedResults];
+                        newItems = [...currentItems, ...cleanResults];
                     }
 
                     // [FIX] Update specific product items instead of root quoteData
@@ -203,7 +233,7 @@ export class OcrView {
 
                     this.eventAggregator.publish(EVENTS.SHOW_NOTIFICATION, {
                         type: 'success',
-                        message: `Successfully extracted ${results.length} items from OCR.`
+                        message: `Successfully extracted ${cleanResults.length} items from OCR.`
                     });
 
                 } catch (error) {

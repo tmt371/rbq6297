@@ -21,6 +21,6 @@ cp index.html style.css public/
 
 echo "STEP 4: Copying project folders (03-data-models, 04-core-code)..."
 # 5. 複製所有的程式碼和資料夾
-cp -r 03-data-models 04-core-code public/
+cp -r 03-data-models 04-core-code admin public/
 
 echo "Build Complete. Output generated in 'public' directory."
