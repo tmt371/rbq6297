@@ -44,29 +44,23 @@ rbq6297/
 
 ---
 
-## SECTION 2: THE IRON RULES (Architectural Boundaries)
+## SECTION 1: SKELETON MAP (Where things are) ---
+- [A4 Modal]: Refactored to a 2x2 Information Grid (Customer | Status, Volume | Accounting) with a dedicated Internal Notes section.
+- [A2 Matrix]: Implemented Cross-Freeze (XY Sticky) Table for large data sets.
 
-- **RULE: [PDF BLOB]** Individual PDF previews MUST use Blob URLs. NEVER use `document.write`.
-- **RULE: [DATA-DRIVEN UI]** Table striping/anchors must use explicit row classes (`row-even`, `row-fifth`) injected via JS strategy.
-- **RULE: [NO HARDCODED SYMBOLS]** Currency formatting belongs in JS utilities; HTML templates must not hardcode `$`.
-- **RULE: [ASCII ONLY]** Accessories must use English strings (e.g., "Set") to avoid PDF encoding corruption (No Japanese/CJK).
-- **RULE: [LF VALIDATION]** Always intercept ineligible fabrics (non B2,3,4) early in `handleSequenceCellClick`.
-- **RULE: [ADMIN AUTH]** User creation MUST use a Secondary Firebase App instance to prevent logging out the active admin.
-- **RULE: [FIRESTORE SECURITY]** The `/users` collection is strictly locked down; read/write access requires verifying the user's `role == 'admin'` directly via `get()`.
+--- SECTION 2: THE IRON RULES (New Boundaries) ---
+- RULE: [MOBILE GRID] All Admin Modals MUST follow the 2x2 grid pattern (Side-by-side on Desktop, Stacked on Mobile) for core metadata.
+- RULE: [STICKY OVERRIDE] Mobile sticky columns MUST use `white-space: normal !important` and `touch-action: pan-y` to prevent scroll-lock and text bleeding.
+- RULE: [A2 XY-STICKY] Pricing matrices must freeze both the top row (Width) and first column (Drop) with appropriate Z-indices.
 
----
-
-## SECTION 3: RECENT CRITICAL FIXES (The "Don't Break Again" List)
-
-- **Double Dollar Signs**: Fixed by centralizing unit formatting to prevent double-injection of currency symbols.
-- **Vanishing PDF Colors**: Resolved by fixing Array Indexing and Detached DOM issues in the generation path.
-- **Silent vs Tab**: Implemented dual-path logic to handle background downloads vs. active tab previews correctly.
-- **CSV Parser Infinite Loop**: Added `lastIndex` progression guard for empty regex matches during parsing.
-- **Auth Link Expired**: Fixed password resets by adding `actionCodeSettings` with `window.location.origin` to force local redirects.
-- **Swipeable Admin Tabs**: Implemented horizontal overflow flexboxes for Admin navigation on mobile.
+--- SECTION 3: RECENT CRITICAL FIXES (Regression Prevention) ---
+- Fix: A4 "Super-Sticky" single composite column (Checkbox + ID + View) to prevent Webkit column collision.
+- Fix: A3 Fee Layout (Constrained input width to 80px to prevent label truncation).
+- Fix: A1/A2 Vertical Scroll Lock (Fixed via `overflow-y: auto` on tab containers).
+- Fix: Modal Order ID Injection (Ensuring ID is visible at the top of all detail views).
+- Fix: Auth Link Expired (Added `actionCodeSettings` with `window.location.origin` to force local redirects).
+- Fix: Swipeable Admin Tabs (Implemented horizontal overflow flexboxes for Admin navigation on mobile).
 
 ---
 > [!NOTE]
 > All architecture reports and decision logs MUST be saved to `C:\rbq6297\_Architecture_Reports`.
-
-任務完成

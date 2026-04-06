@@ -59,29 +59,49 @@ export const AdminOrderView = {
                 </button>
             </div>
 
-            <!-- 2. Info Bar -->
-            <div class="a4-info-bar">
-                <span id="a4-status-text">SYNCING...</span>
-                <div id="a4-batch-controls" style="display: flex; gap: 10px; align-items: center;">
-                    <span id="a4-selected-count" style="color: var(--danger-red); font-weight: 800;">0 SELECTED</span>
-                    
-                    <!-- Conditional Batch Buttons -->
-                    <button id="a4-batch-delete-btn" class="a4-batch-delete-btn ${currentViewMode === 'deleted' ? 'hidden' : ''}" disabled>🗑️ Batch Soft Delete</button>
-                    <button id="a4-batch-restore-btn" class="btn btn-confirm ${currentViewMode === 'active' ? 'hidden' : ''}" style="margin:0; padding: 4px 12px; font-size: 11px;" disabled>✅ Batch Restore</button>
-                    <button id="a4-batch-hard-delete-btn" class="${currentViewMode === 'active' ? 'hidden' : ''}" style="margin:0;" disabled>💀 Batch Hard Delete</button>
+            <!-- 2. Info Bar (Split for UX) -->
+            <div class="a4-status-bar">
+                <div class="a4-status-header" id="a4-status-text">SYNCING...</div>
+                <div class="a4-status-actions" id="a4-batch-controls">
+                    <span class="selected-count" id="a4-selected-count">0 SELECTED</span>
+                    <div style="display: flex; gap: 8px;">
+                        <!-- Conditional Batch Buttons -->
+                        <button id="a4-batch-delete-btn" class="a4-batch-delete-btn ${currentViewMode === 'deleted' ? 'hidden' : ''}" disabled>🗑️ Batch Soft Delete</button>
+                        <button id="a4-batch-restore-btn" class="btn btn-confirm ${currentViewMode === 'active' ? 'hidden' : ''}" style="margin:0; padding: 4px 12px; font-size: 11px;" disabled>✅ Batch Restore</button>
+                        <button id="a4-batch-hard-delete-btn" class="${currentViewMode === 'active' ? 'hidden' : ''}" style="margin:0;" disabled>💀 Batch Hard Delete</button>
+                    </div>
                 </div>
             </div>
 
-            <!-- 3. Table Container -->
+            <!-- 3. Table Container (Refactored to <table> for Super-Sticky support) -->
             <div class="data-section" style="border-color: var(--bg-dark); padding: 0; overflow: hidden; margin-top: 0;">
-                <div class="a4-table-scroll-wrapper">
-                    <div class="desktop-header" style="grid-template-columns: 40px 140px 100px 1fr 100px 200px;">
-                        <input type="checkbox" id="a4-select-all" title="Select All">
-                        <span>QUOTE ID</span><span>DATE</span><span>CUSTOMER</span><span>TOTAL</span><span>ACTIONS</span>
-                    </div>
-                    <div class="item-list" id="a4-order-list">
-                        <!-- Rows injected here -->
-                    </div>
+                <div class="a4-table-container">
+                    <table class="a4-table">
+                        <thead class="a4-table-header">
+                            <tr>
+                                <th class="col-frozen">
+                                    <div class="frozen-top">
+                                        <input type="checkbox" id="a4-select-all" title="Select All">
+                                        <span style="font-size: 10px; font-weight: 900;">ACTIONS</span>
+                                    </div>
+                                    <div class="frozen-bottom">
+                                        <span class="order-id-label">ORDER ID</span>
+                                    </div>
+                                </th>
+                                <th>CLIENT</th>
+                                <th>DATE</th>
+                                <th>TOTAL</th>
+                                <th>STATUS</th>
+                                <th style="text-align: center;">MANAGE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="a4-order-list">
+                            <!-- Rows injected here -->
+                            <tr>
+                                <td colspan="6" style="padding: 40px; text-align: center; color: #666;">🌐 Synchronizing Cloud Database...</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         `;
@@ -130,7 +150,6 @@ export const AdminOrderView = {
             <div id="a4-quick-view-modal" class="a4-modal-overlay hidden">
                 <div class="a4-modal-content">
                     <span class="a4-modal-close" id="a4-modal-close-btn">✖</span>
-                    <h3 style="margin-top:0; font-weight: 800; color: #003366; border-bottom: 2px solid #003366; padding-bottom: 10px;">Order Details</h3>
                     <div id="a4-modal-body" style="margin-top: 15px; line-height: 1.6; font-size: 14px; color: #333;"></div>
                     <div style="margin-top: 25px; text-align: right;">
                         <button class="btn btn-confirm" id="a4-modal-done-btn" style="padding: 8px 20px; font-size: 12px; grid-column: auto;">DONE</button>
@@ -151,17 +170,40 @@ export const AdminOrderView = {
         const quote = allCachedQuotes.find(q => q.quoteId === quoteId);
         if (!quote) return;
         const modalBody = document.getElementById('a4-modal-body');
+        const statusText = quote.isDeleted ? 'DELETED' : 'ACTIVE';
+        const statusClass = quote.isDeleted ? 'status-deleted' : 'status-active';
+
         modalBody.innerHTML = `
-            <div style="background: #f0f4f8; padding: 12px; border-radius: 6px; margin-bottom: 20px;">
-                <div style="margin-bottom: 8px;"><span style="font-size: 10px; font-weight: 900; color: #003366; text-transform: uppercase;">Customer Info</span><br><strong style="font-size: 16px;">${quote.customerName}</strong></div>
-                <strong>Phone:</strong> ${quote.customerPhone}<br><strong>Email:</strong> ${quote.customerEmail}<br><strong>Address:</strong> ${quote.customerAddress}
+            <h3 class="modal-order-id-title" style="margin-top: 0; color: #666; font-size: 14px; border-bottom: 2px solid #eee; padding-bottom: 8px;">Order ID: ${quote.quoteId}</h3>
+            
+            <div class="modal-4block-grid">
+                <div class="info-card">
+                    <h4>CUSTOMER INFO</h4>
+                    <strong>${quote.customerName || 'Unknown'}</strong><br>
+                    Phone: ${quote.customerPhone || 'N/A'}<br>
+                    Email: ${quote.customerEmail || 'N/A'}<br>
+                    Address: ${quote.customerAddress || 'N/A'}
+                </div>
+                <div class="info-card">
+                    <h4>ORDER METADATA</h4>
+                    <strong>Status: <span class="status-badge ${statusClass}">${statusText}</span></strong><br>
+                    Created: ${quote.date?.split('T')[0] || 'N/A'}<br>
+                    Modified: ${quote.lastModified ? quote.lastModified.split('T')[0] : (quote.date?.split('T')[0] || 'N/A')}
+                </div>
+                <div class="info-card">
+                    <h4>VOLUME DATA</h4>
+                    <strong>Total Items:</strong> ${quote.itemCount || 0}
+                </div>
+                <div class="info-card">
+                    <h4>ACCOUNTING</h4>
+                    <strong>Grand Total:</strong> $${Number(quote.totalAmount || 0).toFixed(2)}<br>
+                    <strong>Deposit Paid:</strong> $${Number(quote.deposit || 0).toFixed(2)}
+                </div>
             </div>
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                <div><span style="font-size: 10px; font-weight: 900; color: #003366; text-transform: uppercase;">Volume Data</span><br><strong>Total Items:</strong> ${quote.itemCount}</div>
-                <div><span style="font-size: 10px; font-weight: 900; color: #003366; text-transform: uppercase;">Accounting</span><br><strong>Grand Total:</strong> $${Number(quote.totalAmount).toFixed(2)}<br><strong>Deposit Paid:</strong> $${Number(quote.deposit).toFixed(2)}</div>
-            </div>
-            <div style="background: #fff9db; border: 1px solid #ffeeba; padding: 12px; border-radius: 6px;">
-                <span style="font-size: 10px; font-weight: 900; color: #856404; text-transform: uppercase;">Internal Notes</span><br><div style="font-style: italic; color: #555;">${quote.notes}</div>
+            
+            <div class="internal-notes-container">
+                <h4>INTERNAL NOTES</h4>
+                <div class="notes-content">${quote.notes || '<i>No notes provided.</i>'}</div>
             </div>
         `;
         document.getElementById('a4-quick-view-modal').classList.remove('hidden');
@@ -250,23 +292,50 @@ export const AdminOrderView = {
             let formattedDate = 'N/A';
             if (quote.date && quote.date !== 'N/A') formattedDate = quote.date.split('T')[0];
             
+            const statusLabel = quote.isDeleted ? 'DELETED' : 'ACTIVE';
+            const statusColor = quote.isDeleted ? 'var(--danger-red)' : 'var(--hdw-green)';
+
             html += `
-                <div class="item-row" style="grid-template-columns: 40px 140px 100px 1fr 100px 200px; align-items: center;">
-                    <input type="checkbox" class="a4-row-select" data-id="${quote.quoteId}">
-                    <span class="id-text" style="font-weight: bold; color: #333;">${quote.quoteId}</span>
-                    <span style="font-size: 12px; color: #666;">${formattedDate}</span>
-                    <span style="font-size: 14px; font-weight: 600;">${quote.customerName}</span>
-                    <span style="font-size: 14px; font-weight: 800; color: var(--motor-blue);">$${Number(quote.totalAmount).toFixed(2)}</span>
-                    <div class="input-group" style="flex-direction: row; gap: 4px;">
-                        <button class="a4-view-btn" data-id="${quote.quoteId}" style="margin: 0; padding: 4px 8px;">👁️</button>
+                <tr class="a4-table-row">
+                    <!-- 1. Frozen Column (Checkbox + View + ID) -->
+                    <td class="col-frozen">
+                        <div class="frozen-content">
+                            <div class="frozen-top">
+                                <input type="checkbox" class="a4-row-select" data-id="${quote.quoteId}">
+                                <button class="a4-view-btn btn-view-order" data-id="${quote.quoteId}">👁️ <span>View</span></button>
+                            </div>
+                            <div class="frozen-bottom">
+                                <span class="order-id">${quote.quoteId}</span>
+                            </div>
+                        </div>
+                    </td>
+                    
+                    <!-- 2. Client Name -->
+                    <td><span style="font-size: 14px; font-weight: 600;">${quote.customerName}</span></td>
+                    
+                    <!-- 3. Date -->
+                    <td><span style="font-size: 13px; color: #666;">${formattedDate}</span></td>
+                    
+                    <!-- 4. Total Amount -->
+                    <td><span style="font-size: 14px; font-weight: 800; color: var(--motor-blue);">$${Number(quote.totalAmount).toFixed(2)}</span></td>
+                    
+                    <!-- 5. Status -->
+                    <td><span style="font-size: 10px; font-weight: 900; color: ${statusColor};">${statusLabel}</span></td>
+
+                    <!-- 6. Delete Button (Far Right) -->
+                    <td style="text-align: center;">
                         ${currentViewMode === 'active' ? `
-                            <button class="btn btn-abort soft-delete-btn" data-id="${quote.quoteId}" style="padding: 6px; font-size: 11px; margin: 0; flex: 1;">🗑️ DELETE</button>
+                            <button class="btn btn-abort soft-delete-btn btn-delete-order" data-id="${quote.quoteId}" style="padding: 6px; font-size: 11px; margin: 0; width: 100%;">
+                                🗑️<span> Delete</span>
+                            </button>
                         ` : `
-                            <button class="btn btn-confirm restore-btn" data-id="${quote.quoteId}" style="padding: 6px; font-size: 11px; margin: 0; flex: 1;">✅ RESTORE</button>
-                            <button class="btn btn-abort hard-delete-btn" data-id="${quote.quoteId}" style="padding: 6px; font-size: 11px; margin: 0; background: red;">💀</button>
+                            <div style="display: flex; gap: 4px;">
+                                <button class="btn btn-confirm restore-btn" data-id="${quote.quoteId}" style="padding: 6px; font-size: 11px; margin: 0; flex: 1;" title="Restore">✅</button>
+                                <button class="btn btn-abort hard-delete-btn" data-id="${quote.quoteId}" style="padding: 6px; font-size: 11px; margin: 0; background: red; flex: 1;" title="Permanent Delete">💀</button>
+                            </div>
                         `}
-                    </div>
-                </div>
+                    </td>
+                </tr>
             `;
         });
 
