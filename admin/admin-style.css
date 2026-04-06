@@ -27,10 +27,25 @@ body {
     display: flex;
     background: var(--bg-dark);
     height: 40px;
+    
+    /* [NEW] Swipeable Tabs Logic */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE/Edge */
+}
+
+.tabs-fixed::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
 }
 
 .tab {
-    flex: 1;
+    flex: 0 0 auto; /* Prevent shrinking */
+    min-width: 80px; /* Ensure touch targets are decent */
+    padding: 0 15px;
+    white-space: nowrap; /* Keep text on one line */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -785,4 +800,144 @@ input.data-input {
     border-color: #ccc;
     color: #999;
     background-color: #f8f9fa;
+}
+
+/* ================= A5 USER MANAGEMENT (MODERN CARD GRID) ================= */
+.a5-user-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    margin-top: 25px;
+}
+
+.user-card {
+    background: #fff;
+    border: 1.5px solid #eee;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+    border-top: 4px solid #003366;
+}
+
+.user-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+}
+
+.uc-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    border-bottom: 1px dashed #eee;
+    padding-bottom: 8px;
+}
+
+.uc-row:last-of-type {
+    border-bottom: none;
+}
+
+.uc-label {
+    font-weight: 800;
+    color: #999;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.uc-val {
+    font-size: 14px;
+    color: #333;
+    font-weight: 600;
+}
+
+.email-val {
+    word-break: break-all;
+    max-width: 70%;
+    text-align: right;
+    color: #003366;
+    font-family: monospace;
+}
+
+.uc-actions {
+    margin-top: 15px;
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid #f0f0f0;
+    padding-top: 15px;
+    gap: 8px;
+}
+
+.btn-reset-password {
+    background: #e3f2fd;
+    color: #1976d2;
+    border: 1.5px solid #1976d2;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.btn-toggle-status {
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.btn-toggle-status.deactivate {
+    background: #fff5f5;
+    color: #cc0000;
+    border: 1.5px solid #cc0000;
+}
+
+.btn-toggle-status.activate {
+    background: #f0fff4;
+    color: #28a745;
+    border: 1.5px solid #28a745;
+}
+
+#a5-create-form-container {
+    max-width: 400px;
+    margin: 15px 0;
+    padding: 20px;
+    border: 2px solid #003366;
+    border-radius: 12px;
+    background-color: #fff;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+}
+
+.a5-form-row {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
+
+.a5-form-row label {
+    font-weight: 800;
+    margin-bottom: 6px;
+    font-size: 10px;
+    color: #003366;
+    text-transform: uppercase;
+}
+
+.a5-form-row input, .a5-form-row select {
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1.5px solid #dee2e6;
+    border-radius: 6px;
+    outline: none;
+}
+
+.a5-form-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+}
+
+.a5-create-card {
+    background: #fff;
+    border: 2px solid #003366;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }

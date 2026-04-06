@@ -4,6 +4,7 @@ import { EventAggregator } from '../04-core-code/event-aggregator.js';
 import { db } from '../04-core-code/config/firebase-config.js';
 import { doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 import { AdminOrderView } from './views/admin-order-view.js';
+import { AdminUserView } from './views/admin-user-view.js';
 
 // [NEW] Phase 6.2: Global seeding function for browser console execution
 window.seedFirebaseV2 = async function () {
@@ -74,6 +75,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (index === 0) { activeTab = 'a1'; renderA1Hardware(); }
             else if (index === 2) { activeTab = 'a3'; renderA3Fees(); }
             else if (index === 3) { activeTab = 'a4'; AdminOrderView.render(adminContentArea); }
+            else if (index === 4) { activeTab = 'a5'; AdminUserView.render(adminContentArea); }
             else { activeTab = 'a2'; renderA2Fabrics(); }
         });
     });
