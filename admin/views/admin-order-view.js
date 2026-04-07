@@ -35,26 +35,26 @@ export const AdminOrderView = {
         container.innerHTML = `
             <!-- 1. Control Bar (Strictly English) -->
             <div class="a4-control-bar" style="margin-top: 20px;">
-                <input type="text" id="a4-search-input" placeholder="🔍 Search (ID / Customer)...">
+                <input type="text" id="a4-search-input" placeholder="🔍 Search (ID / Customer)..." class="a4-search-input">
                 
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 11px; font-weight: bold; color: #666;">Date Range:</span>
-                    <input type="date" id="a4-start-date" title="Start Date" style="padding: 5px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;">
-                    <input type="date" id="a4-end-date" title="End Date" style="padding: 5px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px;">
+                <div class="a4-date-range">
+                    <span class="a4-date-label">Date Range:</span>
+                    <input type="date" id="a4-start-date" title="Start Date" class="a4-date-input">
+                    <input type="date" id="a4-end-date" title="End Date" class="a4-date-input">
                 </div>
 
-                <label>
+                <label class="a4-filter-label">
                     <input type="checkbox" id="a4-zero-filter"> $0 Only
                 </label>
 
-                <select id="a4-sort-select">
+                <select id="a4-sort-select" class="a4-sort-select">
                     <option value="desc">⬇️ Newest</option>
                     <option value="asc">⬆️ Oldest</option>
                 </select>
 
-                <button id="a4-refresh-btn">🔄 Refresh</button>
-                <div style="border-left: 1px solid #ccc; height: 24px; margin: 0 5px;"></div>
-                <button id="a4-toggle-view-btn" style="background: ${currentViewMode === 'active' ? '#666' : 'var(--motor-blue)'}; color: white; border: none; font-weight: bold;">
+                <button id="a4-refresh-btn" class="a4-refresh-btn">🔄 Refresh</button>
+                <div class="a4-toolbar-divider"></div>
+                <button id="a4-toggle-view-btn" class="a4-toggle-btn" style="background: ${currentViewMode === 'active' ? '#666' : 'var(--motor-blue)'}; color: white; border: none; font-weight: bold;">
                     ${currentViewMode === 'active' ? '🗑️ Recycle Bin' : '📋 Active Orders'}
                 </button>
             </div>
@@ -343,7 +343,7 @@ export const AdminOrderView = {
 
         // Row Listeners
         listContainer.querySelectorAll('.a4-row-select').forEach(cb => cb.addEventListener('change', () => this.toggleBatchButton()));
-        listContainer.querySelectorAll('.a4-view-btn').forEach(btn => btn.addEventListener('click', (e) => this.showQuickView(e.target.getAttribute('data-id'))));
+        listContainer.querySelectorAll('.a4-view-btn').forEach(btn => btn.addEventListener('click', (e) => this.showQuickView(e.currentTarget.getAttribute('data-id'))));
         
         listContainer.querySelectorAll('.soft-delete-btn').forEach(btn => btn.addEventListener('click', (e) => this.handleSoftDelete(e)));
         listContainer.querySelectorAll('.restore-btn').forEach(btn => btn.addEventListener('click', (e) => this.handleRestore(e)));
@@ -368,7 +368,10 @@ export const AdminOrderView = {
     // --- Action Handlers ---
 
     async handleSoftDelete(e) {
-        const id = e.target.getAttribute('data-id');
+        const btn = e.target.closest('.soft-delete-btn');
+        const id = btn ? btn.dataset.id : null;
+        if (!id) { console.error("❌ [Admin] Missing ID for soft delete"); return; }
+        
         if (confirm(`🗑️ SOFT DELETE: ${id}?\nMove this order to Recycle Bin.`)) {
             const res = await softDeleteQuote(id);
             if (res.success) this.fetchOrders();
@@ -376,7 +379,10 @@ export const AdminOrderView = {
     },
 
     async handleRestore(e) {
-        const id = e.target.getAttribute('data-id');
+        const btn = e.target.closest('.restore-btn');
+        const id = btn ? btn.dataset.id : null;
+        if (!id) return;
+
         if (confirm(`✅ RESTORE: ${id}?\nMove this order back to Active list.`)) {
             const res = await restoreQuote(id);
             if (res.success) this.fetchOrders();
@@ -384,7 +390,10 @@ export const AdminOrderView = {
     },
 
     async handleHardDelete(e) {
-        const id = e.target.getAttribute('data-id');
+        const btn = e.target.closest('.hard-delete-btn');
+        const id = btn ? btn.dataset.id : null;
+        if (!id) return;
+
         const input = prompt(`⚠️ DANGER: PERMANENT DELETION OF ${id}\nThis data will be purged from Firebase.\n\nType "DELETE" to confirm:`);
         if (input === 'DELETE') {
             const res = await hardDeleteQuotes([id]);
