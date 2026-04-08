@@ -772,9 +772,9 @@ export class CalculationService {
             remoteBrand: this._mapBrandName(ui.f1?.remoteBrand),
             wifiBrand: this._mapBrandName(ui.f1?.wifiBrand),
 
-            wo_rb_price: Number(ui.f2.disRbPrice || 0).toFixed(2),
-            wo_acce_price: Number((ui.f2.acceSum || 0) + (ui.f2.eAcceSum || 0)).toFixed(2),
-            wo_total_price: Number(ui.f2.grandTotal || 0).toFixed(2),
+            wo_rb_price:    isWorkOrder ? Number(f1_rb_price   || 0).toFixed(2) : Number(ui.f2.disRbPrice || 0).toFixed(2),
+            wo_acce_price:  isWorkOrder ? Number(acce_total    || 0).toFixed(2) : Number((ui.f2.acceSum || 0) + (ui.f2.eAcceSum || 0)).toFixed(2),
+            wo_total_price: isWorkOrder ? Number(f1_sub_total  || 0).toFixed(2) : Number(ui.f2.grandTotal || 0).toFixed(2),
             summaryData: summaryData,
             uiState: ui
         };
